@@ -7,8 +7,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 
 ## Status
 
-- Current phase: P05
-- Next action: complete the Python profile and activate the strict hooks
+- Current phase: P06
+- Next action: complete the TypeScript profile
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`
 - A box is checked only after the phase implementation commit exists and its
   checks were run; the phase record holds the SHA and evidence.
@@ -22,8 +22,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 | [x] | P02 Implement discovery and candidate snapshots | DONE | [P02](docs/plan/phases/P02.md) |
 | [x] | P03 Implement common policy and documentation gates | DONE | [P03](docs/plan/phases/P03.md) |
 | [x] | P04 Implement the test and coverage engine | DONE | [P04](docs/plan/phases/P04.md) |
-| [ ] | P05 Complete Python and activate the strict hooks | IN_PROGRESS | P05 |
-| [ ] | P06 Complete TypeScript | TODO | P06 |
+| [x] | P05 Complete Python and activate the strict hooks | DONE | [P05](docs/plan/phases/P05.md) |
+| [ ] | P06 Complete TypeScript | IN_PROGRESS | P06 |
 | [ ] | P07 Complete Dart | TODO | P07 |
 | [ ] | P08 Complete PHP | TODO | P08 |
 | [ ] | P09 Complete behavioral scenario enforcement | TODO | P09 |
@@ -45,9 +45,10 @@ the P10 and P12 records.
 6. Commit that progress update separately; it references the implementation
    commit, never its own SHA.
 
-Until the repository gate exists (P05), new code is validated with pinned
-native commands. That construction order is not a shipped bypass: no flag,
-environment variable, or permissive mode is added for it.
+Until the repository gate existed (P00–P04), new code was validated with
+pinned native commands. Since P05 every commit of this repository passes the
+gate through the installed hooks. That construction order is not a shipped
+bypass: no flag, environment variable, or permissive mode was added for it.
 
 ## Decisions
 
