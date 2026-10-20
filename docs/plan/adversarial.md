@@ -1,0 +1,23 @@
+# Adversarial acceptance checklist
+
+Each negative case has a passing control case. Items are integrated into the
+listed phases and rerun in P12. A box is checked only after the P12 rerun.
+
+| Done | ID | Case | Phases | Proof |
+| --- | --- | --- | --- | --- |
+| [ ] | A01 | New unimported executable file is counted and blocked when uncovered, per Tier 1 language | P05–P08 | TODO |
+| [ ] | A02 | A covered component cannot compensate for an uncovered sibling | P04–P08 | TODO |
+| [ ] | A03 | Integration/e2e coverage does not repair insufficient unit coverage | P04 | TODO |
+| [ ] | A04 | Changed-line failure blocks even when component totals pass | P04–P08 | TODO |
+| [ ] | A05 | Native branch failure blocks independently of line coverage, all four profiles | P05–P08 | TODO |
+| [ ] | A06 | Staged source with only an unstaged or untracked covering test is rejected | P02, P05 | TODO |
+| [ ] | A07 | Bad staged test not rescued by unstaged fix; good staged tree not penalized by bad worktree | P02, P05 | TODO |
+| [ ] | A08 | Old reports, missing drivers, missing runners, zero unexpected tests, malformed outputs fail | P04–P08 | TODO |
+| [ ] | A09 | Exact threshold edges incl. just-below minima and very small diffs | P04 | TODO |
+| [ ] | A10 | Deleting tests or changing tool/config/lockfile inputs triggers the rerun | P04, P05 | TODO |
+| [ ] | A11 | Unknown source, missing profiles, skipped checks, incomplete matrix jobs cannot pass | P02, P10 | TODO |
+| [ ] | A12 | Secret or large blob added and removed before the tip is detected in new history | P03, P10 | TODO |
+| [ ] | A13 | Scenarios not satisfied by skips, expected failures, empty selections, stale results | P09 | TODO |
+| [ ] | A14 | Bootstrap and hooks preserve user changes and never auto-stage fixes | P05 | TODO |
+| [ ] | A15 | The engine and native helpers are tested and covered | P05–P08 | TODO |
+| [ ] | A16 | A clean valid four-language repository passes | P11 | TODO |
