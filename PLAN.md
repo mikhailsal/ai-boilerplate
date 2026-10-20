@@ -7,8 +7,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 
 ## Status
 
-- Current phase: P06
-- Next action: complete the TypeScript profile
+- Current phase: P07
+- Next action: complete the Dart profile
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`
 - A box is checked only after the phase implementation commit exists and its
   checks were run; the phase record holds the SHA and evidence.
@@ -23,8 +23,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 | [x] | P03 Implement common policy and documentation gates | DONE | [P03](docs/plan/phases/P03.md) |
 | [x] | P04 Implement the test and coverage engine | DONE | [P04](docs/plan/phases/P04.md) |
 | [x] | P05 Complete Python and activate the strict hooks | DONE | [P05](docs/plan/phases/P05.md) |
-| [ ] | P06 Complete TypeScript | IN_PROGRESS | P06 |
-| [ ] | P07 Complete Dart | TODO | P07 |
+| [x] | P06 Complete TypeScript | DONE | [P06](docs/plan/phases/P06.md) |
+| [ ] | P07 Complete Dart | IN_PROGRESS | P07 |
 | [ ] | P08 Complete PHP | TODO | P08 |
 | [ ] | P09 Complete behavioral scenario enforcement | TODO | P09 |
 | [ ] | P10 Implement portable CI and protection preparation | TODO | P10 |
