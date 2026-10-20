@@ -22,7 +22,7 @@ Continuation of the [traceability matrix](traceability.md).
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| R07.1 | Stable compatible versions with primary sources | P00 | Decision 0001 | TODO |
+| R07.1 | Stable compatible versions with primary sources | P00 | Decision 0001 | DONE |
 | R07.2 | Python: Ruff, Pyright strict, pytest, coverage.py branches, AST metrics | P05 | Python acceptance suite | TODO |
 | R07.3 | TypeScript: Prettier, typed ESLint, strict tsc, Vitest V8 coverage | P06 | TypeScript acceptance suite | TODO |
 | R07.4 | TypeScript: .ts/.tsx/.mts/.cts, remapped source, aliases, references, ESM and CJS | P06 | TypeScript acceptance suite | TODO |
