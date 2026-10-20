@@ -14,7 +14,7 @@ Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 | R01.1 | Tier 1 profiles: Dart VM, Python, TypeScript on Node, PHP | P05–P08 | Per-profile acceptance suites | TODO |
 | R01.2 | Flutter/web detected separately and reported unsupported | P07 | Discovery acceptance case | TODO |
 | R01.3 | Small typed Python core, uv-locked, native tools reused | P01 | `tools/quality/uv.lock`, Pyright strict config, [P01](phases/P01.md) | DONE |
-| R01.4 | Application, tooling core, and dormant helper roles; activation rules | P02, P11 | Activation unit and template tests | TODO |
+| R01.4 | Application, tooling core, and dormant helper roles; activation rules | P02, P11 | `tests/unit/discovery/test_activation.py`; template tests in P11 | IN_PROGRESS |
 | R01.5 | Separate policy, snapshot, discovery, process, adapters, reports, CI | P01–P04 | Declared module architecture rule on the core | IN_PROGRESS |
 | R01.6 | No new package manager, build system, parser, or test framework | All | Architecture decision 0003 | TODO |
 | R01.7 | Own code, helpers, and adapters pass rules and coverage | P05–P08 | Self-hosted gate on every commit | TODO |
@@ -36,17 +36,17 @@ Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| R03.1 | Candidate files from Git incl. additions, deletions, renames, `GIT_INDEX_FILE` | P02 | Snapshot unit tests | TODO |
-| R03.2 | Components from manifests and explicit declarations; types by name, extension, shebang | P02 | Discovery unit tests | TODO |
-| R03.3 | Categories; ambiguous or unsupported source fails; unknown assets need classification | P02 | Classification tests | TODO |
-| R03.4 | Isolated candidate tree; worktree, untracked, stale data excluded; index preserved | P02 | Staged/worktree matrix tests | TODO |
-| R03.5 | Candidate identity rechecked before success | P02 | Concurrent-change test | TODO |
-| R03.6 | First commit, alternate index, detached HEAD, unusual paths, exec bits, deletions | P02 | Snapshot edge-case tests | TODO |
-| R03.7 | Symlinks, submodules, LFS handled safely or rejected explicitly | P02 | Snapshot edge-case tests | TODO |
-| R03.8 | No escape via source links, config, ambient paths, or inherited Git variables | P02, P05–P08 | Environment sanitation tests | TODO |
-| R03.9 | Commit diff: index vs HEAD (empty tree first); amend and merge modes; unmerged index rejected | P02, P04 | Diff mode tests | TODO |
-| R03.10 | PR/merge: base, source head, tested snapshot; merge base; reconciled lines; merge queue | P02, P10 | Revision mapping tests | TODO |
-| R03.11 | Missing history or unresolvable mapping fails | P02, P10 | Shallow-clone tests | TODO |
+| R03.1 | Candidate files from Git incl. additions, deletions, renames, `GIT_INDEX_FILE` | P02 | `tests/unit/gitio/test_candidate.py`, `test_diff.py`, `tests/unit/cli/test_inventory_cmd.py` | DONE |
+| R03.2 | Components from manifests and explicit declarations; types by name, extension, shebang | P02 | `tests/unit/discovery/test_filetypes.py`, `test_manifests.py`, `test_inventory.py`, decision 0006 | DONE |
+| R03.3 | Categories; ambiguous or unsupported source fails; unknown assets need classification | P02 | `tests/unit/discovery/test_classify.py`, `test_inventory.py` | DONE |
+| R03.4 | Isolated candidate tree; worktree, untracked, stale data excluded; index preserved | P02 | `tests/unit/gitio/test_snapshot.py::test_only_staged_content_is_tested` | DONE |
+| R03.5 | Candidate identity rechecked before success | P02 | `tests/unit/gitio/test_candidate.py::test_concurrent_index_changes_are_detected`; gate call in P05 | DONE |
+| R03.6 | First commit, alternate index, detached HEAD, unusual paths, exec bits, deletions | P02 | `tests/unit/gitio/test_candidate.py`, `test_tree.py`, `test_snapshot.py` | DONE |
+| R03.7 | Symlinks, submodules, LFS handled safely or rejected explicitly | P02 | `tests/unit/gitio/test_snapshot.py`, `tests/unit/discovery/test_inventory.py` | DONE |
+| R03.8 | No escape via source links, config, ambient paths, or inherited Git variables | P02, P05–P08 | `tests/unit/gitio/test_repo.py`, `test_snapshot.py`; profile proofs in P05–P08 | IN_PROGRESS |
+| R03.9 | Commit diff: index vs HEAD (empty tree first); amend and merge modes; unmerged index rejected | P02, P04 | `tests/unit/gitio/test_revisions.py`, `test_candidate.py`; coverage use in P04 | IN_PROGRESS |
+| R03.10 | PR/merge: base, source head, tested snapshot; merge base; reconciled lines; merge queue | P02, P10 | `tests/unit/gitio/test_revisions.py`; CI arguments in P10 | IN_PROGRESS |
+| R03.11 | Missing history or unresolvable mapping fails | P02, P10 | `tests/unit/gitio/test_revisions.py::test_missing_history_fails`; shallow clones in P10 | IN_PROGRESS |
 
 ## R04 Common code and repository policy
 

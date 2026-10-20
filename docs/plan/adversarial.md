@@ -10,12 +10,12 @@ listed phases and rerun in P12. A box is checked only after the P12 rerun.
 | [ ] | A03 | Integration/e2e coverage does not repair insufficient unit coverage | P04 | TODO |
 | [ ] | A04 | Changed-line failure blocks even when component totals pass | P04–P08 | TODO |
 | [ ] | A05 | Native branch failure blocks independently of line coverage, all four profiles | P05–P08 | TODO |
-| [ ] | A06 | Staged source with only an unstaged or untracked covering test is rejected | P02, P05 | TODO |
-| [ ] | A07 | Bad staged test not rescued by unstaged fix; good staged tree not penalized by bad worktree | P02, P05 | TODO |
+| [ ] | A06 | Staged source with only an unstaged or untracked covering test is rejected | P02, P05 | P02: the covering test is absent from the snapshot (`test_only_staged_content_is_tested`); gate rejection in P05 |
+| [ ] | A07 | Bad staged test not rescued by unstaged fix; good staged tree not penalized by bad worktree | P02, P05 | P02: snapshot holds staged content only (`test_only_staged_content_is_tested`); gate outcome in P05 |
 | [ ] | A08 | Old reports, missing drivers, missing runners, zero unexpected tests, malformed outputs fail | P04–P08 | TODO |
 | [ ] | A09 | Exact threshold edges incl. just-below minima and very small diffs | P04 | TODO |
 | [ ] | A10 | Deleting tests or changing tool/config/lockfile inputs triggers the rerun | P04, P05 | TODO |
-| [ ] | A11 | Unknown source, missing profiles, skipped checks, incomplete matrix jobs cannot pass | P02, P10 | TODO |
+| [ ] | A11 | Unknown source, missing profiles, skipped checks, incomplete matrix jobs cannot pass | P02, P10 | P02: unknown, unowned, and unsupported files fail discovery (`test_classify.py`, `test_inventory.py`); CI jobs in P10 |
 | [ ] | A12 | Secret or large blob added and removed before the tip is detected in new history | P03, P10 | TODO |
 | [ ] | A13 | Scenarios not satisfied by skips, expected failures, empty selections, stale results | P09 | TODO |
 | [ ] | A14 | Bootstrap and hooks preserve user changes and never auto-stage fixes | P05 | TODO |
