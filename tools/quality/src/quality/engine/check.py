@@ -13,13 +13,15 @@ from datetime import date
 
 from quality.diagnostics import Diagnostic, Rule
 from quality.engine.common import (
+    COMMON_MEASURED,
     COMMON_RULES,
-    PYTHON_RULES,
+    MEASURED_RULES,
     TOOL_RULES,
     Commands,
     Tools,
     candidate_files,
     common_gates,
+    measured_gates,
     tool_findings,
 )
 from quality.engine.profiles import ProfileAdapter
@@ -71,26 +73,50 @@ class Report:
     coverage: tuple[ComponentCoverage, ...] = ()
 
 
+def _own_rules(profile: Profile, adapter: ProfileAdapter | None) -> frozenset[str]:
+    """Return the rules that run over a component's files only when it is checked."""
+    rules = adapter.rules if adapter is not None else ()
+    measured = () if profile in COMMON_MEASURED else MEASURED_RULES
+    return frozenset(rule.id for rule in (*rules, *measured))
+
+
 def ran_rules(
     active: Iterable[Component], checked: Iterable[Component], profiles: Adapters
-) -> frozenset[str]:
-    """Return the rules that ran over the whole candidate, so unused exceptions are reliable."""
+) -> exceptions.Ran:
+    """Return the rules that ran and where, so unused exceptions are reliable.
+
+    The common gates run everywhere, and they measure every Python component. A
+    component's adapter rules, and the structure rules of profiles whose adapter
+    measures, ran only over the files of components that were checked.
+    """
     active = tuple(active)
-    ran = [*COMMON_RULES, *TOOL_RULES]
-    if any(component.profile is Profile.PYTHON for component in active):
-        ran.extend(PYTHON_RULES)
+    ran = {rule.id for rule in (*COMMON_RULES, *TOOL_RULES)}
+    if any(component.profile in COMMON_MEASURED for component in active):
+        ran.update(rule.id for rule in MEASURED_RULES)
     done = {component.id for component in checked}
-    for profile, adapter in profiles.items():
-        members = [component.id for component in active if component.profile is profile]
-        if members and done.issuperset(members):
-            ran.extend(adapter.rules)
-    return frozenset(rule.id for rule in ran)
+    skipped: dict[str, frozenset[str]] = {}
+    for component in active:
+        own = _own_rules(component.profile, profiles.get(component.profile))
+        if component.id in done:
+            ran.update(own)
+        skipped[component.root] = frozenset() if component.id in done else own
+    return exceptions.Ran(frozenset(ran), skipped)
 
 
 def _static(component: Component, adapter: ProfileAdapter, scope: Scope) -> list[Diagnostic]:
-    snapshot = scope.snapshot
-    files = scope.files(component)
-    return tool_findings(lambda: adapter.static(component, snapshot.root, snapshot.work, files))
+    request = scope.static_request(component)
+    found = tool_findings(lambda: adapter.static(request))
+
+    def measured() -> list[Diagnostic]:
+        measurements = adapter.measure(request)
+        if measurements is None:
+            return []
+        sources = scope.sources(component)
+        thresholds = scope.policy.thresholds
+        return list(measured_gates(component, measurements, thresholds, sources))
+
+    found.extend(tool_findings(measured))
+    return found
 
 
 def profile_gates(

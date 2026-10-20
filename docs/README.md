@@ -14,6 +14,7 @@
 | [0008](decisions/0008-test-and-coverage-engine.md) | Test and coverage engine |
 | [0009](decisions/0009-python-profile.md) | Python profile: Ruff, Pyright, pytest, coverage.py |
 | [0010](decisions/0010-launcher-bootstrap-and-hooks.md) | Launcher, bootstrap, doctor, and managed hooks |
+| [0011](decisions/0011-typescript-profile.md) | TypeScript profile: Prettier, ESLint, tsc, Vitest |
 
 ## Reference
 

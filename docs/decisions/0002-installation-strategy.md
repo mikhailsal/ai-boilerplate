@@ -1,6 +1,6 @@
 # 0002 Installation strategy
 
-Status: accepted (P00); amended in P03 and P05.
+Status: accepted (P00); amended in P03, P05, and P06.
 
 Commands that are not implemented yet are named in plain text with the phase
 that delivers them; `quality check` fails documentation that presents a
@@ -32,7 +32,9 @@ standalone tools:
 
 - always: uv, then the uv-managed CPython 3.14.8 and the locked core
   environment, gitleaks;
-- TypeScript profile active: Node.js (npm is bundled);
+- TypeScript profile active: Node.js (npm is bundled), installed by
+  `quality bootstrap` only when a TypeScript component exists, or explicitly
+  with `quality tools install node` (since P06);
 - Dart profile active: the Dart SDK;
 - PHP profile active: `composer.phar`;
 - merge CI and maintainers: osv-scanner and actionlint.
@@ -46,7 +48,9 @@ the system packages.
 ## Project dependencies
 
 - Python components: `uv sync --frozen` from each component's `uv.lock`.
-- TypeScript components: `npm ci` from `package-lock.json`.
+- TypeScript components: `npm ci --ignore-scripts` from `package-lock.json`,
+  with the shared npm cache `$XDG_CACHE_HOME/quality/npm`
+  ([decision 0011](0011-typescript-profile.md#environments)).
 - Dart components: `dart pub get --enforce-lockfile` from `pubspec.lock`.
 - PHP components: `composer install` from `composer.lock`.
 

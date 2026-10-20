@@ -3,12 +3,14 @@ from pathlib import Path
 import pytest
 
 from quality.process import Completed
+from quality.testkit import scratch
 from quality.testkit.gitrepo import GitCommandError, GitRepo
 from quality.testkit.policies import ComponentSpec, build_policy, classification_toml
 from quality.testkit.scratch import (
     CORE_SOURCE,
     component,
     create_project,
+    embed_core,
     output,
     rules_of,
     shared_caches,
@@ -63,8 +65,30 @@ def test_scratch_projects_can_embed_the_core(tmp_path: Path) -> None:
         in (project.path / "quality.toml").read_text()
     )
     assert str(core / "src") in (project.path / "quality").read_text()
+    helper = CORE_SOURCE.parent / "helpers/typescript"
+    assert (core / "helpers/typescript/src/main.ts").read_bytes() == (
+        helper / "src/main.ts"
+    ).read_bytes()
+    assert (core / "helpers/typescript/package.json").is_file()
+    assert sorted(path.name for path in (core / "helpers/typescript").iterdir()) == [
+        "package.json",
+        "src",
+    ]
     assert project.repo.git("status", "--porcelain") == ""
     assert "usage: quality" in output(project.quality("--help"))
+
+
+def test_a_core_without_the_typescript_helper_embeds_without_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "core" / "src"
+    (source / "quality").mkdir(parents=True)
+    (source / "quality" / "__init__.py").write_text("")
+    for name in ("toolchains.toml", "uv.lock"):
+        (source.parent / name).write_text("")
+    monkeypatch.setattr(scratch, "CORE_SOURCE", source)
+    assert embed_core(tmp_path / "copy") == tmp_path / "copy" / "src"
+    assert not (tmp_path / "copy" / "helpers").exists()
 
 
 def test_scratch_commits_stage_the_named_paths_or_everything(tmp_path: Path) -> None:

@@ -85,6 +85,17 @@ source = ["src"]
 tests = { unit = ["tests"] }
 capabilities = ["cli"]
 
+# The Node helper of the TypeScript profile (decision 0011), checked by that
+# profile. A helper bundle is active in this maintainer repository (decision 0003).
+[[components]]
+id = "quality-typescript-helper"
+role = "helper"
+profile = "typescript"
+root = "tools/quality/helpers/typescript"
+source = ["src"]
+tests = { unit = ["tests"] }
+capabilities = ["cli"]
+
 [[classification]]
 pattern = "quality"
 category = "config"

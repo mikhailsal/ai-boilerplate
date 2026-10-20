@@ -1,9 +1,10 @@
-"""Testing: normalized results, suite runs, and the JUnit parser (no subprocesses)."""
+"""Testing: normalized results, suite runs, static requests, and the JUnit parser."""
 
 from quality.testing.junit import parse_junit
 from quality.testing.model import (
     CaseResult,
     Outcome,
+    StaticRequest,
     Suite,
     SuiteRequest,
     SuiteResults,
@@ -14,6 +15,7 @@ from quality.testing.model import (
 __all__ = [
     "CaseResult",
     "Outcome",
+    "StaticRequest",
     "Suite",
     "SuiteRequest",
     "SuiteResults",

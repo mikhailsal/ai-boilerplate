@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from quality.adapters.python.settings import (
+from quality.adapters.settings import (
     CONFIG_LIMIT,
     inside,
     label,

@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from quality.adapters.native import fail, run_tool
-from quality.adapters.python.settings import (
+from quality.adapters.settings import (
     MAX_EXTENDS,
     Report,
     Table,
@@ -20,7 +20,7 @@ from quality.adapters.python.settings import (
     strings,
     table,
 )
-from quality.adapters.python.target import Entry, Target, document, findings, location, number
+from quality.adapters.target import Entry, Target, document, findings, location, number
 from quality.boundedio import ReportError
 from quality.diagnostics import Diagnostic, Rule
 from quality.process import Command, sanitized

@@ -1,4 +1,4 @@
-"""Bounded readers for the native configuration files of a Python component."""
+"""Bounded readers for the native configuration files of a component."""
 
 from __future__ import annotations
 

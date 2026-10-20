@@ -69,3 +69,34 @@ url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_
 sha256 = "325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6"
 packaging = "tar"
 member = "actionlint"
+
+# Node.js runs the TypeScript profile's tools; it is installed with its whole
+# tree because npm and the libraries live beside the executable. Only
+# components with the TypeScript profile need it (decision 0011).
+[tools.node]
+version = "24.22.0"
+binary = "node"
+executable = "bin/node"
+
+[tools.node.artifacts.x86_64]
+url = "https://nodejs.org/dist/v24.22.0/node-v24.22.0-linux-x64.tar.xz"
+sha256 = "cc2f601cee82d9a5a233302fe307abc600727035fd7d2c3a3571755989e95008"
+packaging = "tree"
+member = "node-v24.22.0-linux-x64"
+
+[tools.node.artifacts.aarch64]
+url = "https://nodejs.org/dist/v24.22.0/node-v24.22.0-linux-arm64.tar.xz"
+sha256 = "fef00bb4d36e1c50104a9775a10359beee98f162b4104dd12472c75065c6a143"
+packaging = "tree"
+member = "node-v24.22.0-linux-arm64"
+
+# Exact versions a TypeScript component must lock in its package-lock.json;
+# npm installs them from that lockfile (decision 0011).
+[packages.npm]
+"typescript" = "6.0.3"
+"eslint" = "10.13.0"
+"@eslint/js" = "10.0.1"
+"typescript-eslint" = "8.72.0"
+"prettier" = "3.9.10"
+"vitest" = "5.0.5"
+"@vitest/coverage-v8" = "5.0.5"

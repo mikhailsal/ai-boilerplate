@@ -1,4 +1,4 @@
-"""The files of one component that the static Python tools check, and their reports."""
+"""The files of one component that a profile's static tools check, and their reports."""
 
 from __future__ import annotations
 
@@ -14,8 +14,6 @@ from quality.policy import Component
 from quality.process import Completed
 
 type Entry = dict[str, JsonValue]
-
-STATIC_SUFFIXES = frozenset({".py", ".pyi"})
 
 
 @dataclass(frozen=True, slots=True)

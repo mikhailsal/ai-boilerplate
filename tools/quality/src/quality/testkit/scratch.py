@@ -1,6 +1,6 @@
 """Scratch projects driven through real Git hooks and the core under test.
 
-Each project is a new repository with Python application components. Its
+Each project is a new repository with Python or TypeScript application components. Its
 `quality` entry point runs this checkout's core with the interpreter running the
 suite, so hooks exercise exactly the code under test. A project can instead
 embed a copy of that core at `tools/quality`, where its entry point runs the
@@ -26,12 +26,14 @@ from quality.process import Command, Completed, run
 from quality.testkit.gitrepo import GitRepo
 from quality.testkit.policies import ComponentSpec, classification_toml, policy_toml
 from quality.testkit.pythonproject import python_project
+from quality.testkit.typescriptproject import typescript_project
 
 CORE_SOURCE = Path(quality.__file__).resolve().parents[1]
+TYPESCRIPT_HELPER = Path("helpers") / "typescript"
 EMBEDDED_CORE = "tools/quality"
 README = "# Scratch project\n\nSee [agent instructions](AGENTS.md).\n"
 AGENTS = "# Agents\n\nRun `quality check` before committing and `quality fix` to format.\n"
-IGNORED = ".venv/\n__pycache__/\n"
+IGNORED = ".venv/\n__pycache__/\nnode_modules/\n"
 CORE = """\
 def sign(value: int) -> int:
     if value < 0:
@@ -68,6 +70,11 @@ def shared_caches(environ: Mapping[str, str]) -> dict[str, str]:
 def component(name: str = "app") -> ComponentSpec:
     """Return a Python application component rooted at `name/`."""
     return ComponentSpec(id=name, root=name)
+
+
+def typescript(name: str = "web") -> ComponentSpec:
+    """Return a TypeScript application component rooted at `name/`."""
+    return ComponentSpec(id=name, root=name, profile="typescript")
 
 
 def output(result: Completed) -> str:
@@ -130,11 +137,21 @@ class Project:
 
 
 def embed_core(path: Path) -> Path:
-    """Copy the core under test, its manifest, and its lock to `path`; return its source root."""
+    """Copy the core under test, its manifest, and its lock to `path`; return its source root.
+
+    The TypeScript helper's sources and manifest come along when the core has
+    them, because the adapter runs the helper beside the package; its installed
+    `node_modules` does not.
+    """
     ignored = shutil.ignore_patterns("__pycache__")
     shutil.copytree(CORE_SOURCE / "quality", path / "src" / "quality", ignore=ignored)
     for name in ("toolchains.toml", "uv.lock"):
         shutil.copyfile(CORE_SOURCE.parent / name, path / name)
+    helper = CORE_SOURCE.parent / TYPESCRIPT_HELPER
+    if (helper / "src").is_dir():
+        modules = shutil.ignore_patterns("node_modules")
+        shutil.copytree(helper / "src", path / TYPESCRIPT_HELPER / "src", ignore=modules)
+        shutil.copyfile(helper / "package.json", path / TYPESCRIPT_HELPER / "package.json")
     return path / "src"
 
 
@@ -157,6 +174,9 @@ def create_project(path: Path, *components: ComponentSpec, core: bool = False) -
     repo.write("AGENTS.md", AGENTS)
     repo.write(".gitignore", IGNORED)
     for spec in specs:
+        if spec.profile == "typescript":
+            typescript_project(repo.path / spec.root, name=spec.id)
+            continue
         files = {
             f"src/{spec.id}/__init__.py": "",
             f"src/{spec.id}/core.py": CORE,

@@ -8,10 +8,17 @@ from pathlib import Path
 
 from quality.adapters.native import ToolFailedError
 from quality.diagnostics import Diagnostic, Kind, Rule, Severity
-from quality.discovery import Inventory, active_components, affected_components, build_inventory
+from quality.discovery import (
+    Inventory,
+    Region,
+    active_components,
+    affected_components,
+    build_inventory,
+)
 from quality.engine.profiles import ProfileTests
 from quality.gitio import Candidate, FileChange, Repository, Snapshot, commit_lines, tree_changes
 from quality.policy import Category, Component, Policy, Profile, cross_validate, load_policy
+from quality.testing import StaticRequest
 
 UNAVAILABLE = Rule(
     id="profiles.unavailable",
@@ -101,6 +108,30 @@ class Scope:
             record.path
             for record in self.inventory.files
             if record.component == component.id and record.category in CHECKED
+        )
+
+    def sources(self, component: Component) -> frozenset[str]:
+        """Return the component's checked files inside its source roots."""
+        return frozenset(
+            record.path
+            for record in self.inventory.files
+            if record.component == component.id
+            and record.category in CHECKED
+            and record.region is Region.SOURCE
+        )
+
+    def static_request(self, component: Component) -> StaticRequest:
+        """Name the files a component's static gates check: its code and its config scripts."""
+        configs = tuple(
+            record.path
+            for record in self.inventory.files
+            if record.component == component.id
+            and record.category is Category.CONFIG
+            and record.language is not None
+        )
+        snapshot = self.snapshot
+        return StaticRequest(
+            component, snapshot.root, snapshot.work, self.files(component), configs
         )
 
 

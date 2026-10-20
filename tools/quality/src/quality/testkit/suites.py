@@ -9,8 +9,9 @@ from pathlib import Path
 from quality.adapters.native import ToolFailedError
 from quality.coverage import CoverageReport, parse_coverage_json
 from quality.diagnostics import Diagnostic, Rule
+from quality.metrics import Measurements
 from quality.policy import Component
-from quality.testing import Outcome, Suite, SuiteRequest, SuiteRun
+from quality.testing import Outcome, StaticRequest, Suite, SuiteRequest, SuiteRun
 from quality.testkit.reports import FileSpec, coverage_json, junit_xml
 
 type Cases = tuple[tuple[str, Outcome], ...]
@@ -54,8 +55,9 @@ class ScriptedRunner:
     `hook` can replace the run after the reports are written, to simulate a
     misbehaving runner. Without a script, a run passes and, with `cover`, fully
     covers the component's sources. `problems` are what `prepare` reports per
-    component, `broken` makes it raise that diagnostic as a tool failure, and
-    `findings` are what `static` reports.
+    component, `broken` makes it raise that diagnostic as a tool failure,
+    `findings` are what `static` reports, and `measurements` are what `measure`
+    returns; a component without them is left to the common gates.
     """
 
     scripts: Mapping[tuple[str, Suite], Script]
@@ -65,6 +67,7 @@ class ScriptedRunner:
     problems: Mapping[str, list[Diagnostic]] = field(default_factory=_no_findings)
     broken: Mapping[str, Diagnostic] = field(default_factory=dict[str, Diagnostic])
     findings: Mapping[str, list[Diagnostic]] = field(default_factory=_no_findings)
+    measurements: Mapping[str, Measurements] = field(default_factory=dict[str, Measurements])
     requests: list[SuiteRequest] = field(default_factory=list[SuiteRequest])
     parsed: list[tuple[str, Suite]] = field(default_factory=list[tuple[str, Suite]])
     fresh: list[bool] = field(default_factory=list[bool])
@@ -72,6 +75,7 @@ class ScriptedRunner:
     checked: list[tuple[str, tuple[str, ...]]] = field(
         default_factory=list[tuple[str, tuple[str, ...]]]
     )
+    statics: list[StaticRequest] = field(default_factory=list[StaticRequest])
 
     def prepare(self, component: Component, snapshot: Path, work: Path) -> list[Diagnostic]:
         """Report the scripted configuration problems, or fail as scripted."""
@@ -80,12 +84,15 @@ class ScriptedRunner:
             raise ToolFailedError(self.broken[component.id])
         return list(self.problems.get(component.id, []))
 
-    def static(
-        self, component: Component, snapshot: Path, work: Path, files: tuple[str, ...]
-    ) -> list[Diagnostic]:
+    def static(self, request: StaticRequest) -> list[Diagnostic]:
         """Return the scripted findings and record which files were named."""
-        self.checked.append((component.id, files))
-        return list(self.findings.get(component.id, []))
+        self.statics.append(request)
+        self.checked.append((request.component.id, request.files))
+        return list(self.findings.get(request.component.id, []))
+
+    def measure(self, request: StaticRequest) -> Measurements | None:
+        """Return the scripted measurements of the component, if any."""
+        return self.measurements.get(request.component.id)
 
     def expected(self, path: str) -> bool:
         """Expect Python source files."""

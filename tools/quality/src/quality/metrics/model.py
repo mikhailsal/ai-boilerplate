@@ -6,7 +6,8 @@ them with the policy thresholds. The counting rules are in decision 0007.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from typing import Protocol
 
 
@@ -49,6 +50,23 @@ class StructureError(Exception):
         self.path = path
         self.line = line
         self.message = message
+
+
+@dataclass(frozen=True, slots=True)
+class Measurements:
+    """What a profile adapter measured in one component with its own parser.
+
+    `files` are the measured files and `errors` the files that did not parse.
+    `dependencies` maps a measured file to the files it imports, each with the
+    line of the first such import; the engine keeps the component's source files
+    and checks the declared architecture with them.
+    """
+
+    files: tuple[FileMetrics, ...]
+    errors: tuple[StructureError, ...] = ()
+    dependencies: Mapping[str, Mapping[str, int]] = field(
+        default_factory=dict[str, Mapping[str, int]]
+    )
 
 
 class StructureAnalyzer(Protocol):

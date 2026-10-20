@@ -61,7 +61,7 @@ def check_links(
         external.judge(urls, results),
         [exception for exception in policy.exceptions if exception.rule in LINK_RULES],
         rules=rules,
-        ran=LINK_RULES,
+        ran=exceptions.Ran(LINK_RULES),
         today=today,
     )
     return Report(applied.diagnostics, len(pages), applied.excepted)

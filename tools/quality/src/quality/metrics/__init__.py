@@ -4,8 +4,16 @@ from quality.metrics.model import (
     FileMetrics,
     FunctionMetrics,
     ImportRef,
+    Measurements,
     StructureAnalyzer,
     StructureError,
 )
 
-__all__ = ["FileMetrics", "FunctionMetrics", "ImportRef", "StructureAnalyzer", "StructureError"]
+__all__ = [
+    "FileMetrics",
+    "FunctionMetrics",
+    "ImportRef",
+    "Measurements",
+    "StructureAnalyzer",
+    "StructureError",
+]

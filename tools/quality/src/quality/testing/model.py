@@ -1,4 +1,8 @@
-"""Normalized test results and the request and run records of one suite execution."""
+"""Normalized test results, the records of one suite run, and the static gates' request.
+
+Both requests live here, below the adapters, because the engine builds them and
+every profile adapter receives them.
+"""
 
 from __future__ import annotations
 
@@ -72,6 +76,27 @@ class SuiteRequest:
     output: Path
     started: float
     work: Path
+
+    @property
+    def directory(self) -> Path:
+        """The component root inside the snapshot, where native tools run."""
+        return self.snapshot / self.component.root
+
+
+@dataclass(frozen=True, slots=True)
+class StaticRequest:
+    """The files of one prepared component that its static gates check, in a snapshot.
+
+    `files` are the component's source and test files; `configs` are its
+    configuration files written in a programming language, such as
+    `eslint.config.js`, which formatters check too. Paths are repository paths.
+    """
+
+    component: Component
+    snapshot: Path
+    work: Path
+    files: tuple[str, ...]
+    configs: tuple[str, ...] = ()
 
     @property
     def directory(self) -> Path:

@@ -1,6 +1,6 @@
 # 0004 Candidate snapshots and revision semantics
 
-Status: accepted (P00); amended in P02 and P05.
+Status: accepted (P00); amended in P02, P05, and P06.
 
 ## Candidate identity
 
@@ -48,10 +48,13 @@ that judges a candidate is the candidate's own. The launcher starts the core
 from the working tree, so `check`, `test`, and `self-test` first compare it
 with the candidate's `tools/quality`:
 
-- The compared files are `src/quality/**` without `__pycache__` and the
-  toolchain manifest `toolchains.toml`, by mode and blob ID, the same way Git
-  identifies them. A candidate without a core package (any repository that
-  does not vendor the core) is not compared.
+- The compared files are `src/quality/**` without `__pycache__`, the
+  toolchain manifest `toolchains.toml`, and the TypeScript helper's
+  `helpers/typescript/src/**` and `package.json` (since P06; its
+  `node_modules` is not compared, because the helper imports TypeScript and
+  ESLint from the checked component). They are compared by mode and blob ID,
+  the same way Git identifies them. A candidate without a core package (any
+  repository that does not vendor the core) is not compared.
 - The candidate's `tools/quality/uv.lock` must equal the lockfile the core
   environment was synced from. A difference fails with `core.environment`
   (exit 3): stage or restore the lockfile, so the working tree and the

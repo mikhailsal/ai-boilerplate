@@ -4,9 +4,13 @@ from pathlib import Path
 
 import pytest
 
+from quality.adapters.native import ToolFailedError
 from quality.adapters.python.fixer import PythonFixer
 from quality.adapters.python.profile import PythonProfile
 from quality.adapters.python.provision import PythonSetup
+from quality.adapters.typescript.fixer import TypeScriptFixer
+from quality.adapters.typescript.profile import TypeScriptProfile
+from quality.adapters.typescript.provision import TypeScriptSetup
 from quality.cli import local
 from quality.cli.local import (
     candidate_of,
@@ -18,13 +22,26 @@ from quality.cli.local import (
     local_setups,
     local_tools,
     local_uv,
+    node_environments,
+    node_step,
+    npm_cache,
+    npm_pins,
     pinned,
+    worktree_files,
 )
 from quality.coverage import Counter
 from quality.policy import Profile
 from quality.rules.coverage import ComponentCoverage
 from quality.testkit.gitrepo import GitRepo
-from quality.toolchain import ManifestError, ToolchainError, cache_root, load_manifest, python_root
+from quality.toolchain import (
+    ManifestError,
+    Tool,
+    ToolchainError,
+    cache_root,
+    load_manifest,
+    python_root,
+)
+from quality.toolchain.install import MISSING
 
 SUMMARIES = (
     ComponentCoverage("a", Counter(3, 4), Counter(1, 2), Counter(0, 0)),
@@ -102,13 +119,65 @@ def test_core_tools_live_beside_the_core_interpreter(
 
 def test_the_python_profile_uses_the_installed_tools() -> None:
     profiles = local_profiles()
-    assert list(profiles) == [Profile.PYTHON]
+    assert list(profiles) == [Profile.PYTHON, Profile.TYPESCRIPT]
     python = profiles[Profile.PYTHON]
     assert isinstance(python, PythonProfile)
     assert (python.ruff, python.pyright) == (core_tool("ruff"), core_tool("pyright"))
     assert python.environments.uv == local_uv()
-    assert local_setups() == {Profile.PYTHON: PythonSetup(local_uv())}
-    assert local_fixers() == {Profile.PYTHON: PythonFixer(core_tool("ruff"))}
+    setups, fixers = local_setups(), local_fixers()
+    assert setups[Profile.PYTHON] == PythonSetup(local_uv())
+    assert fixers[Profile.PYTHON] == PythonFixer(core_tool("ruff"))
+
+
+def test_the_typescript_profile_uses_the_pinned_packages_and_the_npm_cache() -> None:
+    profile = local_profiles()[Profile.TYPESCRIPT]
+    setup = local_setups()[Profile.TYPESCRIPT]
+    fixer = local_fixers()[Profile.TYPESCRIPT]
+    assert isinstance(profile, TypeScriptProfile)
+    assert isinstance(setup, TypeScriptSetup)
+    assert isinstance(fixer, TypeScriptFixer)
+    assert profile.pins == setup.pins == fixer.pins == load_manifest().packages["npm"]
+    assert npm_pins() == profile.pins
+    assert npm_cache() == cache_root().parent / "npm" == setup.cache
+    assert node_environments().cache == npm_cache()
+    assert fixer.listing is worktree_files
+
+
+def test_the_npm_pins_need_a_valid_manifest(monkeypatch: pytest.MonkeyPatch) -> None:
+    def broken() -> object:
+        msg = "bad manifest"
+        raise ManifestError(msg)
+
+    monkeypatch.setattr(local, "load_manifest", broken)
+    assert missing(npm_pins) == "toolchain manifest: bad manifest"
+
+
+def test_node_is_located_or_installed_only_when_used() -> None:
+    called: list[tuple[str, Tool, Path]] = []
+
+    def found(name: str, tool: Tool, cache: Path) -> Path:
+        called.append((name, tool, cache))
+        return cache / name
+
+    step = node_step(found)
+    assert called == []
+    assert step() == cache_root() / "node"
+    assert called == [("node", pinned("node"), cache_root())]
+
+    def absent(name: str, tool: Tool, cache: Path) -> Path:
+        raise ToolchainError(MISSING.diagnostic(f"{name} {tool.version} is not installed"))
+
+    with pytest.raises(ToolFailedError, match=r"node .* is not installed") as raised:
+        node_step(absent)()
+    assert raised.value.diagnostic.rule == MISSING.id
+
+
+def test_the_fixer_lists_the_working_tree(project: GitRepo) -> None:
+    project.write(".gitignore", "ignored.txt\n")
+    project.write("ignored.txt", "x\n")
+    project.write("new.txt", "x\n")
+    (project.path / "dir").mkdir()
+    assert worktree_files(project.path) == [".gitignore", "a.txt", "new.txt"]
 
 
 def test_a_revision_is_the_candidate_when_named(project: GitRepo) -> None:

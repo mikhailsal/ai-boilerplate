@@ -1,6 +1,6 @@
 # 0003 Architecture and configuration layout
 
-Status: accepted (P00); launcher path amended in P05.
+Status: accepted (P00); launcher path amended in P05, adapter layout in P06.
 
 ## Repository layout
 
@@ -37,8 +37,10 @@ are enforced on the core by the declared-module architecture rule:
 5. `discovery` – file classification, component ownership, role activation.
 6. `metrics`, `coverage`, `testing` – normalized models and native report
    parsers; no subprocess calls.
-7. `adapters` – one module per language profile; they call native tools through
-   `process` and return normalized results.
+7. `adapters` – one package per language profile, plus modules the profiles
+   share (configuration readers and static-check targets); they call native
+   tools through `process` and return normalized results. The profile packages
+   do not import each other.
 8. `rules` – common repository, documentation, secret, blob, exception,
    structure, and architecture rules over normalized data.
 9. `scenarios`, `ci`, `toolchain`, `hooks`, `reports` – feature modules.

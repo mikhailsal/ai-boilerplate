@@ -11,9 +11,9 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
 from quality.adapters.native import run_tool
-from quality.adapters.python.config import Findings
+from quality.adapters.python.config import STATIC_SUFFIXES, Findings
 from quality.adapters.python.ruff import TIMEOUT, ruff_format, ruff_lint, ruff_settings
-from quality.adapters.python.target import STATIC_SUFFIXES, Target
+from quality.adapters.target import Target
 from quality.diagnostics import Diagnostic
 from quality.policy import Component
 from quality.process import Command, sanitized

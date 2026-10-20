@@ -1,12 +1,14 @@
 """Validator provenance: a candidate is judged by its own core (decision 0004).
 
 The launcher runs the core from the working tree. Before a verdict command
-decides anything, the core compares the files that decide verdicts, its package
-and its toolchain manifest, with the candidate's. When they differ, the
-candidate's core is materialized and runs the same command as a child process,
-so unstaged edits to the validator do not change the verdict. The comparison
-itself runs from the working tree; CI runs the committed core and is the
-boundary for edits to this step.
+decides anything, the core compares the files that decide verdicts, its package,
+its toolchain manifest, and the sources and manifest of the TypeScript helper it
+runs on Node, with the candidate's. When they differ, the candidate's core is
+materialized and runs the same command as a child process, so unstaged edits to
+the validator do not change the verdict. The helper's installed `node_modules`
+does not judge: the helper imports TypeScript and ESLint from the checked
+component. The comparison itself runs from the working tree; CI runs the
+committed core and is the boundary for edits to this step.
 """
 
 from __future__ import annotations
@@ -29,7 +31,11 @@ CORE = "tools/quality"
 PACKAGE = "src/quality"
 MANIFEST = "toolchains.toml"
 LOCK = "uv.lock"
+HELPER = "helpers/typescript"
+HELPER_SOURCE = f"{HELPER}/src"
+HELPER_MANIFEST = f"{HELPER}/package.json"
 CACHE = "__pycache__"
+NODE_MODULES = "node_modules"
 CHILD_TIMEOUT = 6 * 3600.0
 # The launcher runs the core with the same statement; it puts the source root first.
 BOOT = (
@@ -82,9 +88,11 @@ class CandidateCore:
 
 
 def _judges(path: str) -> bool:
-    """Whether a core file decides verdicts: the package without caches, and the manifest."""
-    in_package = path.startswith(f"{PACKAGE}/") and CACHE not in path.split("/")
-    return in_package or path == MANIFEST
+    """Whether a core file decides verdicts: the package and helper sources, and manifests."""
+    parts = path.split("/")
+    in_package = path.startswith(f"{PACKAGE}/") and CACHE not in parts
+    in_helper = path.startswith(f"{HELPER_SOURCE}/") and NODE_MODULES not in parts
+    return in_package or in_helper or path in {MANIFEST, HELPER_MANIFEST}
 
 
 def candidate_core(repo: Repository, tree: str) -> CandidateCore | None:
@@ -101,7 +109,7 @@ def candidate_core(repo: Repository, tree: str) -> CandidateCore | None:
     core = meta[2].decode("ascii")
     entries = list_tree(repo, core)
     files = {entry.path: f"{entry.mode} {entry.oid}" for entry in entries if _judges(entry.path)}
-    if files.keys() <= {MANIFEST}:
+    if not any(path.startswith(f"{PACKAGE}/") for path in files):
         return None
     lock = next((entry.oid for entry in entries if entry.path == LOCK and entry.is_file), None)
     return CandidateCore(core, files, lock)
@@ -121,14 +129,16 @@ def _identity(path: Path, algorithm: str) -> str:
 def running_files(root: Path, algorithm: str = "sha1") -> dict[str, str]:
     """Identify the files of a core directory that judge, as their tree entries would."""
     found: dict[str, str] = {}
-    manifest = root / MANIFEST
-    if manifest.is_symlink() or manifest.exists():
-        found[MANIFEST] = _identity(manifest, algorithm)
-    for directory, directories, files in (root / PACKAGE).walk():
-        directories[:] = [name for name in directories if name != CACHE]
-        for name in files:
-            path = directory / name
-            found[path.relative_to(root).as_posix()] = _identity(path, algorithm)
+    for name in (MANIFEST, HELPER_MANIFEST):
+        manifest = root / name
+        if manifest.is_symlink() or manifest.exists():
+            found[name] = _identity(manifest, algorithm)
+    for tree, skipped in ((PACKAGE, CACHE), (HELPER_SOURCE, NODE_MODULES)):
+        for directory, directories, files in (root / tree).walk():
+            directories[:] = [name for name in directories if name != skipped]
+            for name in files:
+                path = directory / name
+                found[path.relative_to(root).as_posix()] = _identity(path, algorithm)
     return found
 
 

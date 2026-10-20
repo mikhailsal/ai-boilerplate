@@ -1,4 +1,9 @@
-"""`toolchains.toml`: pinned versions, download URLs, and SHA-256 checksums."""
+"""`toolchains.toml`: pinned versions, download URLs, SHA-256 checksums, and package pins.
+
+Standalone tools are downloaded and verified by the core. Package pins are the
+exact versions a profile requires in a component's own lockfile; the package
+manager installs them from that lockfile (decision 0011 for npm).
+"""
 
 from __future__ import annotations
 
@@ -25,14 +30,24 @@ type Name = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9-]*$")]
 type Member = Annotated[
     str, StringConstraints(pattern=r"^[\w.+-]*[\w+-][\w.+-]*(?:/[\w.+-]*[\w+-][\w.+-]*)*$")
 ]
+# npm package names, optionally scoped: lowercase, no leading dot or underscore.
+type PackageName = Annotated[
+    str, StringConstraints(pattern=r"^(?:@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$")
+]
+type ExactVersion = Annotated[str, StringConstraints(pattern=r"^\d+\.\d+\.\d+$")]
 
 
 class Packaging(StrEnum):
-    """How a download holds the executable."""
+    """How a download holds the executable.
+
+    `tree` archives are extracted whole below their single top directory, the
+    `member`, for tools such as Node.js that need their libraries beside them.
+    """
 
     BINARY = "binary"
     TAR = "tar"
     ZIP = "zip"
+    TREE = "tree"
 
 
 class Architecture(StrEnum):
@@ -49,7 +64,7 @@ class Strict(BaseModel):
 
 
 class Artifact(Strict):
-    """One platform download and the archive member that is the executable."""
+    """One platform download and the archive member that is the executable or the tree."""
 
     url: HttpsUrl
     sha256: Sha256
@@ -60,6 +75,9 @@ class Artifact(Strict):
     def _member_matches_packaging(self) -> Self:
         if (self.packaging is Packaging.BINARY) != (self.member is None):
             msg = "'member' is required for archives and not allowed for binary downloads"
+            raise ValueError(msg)
+        if self.packaging is Packaging.TREE and "/" in (self.member or ""):
+            msg = "the 'member' of a tree archive is its single top directory"
             raise ValueError(msg)
         return self
 
@@ -72,12 +90,22 @@ class Extra(Strict):
 
 
 class Tool(Strict):
-    """A pinned tool with one artifact per machine architecture and optional data files."""
+    """A pinned tool with one artifact per machine architecture and optional data files.
+
+    `executable` is the program's path inside the installed directory; it
+    defaults to `binary`, the name of the program.
+    """
 
     version: Annotated[str, StringConstraints(pattern=r"^\d+(?:\.\d+)+$")]
     binary: Name
+    executable: Member | None = None
     artifacts: dict[Architecture, Artifact] = Field(min_length=1)
     extras: dict[Member, Extra] = Field(default_factory=dict[Member, Extra])
+
+    @property
+    def program(self) -> str:
+        """The executable's path relative to the installed directory."""
+        return self.executable or self.binary
 
 
 class Manifest(Strict):
@@ -85,6 +113,9 @@ class Manifest(Strict):
 
     schema_version: Literal[1]
     tools: dict[Name, Tool]
+    packages: dict[Name, dict[PackageName, ExactVersion]] = Field(
+        default_factory=dict[Name, dict[PackageName, ExactVersion]]
+    )
 
 
 class ManifestError(Exception):

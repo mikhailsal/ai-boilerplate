@@ -10,7 +10,7 @@ from quality.adapters.python.profile import RULES, PythonProfile
 from quality.cli.local import core_tool, local_uv
 from quality.diagnostics import Diagnostic
 from quality.policy import Component
-from quality.testing import Suite, SuiteRequest
+from quality.testing import StaticRequest, Suite, SuiteRequest
 from quality.testkit.policies import ComponentSpec, build_policy
 from quality.testkit.pythonproject import python_project
 
@@ -93,7 +93,7 @@ def test_a_configuration_problem_stops_before_the_sync(tmp_path: Path) -> None:
 def test_gates_need_a_prepared_component(tmp_path: Path) -> None:
     profile, app = unprepared(tmp_path), component()
     with pytest.raises(native.ToolFailedError, match="'app' was not prepared"):
-        profile.static(app, tmp_path, tmp_path / "work", ("app/src/a.py",))
+        profile.static(StaticRequest(app, tmp_path, tmp_path / "work", ("app/src/a.py",)))
     output = tmp_path / "out"
     request = SuiteRequest(app, Suite.UNIT, ("tests",), tmp_path, output, 0.0, tmp_path / "work")
     with pytest.raises(native.ToolFailedError, match="'app' was not prepared"):
@@ -110,7 +110,7 @@ def test_only_python_modules_are_expected_in_coverage(tmp_path: Path) -> None:
 def test_static_gates_run_the_pinned_tools(prepared: Prepared) -> None:
     profile, app = prepared.profile, prepared.component
     files = ("app/README.md", *CHECKED)
-    found = profile.static(app, prepared.snapshot, prepared.work, files)
+    found = profile.static(StaticRequest(app, prepared.snapshot, prepared.work, files))
     assert located(found) == [
         ("python.format", "app/src/app/messy.py", 2),
         ("python.lint", "app/src/app/messy.py", 1),
@@ -123,7 +123,9 @@ def test_static_gates_run_the_pinned_tools(prepared: Prepared) -> None:
         "F401: `os` imported but unused",
         "I001: Import block is un-sorted or un-formatted",
     ]
-    assert profile.static(app, prepared.snapshot, prepared.work, ("app/README.md",)) == []
+    readme = StaticRequest(app, prepared.snapshot, prepared.work, ("app/README.md",))
+    assert profile.static(readme) == []
+    assert profile.measure(readme) is None
 
 
 def test_a_failing_tool_is_reported_and_the_others_still_run(
@@ -136,7 +138,7 @@ def test_a_failing_tool_is_reported_and_the_others_still_run(
     profile = PythonProfile(ruff, core_tool("pyright"), environments)
     app, snapshot, work = prepared.component, prepared.snapshot, prepared.work
     assert profile.prepare(app, snapshot, work) == []
-    found = profile.static(app, snapshot, work, ("app/src/app/core.py",))
+    found = profile.static(StaticRequest(app, snapshot, work, ("app/src/app/core.py",)))
     assert [d.rule for d in found] == ["tools.failed", "tools.failed"]
 
 

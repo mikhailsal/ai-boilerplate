@@ -114,6 +114,30 @@ def test_the_running_core_is_current_until_a_judging_file_changes(repo: GitRepo)
     assert running_files(root)["toolchains.toml"].startswith("120000 ")
 
 
+def test_the_typescript_helper_sources_and_manifest_judge(repo: GitRepo) -> None:
+    root = write_core(repo)
+    repo.write("tools/quality/helpers/typescript/package.json", '{"type": "module"}\n')
+    repo.write("tools/quality/helpers/typescript/src/main.ts", "run();\n")
+    repo.write("tools/quality/helpers/typescript/tests/main.test.ts", "test();\n")
+    repo.write("tools/quality/helpers/typescript/src/node_modules/x/index.js", "tracked\n")
+    core = core_of(repo)
+    assert {path for path in core.files if path.startswith("helpers/")} == {
+        "helpers/typescript/package.json",
+        "helpers/typescript/src/main.ts",
+    }
+    helper = root / "helpers" / "typescript"
+    (helper / "node_modules" / "typescript").mkdir(parents=True)
+    (helper / "node_modules" / "typescript" / "package.json").write_text("{}\n")
+    (helper / "src" / "node_modules" / "x" / "index.js").write_text("installed\n")
+    (helper / "tests" / "main.test.ts").write_text("edited();\n")
+    assert provenance.provenance(core, root) is Provenance.CURRENT
+    (helper / "src" / "main.ts").write_text("edited();\n")
+    assert provenance.provenance(core, root) is Provenance.STALE
+    (helper / "src" / "main.ts").write_text("run();\n")
+    (helper / "package.json").write_text("{}\n")
+    assert provenance.provenance(core, root) is Provenance.STALE
+
+
 def test_running_files_mark_special_files(tmp_path: Path) -> None:
     package = tmp_path / "src" / "quality"
     package.mkdir(parents=True)

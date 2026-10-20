@@ -4,7 +4,7 @@ import pytest
 
 from quality.diagnostics import Diagnostic, Kind, Location, Rule, Severity
 from quality.policy import PolicyException
-from quality.rules.exceptions import Applied, apply_exceptions, describe, exceptable
+from quality.rules.exceptions import Applied, Ran, apply_exceptions, describe, exceptable
 
 TODAY = date(2026, 10, 20)
 LATER = date(2027, 1, 1)
@@ -29,7 +29,8 @@ RULES = {
         rule("exceptions.unused"),
     ]
 }
-RAN = frozenset(RULES)
+RAN = Ran(frozenset(RULES))
+NONE = Ran(frozenset())
 
 
 def exception(
@@ -65,7 +66,7 @@ def finding(
 def apply(
     diagnostics: list[Diagnostic],
     *exceptions: PolicyException,
-    ran: frozenset[str] = RAN,
+    ran: Ran = RAN,
     today: date = TODAY,
 ) -> Applied:
     return apply_exceptions(diagnostics, exceptions, rules=RULES, ran=ran, today=today)
@@ -95,7 +96,7 @@ def test_an_exact_match_removes_the_finding() -> None:
     ids=["rule", "path", "directory", "symbol", "no-symbol", "no-location", "kind"],
 )
 def test_anything_but_an_exact_match_is_kept(diagnostic: Diagnostic) -> None:
-    applied = apply([diagnostic], exception(), ran=frozenset())
+    applied = apply([diagnostic], exception(), ran=NONE)
     assert applied.diagnostics == (diagnostic,)
     assert applied.excepted == 0
 
@@ -104,7 +105,7 @@ def test_an_exception_without_symbol_matches_only_findings_without_symbol() -> N
     plain = exception("files.blob-size", "big.bin", None)
     applied = apply([finding("files.blob-size", "big.bin", None)], plain)
     assert (applied.diagnostics, applied.excepted) == ((), 1)
-    applied = apply([finding("files.blob-size", "big.bin", "x")], plain, ran=frozenset())
+    applied = apply([finding("files.blob-size", "big.bin", "x")], plain, ran=NONE)
     assert applied.excepted == 0
 
 
@@ -127,12 +128,33 @@ def test_the_first_matching_exception_is_used_and_the_duplicate_is_unused() -> N
 
 
 def test_unused_exceptions_are_reported_only_for_rules_that_ran() -> None:
-    assert summary(apply([], exception(), ran=frozenset())) == []
+    assert summary(apply([], exception(), ran=NONE)) == []
     assert summary(apply([], exception("structure.complexity", "src/a.py", "f"))) == [
         (
             "exceptions.unused",
             Severity.ERROR,
             "exception for 'structure.complexity' at 'src/a.py' 'f' matches no finding",
+        )
+    ]
+
+
+def test_unused_exceptions_are_reported_only_where_their_rule_ran() -> None:
+    none = frozenset[str]()
+    skipped = {".": none, "web": frozenset({"structure.complexity"}), "web/vendor": none}
+    ran = Ran(frozenset(RULES), skipped)
+    assert not ran.covers("structure.complexity", "web/src/a.ts")
+    assert ran.covers("structure.complexity", "web/vendor/a.ts")
+    assert ran.covers("structure.complexity", "src/a.py")
+    assert ran.covers("structure.complexity", "webapp/a.ts")
+    assert ran.covers("suppressions.inline", "web/src/a.ts")
+    assert not ran.covers("python.lint", "src/a.py")
+    unused = exception("structure.complexity", "web/src/a.ts", "f")
+    assert summary(apply([], unused, ran=ran)) == []
+    assert summary(apply([], unused, ran=Ran(frozenset(RULES), {".": frozenset()}))) == [
+        (
+            "exceptions.unused",
+            Severity.ERROR,
+            "exception for 'structure.complexity' at 'web/src/a.ts' 'f' matches no finding",
         )
     ]
 

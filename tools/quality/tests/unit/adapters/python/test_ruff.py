@@ -7,7 +7,7 @@ import pytest
 
 from quality.adapters.native import ToolFailedError
 from quality.adapters.python.ruff import ruff_format, ruff_lint, ruff_settings
-from quality.adapters.python.target import Target
+from quality.adapters.target import Target
 from quality.diagnostics import Location
 from quality.testkit.policies import ComponentSpec, build_policy
 

@@ -6,7 +6,7 @@ import pytest
 
 from quality.adapters.native import ToolFailedError
 from quality.adapters.python.pyright import pyright_types
-from quality.adapters.python.target import Target
+from quality.adapters.target import Target
 from quality.diagnostics import Location, Severity
 from quality.testkit.policies import ComponentSpec, build_policy
 

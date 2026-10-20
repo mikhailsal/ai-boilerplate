@@ -25,7 +25,7 @@ environment fails with `core.environment`.
 | --- | --- |
 | `bootstrap [--pre-push]` | Install the pinned tools, interpreters, and locked packages, then the managed hooks ([decision 0010](../decisions/0010-launcher-bootstrap-and-hooks.md)) |
 | `doctor [--json]` | Verify offline and read-only that checks can run here |
-| `tools install` | Download, verify, and install the pinned standalone tools |
+| `tools install [NAME ...]` | Download, verify, and install pinned tools from `tools/quality/toolchains.toml`: gitleaks by default, or the named ones such as `node`; bootstrap installs Node only for a TypeScript component |
 
 ## Checking and testing
 

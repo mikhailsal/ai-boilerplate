@@ -12,13 +12,13 @@ from quality.catalog import build_registry
 from quality.cli.main import command_table
 from quality.diagnostics import Diagnostic, Kind, Severity
 from quality.engine import Report, Settings, Tools, check_candidate
-from quality.engine.check import PYTHON_RULES, UNAVAILABLE, ran_rules
+from quality.engine.check import UNAVAILABLE
 from quality.engine.profiles import ProfileAdapter
 from quality.gitio import revision, staged
 from quality.policy import Profile
 from quality.testkit.candidates import pinned_tools
 from quality.testkit.gitrepo import GitRepo
-from quality.testkit.policies import ComponentSpec, build_policy, policy_toml
+from quality.testkit.policies import ComponentSpec, policy_toml
 from quality.testkit.suites import ScriptedRunner
 
 TODAY = date(2026, 10, 20)
@@ -210,24 +210,6 @@ def test_agent_instructions_are_required(project: GitRepo) -> None:
     project.git("rm", "-q", "--cached", "README.md", "AGENTS.md")
     report = check(project)
     assert rules_of(report) == ["docs.agents-missing"]
-
-
-def test_rules_that_ran() -> None:
-    python = build_policy().components
-    typescript = build_policy(ComponentSpec(profile="typescript")).components
-    assert {rule.id for rule in PYTHON_RULES} <= ran_rules(python, (), {})
-    assert not {rule.id for rule in PYTHON_RULES} & ran_rules(typescript, (), {})
-
-
-def test_adapter_rules_ran_only_when_every_member_was_checked() -> None:
-    adapter = ScriptedRunner({}, rules=(UNAVAILABLE,))
-    two = build_policy(ComponentSpec(id="a", root="a"), ComponentSpec(id="b", root="b"))
-    profiles = {Profile.PYTHON: adapter}
-    first, second = two.components
-    assert UNAVAILABLE.id in ran_rules(two.components, two.components, profiles)
-    assert UNAVAILABLE.id not in ran_rules(two.components, (first,), profiles)
-    assert UNAVAILABLE.id not in ran_rules((), (), profiles)
-    assert UNAVAILABLE.id in ran_rules((second,), (second,), profiles)
 
 
 def test_static_findings_cover_the_component_files(project: GitRepo) -> None:

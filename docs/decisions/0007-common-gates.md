@@ -1,6 +1,6 @@
 # 0007 Common gates
 
-Status: accepted (P03).
+Status: accepted (P03); amended in P06.
 
 ## Scope and order
 
@@ -72,8 +72,9 @@ which uses only the standard `ast` and `tokenize` modules.
   the staged file canonical, so the count is taken after canonical
   formatting.
 
-The TypeScript, Dart, and PHP helpers implement the same definitions with
-their own parsers in P06–P08.
+The TypeScript helper implements the same definitions with the TypeScript
+parser ([decision 0011](0011-typescript-profile.md#structure-and-architecture));
+the Dart and PHP helpers follow in P07 and P08.
 
 ## Module architecture
 

@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from quality.testkit.scratch import Project, create_project, output
+from quality.testkit.scratch import Project, create_project, output, typescript
 
 
 @pytest.fixture
@@ -17,3 +17,12 @@ def hooked(project: Project) -> Project:
     result = project.quality("bootstrap")
     assert result.returncode == 0, output(result)
     return project
+
+
+@pytest.fixture
+def web(tmp_path: Path) -> Project:
+    """Return a bootstrapped project with one TypeScript component, `web`."""
+    created = create_project(tmp_path / "project", typescript("web"))
+    result = created.quality("bootstrap")
+    assert result.returncode == 0, output(result)
+    return created

@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from quality.adapters.native import ToolFailedError
-from quality.adapters.python.target import Target, document, findings, location, number
+from quality.adapters.target import Target, document, findings, location, number
 from quality.boundedio import JsonValue
 from quality.diagnostics import Location
 from quality.process import Completed

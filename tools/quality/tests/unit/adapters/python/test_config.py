@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from quality.adapters.python.config import CONFIG, NativeConfig, check_config, pytest_file
-from quality.adapters.python.settings import CONFIG_LIMIT
+from quality.adapters.settings import CONFIG_LIMIT
 from quality.diagnostics import Location
 from quality.testkit.policies import ComponentSpec, build_policy
 

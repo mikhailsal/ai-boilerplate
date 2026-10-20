@@ -6,7 +6,6 @@ import hashlib
 import http.client
 import os
 import platform
-import shutil
 import tarfile
 import tempfile
 import urllib.parse
@@ -18,12 +17,12 @@ from pathlib import Path
 from typing import IO
 
 from quality.diagnostics import Diagnostic, Kind, Rule
+from quality.toolchain.archive import place
 from quality.toolchain.manifest import (
     Architecture,
     Artifact,
     Extra,
     ManifestError,
-    Packaging,
     Tool,
 )
 
@@ -85,14 +84,19 @@ def machine() -> Architecture | None:
     return MACHINES.get(platform.machine().lower())
 
 
+def install_directory(name: str, tool: Tool, root: Path) -> Path:
+    """Return the versioned directory that holds an installed tool."""
+    return root / f"{name}-{tool.version}"
+
+
 def tool_path(name: str, tool: Tool, root: Path) -> Path:
     """Return where the tool's executable lives once installed."""
-    return root / f"{name}-{tool.version}" / tool.binary
+    return install_directory(name, tool, root) / tool.program
 
 
 def extra_path(name: str, tool: Tool, root: Path, extra: str) -> Path:
     """Return where an installed data file of the tool lives."""
-    return tool_path(name, tool, root).parent / extra
+    return install_directory(name, tool, root) / extra
 
 
 def locate(name: str, tool: Tool, root: Path) -> Path:
@@ -149,30 +153,6 @@ def _download(artifact: Artifact | Extra, target: Path, opener: Opener) -> None:
         raise ManifestError(msg)
 
 
-def _copy_member(artifact: Artifact, archive: Path, target: Path) -> None:
-    """Copy only the named regular file out of the archive; nothing else is extracted."""
-    member = artifact.member or ""
-    if artifact.packaging is Packaging.BINARY:
-        shutil.copyfile(archive, target)
-    elif artifact.packaging is Packaging.TAR:
-        with tarfile.open(archive) as tar:
-            info = tar.getmember(member)
-            stream = tar.extractfile(info) if info.isfile() else None
-            if stream is None:
-                msg = f"archive member {member} is not a regular file"
-                raise ManifestError(msg)
-            with stream, target.open("wb") as out:
-                shutil.copyfileobj(stream, out)
-    else:
-        with (
-            zipfile.ZipFile(archive) as bundle,
-            bundle.open(member) as stream,
-            target.open("wb") as out,
-        ):
-            shutil.copyfileobj(stream, out)
-    target.chmod(0o755)
-
-
 def install(name: str, tool: Tool, root: Path, *, opener: Opener = https_opener) -> Path:
     """Download, verify, and install the tool for this machine; idempotent."""
     path = tool_path(name, tool, root)
@@ -187,18 +167,18 @@ def install(name: str, tool: Tool, root: Path, *, opener: Opener = https_opener)
     with tempfile.TemporaryDirectory(dir=root, prefix=".install-") as temporary:
         staging = Path(temporary)
         download = staging / "download"
-        final = staging / path.parent.name
-        final.mkdir()
+        directory = install_directory(name, tool, root)
+        final = staging / directory.name
         try:
             _download(artifact, download, opener)
-            _copy_member(artifact, download, final / tool.binary)
+            place(artifact, download, final, tool)
             for filename, extra in sorted(tool.extras.items()):
                 _download(extra, final / filename, opener)
         except (ManifestError, OSError, KeyError, tarfile.TarError, zipfile.BadZipFile) as error:
             message = f"cannot install {name} {tool.version}: {error}"
             raise ToolchainError(INSTALL_FAILED.diagnostic(message)) from error
-        if path.parent.exists():
+        if directory.exists():
             # A directory without a usable executable is stale; it leaves with the staging area.
-            path.parent.rename(staging / "stale")
-        final.rename(path.parent)
+            directory.rename(staging / "stale")
+        final.rename(directory)
     return path

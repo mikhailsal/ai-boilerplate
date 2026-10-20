@@ -7,8 +7,9 @@ from typing import Protocol
 
 from quality.coverage import CoverageReport
 from quality.diagnostics import Diagnostic, Rule
+from quality.metrics import Measurements
 from quality.policy import Component
-from quality.testing import SuiteRequest, SuiteRun
+from quality.testing import StaticRequest, SuiteRequest, SuiteRun
 
 
 class ProfileTests(Protocol):
@@ -43,10 +44,16 @@ class ProfileAdapter(ProfileTests, Protocol):
         """The rules `static` reports."""
         ...
 
-    def static(
-        self, component: Component, snapshot: Path, work: Path, files: tuple[str, ...]
-    ) -> list[Diagnostic]:
+    def static(self, request: StaticRequest) -> list[Diagnostic]:
         """Check a prepared component's source and test files with its native tools."""
+        ...
+
+    def measure(self, request: StaticRequest) -> Measurements | None:
+        """Measure the structure of a prepared component's files with the language's parser.
+
+        Return None when the common gates measure the profile's files themselves.
+        Raise ToolFailedError when the parser cannot run.
+        """
         ...
 
 

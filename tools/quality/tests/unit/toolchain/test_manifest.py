@@ -105,4 +105,72 @@ def test_the_committed_manifest_pins_gitleaks_with_its_rules() -> None:
     assert all(artifact.member == "gitleaks" for artifact in gitleaks.artifacts.values())
     assert list(gitleaks.extras) == ["gitleaks.toml"]
     assert "/83d9cd684c87d95d656c1458ef04895a7f1cbd8e/" in gitleaks.extras["gitleaks.toml"].url
-    assert set(manifest.tools) == {"uv", "gitleaks", "osv-scanner", "actionlint"}
+    assert set(manifest.tools) == {"uv", "gitleaks", "osv-scanner", "actionlint", "node"}
+
+
+def test_the_committed_manifest_pins_node_as_a_tree_and_the_npm_packages() -> None:
+    manifest = load_manifest()
+    node = manifest.tools["node"]
+    assert (node.version, node.program) == ("24.22.0", "bin/node")
+    for architecture, suffix in ((Architecture.X86_64, "x64"), (Architecture.AARCH64, "arm64")):
+        artifact = node.artifacts[architecture]
+        assert artifact.packaging is Packaging.TREE
+        assert artifact.member == f"node-v24.22.0-linux-{suffix}"
+        assert artifact.url.endswith(f"/v24.22.0/node-v24.22.0-linux-{suffix}.tar.xz")
+    assert manifest.packages["npm"]["typescript"] == "6.0.3"
+    assert manifest.packages["npm"]["@vitest/coverage-v8"] == "5.0.5"
+
+
+TREE = TOOL.replace(
+    'packaging = "tar"\nmember = "demo-1.2.3/demo"', 'packaging = "tree"\nmember = "demo"'
+)
+
+
+def test_a_tree_tool_names_its_executable_and_top_directory() -> None:
+    document = TREE.replace('binary = "demo"', 'binary = "demo"\nexecutable = "bin/demo"')
+    tool = parse_manifest(document.encode()).tools["demo"]
+    assert (tool.program, tool.artifacts[Architecture.X86_64].member) == ("bin/demo", "demo")
+    assert parse_manifest(TREE.encode()).tools["demo"].program == "demo"
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ('member = "demo"', 'member = "demo/bin"'),
+        ('member = "demo"\n', ""),
+        ('binary = "demo"', 'binary = "demo"\nexecutable = "../demo"'),
+        ('binary = "demo"', 'binary = "demo"\nexecutable = "/bin/demo"'),
+    ],
+)
+def test_invalid_tree_values_are_rejected(old: str, new: str) -> None:
+    assert TREE.count(old) == 1
+    with pytest.raises(ManifestError, match="invalid toolchain manifest"):
+        parse_manifest(TREE.replace(old, new).encode())
+
+
+@pytest.mark.parametrize(
+    "packages",
+    [
+        '[packages.npm]\n"@scope/name" = "1.2.3"\nplain = "0.0.1"\n',
+        "",
+    ],
+)
+def test_package_pins_are_optional_and_exact(packages: str) -> None:
+    manifest = parse_manifest(f"{TOOL}\n{packages}".encode())
+    expected = {"npm": {"@scope/name": "1.2.3", "plain": "0.0.1"}} if packages else {}
+    assert manifest.packages == expected
+
+
+@pytest.mark.parametrize(
+    "packages",
+    [
+        '[packages.npm]\nname = "^1.2.3"\n',
+        '[packages.npm]\nname = "1.2"\n',
+        '[packages.npm]\nName = "1.2.3"\n',
+        '[packages.npm]\n"@/name" = "1.2.3"\n',
+        '[packages.NPM]\nname = "1.2.3"\n',
+    ],
+)
+def test_invalid_package_pins_are_rejected(packages: str) -> None:
+    with pytest.raises(ManifestError, match="invalid toolchain manifest"):
+        parse_manifest(f"{TOOL}\n{packages}".encode())

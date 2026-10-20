@@ -4,8 +4,10 @@ Status: accepted (P00, 2026-10-20). Versions were read from the primary
 registries on that date; checksums were verified against vendor checksum files.
 Since P03 the machine-readable source of truth for downloaded standalone tools
 is `tools/quality/toolchains.toml` (uv, gitleaks and its rule set, osv-scanner,
-actionlint); profile runtimes join it with their phases. This record explains
-the choices.
+actionlint); profile runtimes join it with their phases. Since P06 it also
+pins Node.js and, under `[packages.npm]`, the npm packages every TypeScript
+component must lock ([decision 0011](0011-typescript-profile.md)). This record
+explains the choices.
 
 ## Shared core
 
@@ -37,7 +39,7 @@ the choices.
 | Tool | Version | Notes |
 | --- | --- | --- |
 | Node.js | 24.22.0 (LTS "Krypton") | Official tarball with `SHASUMS256.txt` |
-| npm | bundled with Node 24.22.0 | `npm ci` from `package-lock.json` |
+| npm | bundled with Node 24.22.0 | `npm ci --offline` from `package-lock.json` |
 | TypeScript | 6.0.3 | TypeScript 7.0.2 is the native port; typescript-eslint 8.72.0 requires `>=4.8.4 <6.1.0`, so 6.0.3 is the newest compatible release |
 | ESLint | 10.13.0 with `@eslint/js` 10.0.1 | Flat config |
 | typescript-eslint | 8.72.0 | Typed linting through the project service |

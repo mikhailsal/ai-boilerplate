@@ -8,14 +8,15 @@ from pathlib import Path, PurePosixPath
 
 from quality.adapters import native
 from quality.adapters.python import config, pyright, ruff
-from quality.adapters.python.config import NativeConfig, check_config
+from quality.adapters.python.config import STATIC_SUFFIXES, NativeConfig, check_config
 from quality.adapters.python.environment import Environments
 from quality.adapters.python.runner import run_pytest
-from quality.adapters.python.target import STATIC_SUFFIXES, Target
+from quality.adapters.target import Target
 from quality.coverage import CoverageReport, parse_coverage_json
 from quality.diagnostics import Diagnostic, Rule
+from quality.metrics import Measurements
 from quality.policy import Component
-from quality.testing import SuiteRequest, SuiteRun
+from quality.testing import StaticRequest, SuiteRequest, SuiteRun
 
 RULES = (*config.RULES, *ruff.RULES, *pyright.RULES)
 
@@ -56,16 +57,17 @@ class PythonProfile:
             native.fail("python", f"'{component.id}' was not prepared")
         return settings
 
-    def static(
-        self, component: Component, snapshot: Path, work: Path, files: tuple[str, ...]
-    ) -> list[Diagnostic]:
+    def static(self, request: StaticRequest) -> list[Diagnostic]:
         """Run the formatter, linter, and type checker on the component's Python files."""
-        settings = self._settings(component, work)
-        checked = tuple(path for path in files if PurePosixPath(path).suffix in STATIC_SUFFIXES)
+        component = request.component
+        settings = self._settings(component, request.work)
+        checked = tuple(
+            path for path in request.files if PurePosixPath(path).suffix in STATIC_SUFFIXES
+        )
         if not checked:
             return []
-        target = Target(component, snapshot, checked)
-        python = self.environments.python(component, snapshot, work)
+        target = Target(component, request.snapshot, checked)
+        python = self.environments.python(component, request.snapshot, request.work)
         found = _findings(lambda: ruff.ruff_format(target, ruff=self.ruff, config=settings.ruff))
         found += _findings(lambda: ruff.ruff_lint(target, ruff=self.ruff, config=settings.ruff))
         found += _findings(
@@ -74,6 +76,10 @@ class PythonProfile:
             )
         )
         return found
+
+    def measure(self, request: StaticRequest) -> Measurements | None:
+        """Leave Python structure to the common gates, which parse the candidate's bytes."""
+        return None
 
     def expected(self, path: str) -> bool:
         """Expect every Python module in the coverage report; stubs hold no code."""

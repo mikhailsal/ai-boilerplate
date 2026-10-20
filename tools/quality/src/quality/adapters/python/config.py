@@ -19,7 +19,7 @@ from typing import cast
 
 from quality.adapters.python.pyright import pyright_settings
 from quality.adapters.python.ruff import ruff_settings
-from quality.adapters.python.settings import (
+from quality.adapters.settings import (
     CONFIG_LIMIT,
     Table,
     inside,
@@ -31,6 +31,8 @@ from quality.boundedio import ReportError, read_bounded
 from quality.diagnostics import Diagnostic, Location, Rule
 from quality.policy import Component
 
+# The files Ruff and Pyright check: modules and stubs.
+STATIC_SUFFIXES = frozenset({".py", ".pyi"})
 CONFIG = Rule(
     id="python.config",
     title="Python tool configuration is missing, weakens the profile, or leaves the snapshot",

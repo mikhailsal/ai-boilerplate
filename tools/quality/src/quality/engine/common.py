@@ -1,4 +1,10 @@
-"""The common gates over a materialized candidate and the structure of Python components."""
+"""The common gates over a materialized candidate and the structure of every component.
+
+The common gates measure Python files from the candidate's bytes, for every
+active Python component. Other profiles measure their files with their own
+parser inside the prepared environment; `measured_gates` checks those
+measurements with the same structure and architecture rules.
+"""
 
 from __future__ import annotations
 
@@ -14,15 +20,17 @@ from quality.diagnostics import Diagnostic
 from quality.discovery import Inventory, Region
 from quality.engine.scope import Scope
 from quality.gitio import TreeEntry
-from quality.metrics import FileMetrics, StructureError
-from quality.policy import Category, Component, Policy, Profile
+from quality.metrics import FileMetrics, Measurements, StructureError
+from quality.policy import Category, Component, Policy, Profile, Thresholds
 from quality.rules import architecture, config, docs, files, structure, suppressions
 from quality.rules.links import is_markdown
 from quality.rules.model import CandidateFile
 
 COMMON_RULES = (*files.RULES, *config.RULES, *suppressions.RULES, *docs.RULES)
 TOOL_RULES = (*markdown.RULES, *secrets.RULES)
-PYTHON_RULES = (*structure.RULES, *architecture.RULES)
+MEASURED_RULES = (*structure.RULES, *architecture.RULES)
+# Profiles whose files the common gates measure; adapters measure the other profiles' files.
+COMMON_MEASURED = frozenset({Profile.PYTHON})
 STRUCTURE_SUFFIXES = frozenset({".py"})
 
 type Commands = Mapping[str, frozenset[str]]
@@ -92,6 +100,34 @@ def python_gates(
         yield from architecture.check_architecture(component, sorted(sources), edges)
 
 
+def measured_gates(
+    component: Component,
+    measurements: Measurements,
+    thresholds: Thresholds,
+    sources: frozenset[str],
+) -> Iterator[Diagnostic]:
+    """Structure metrics and module architecture of the files an adapter measured.
+
+    Only `sources`, the component's files in its source roots, take part in the
+    architecture check, as for Python.
+    """
+    for error in measurements.errors:
+        yield structure.unparseable(error, component=component.id)
+    for metrics in measurements.files:
+        yield from structure.check_structure(metrics, thresholds, component=component.id)
+    if component.architecture.modules:
+        kept = sorted(metrics.path for metrics in measurements.files if metrics.path in sources)
+        edges = {
+            path: {
+                target: line
+                for target, line in measurements.dependencies.get(path, {}).items()
+                if target in sources and target != path
+            }
+            for path in kept
+        }
+        yield from architecture.check_architecture(component, kept, edges)
+
+
 def tool_findings(run: Callable[[], Iterable[Diagnostic]]) -> list[Diagnostic]:
     """Run a native tool; its failure becomes its single diagnostic."""
     try:
@@ -130,5 +166,5 @@ def common_gates(
 
     yield from tool_findings(scan)
     for component in scope.active:
-        if component.profile is Profile.PYTHON:
+        if component.profile in COMMON_MEASURED:
             yield from python_gates(component, candidate, policy)

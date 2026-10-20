@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from quality.diagnostics import Diagnostic, Kind, Location, Rule, Severity
+from quality.discovery.classify import under
 from quality.policy import PolicyException
 
 EXPIRED = Rule(
@@ -70,6 +71,30 @@ def describe(exception: PolicyException) -> str:
 
 
 @dataclass(frozen=True, slots=True)
+class Ran:
+    """The rules that ran over the candidate, except where a component skipped some.
+
+    `skipped` maps the root of every active component to the rules that did not
+    run over its files, for example because the change did not affect it. A path
+    belongs to the component with the most specific root, as in discovery, so an
+    exception is reported unused only where its rule actually ran.
+    """
+
+    rules: frozenset[str]
+    skipped: Mapping[str, frozenset[str]] = field(default_factory=dict[str, frozenset[str]])
+
+    def covers(self, rule: str, path: str) -> bool:
+        """Whether the rule ran over the file at `path`."""
+        if rule not in self.rules:
+            return False
+        roots = [root for root in self.skipped if under(path, root)]
+        if not roots:
+            return True
+        owner = max(roots, key=lambda root: 0 if root == "." else len(root))
+        return rule not in self.skipped[owner]
+
+
+@dataclass(frozen=True, slots=True)
 class Applied:
     """Diagnostics left after exceptions, plus the findings about the exceptions."""
 
@@ -92,7 +117,7 @@ def apply_exceptions(
     exceptions: Sequence[PolicyException],
     *,
     rules: Mapping[str, Rule],
-    ran: frozenset[str],
+    ran: Ran,
     today: date,
 ) -> Applied:
     """Remove findings covered by an active exception and report exception problems."""
@@ -135,11 +160,9 @@ def _screen(
     return None, True
 
 
-def _unused(
-    active: Sequence[PolicyException], used: set[int], ran: frozenset[str]
-) -> Iterator[Diagnostic]:
-    """Exceptions of rules that ran over the whole candidate and matched nothing."""
+def _unused(active: Sequence[PolicyException], used: set[int], ran: Ran) -> Iterator[Diagnostic]:
+    """Exceptions whose rule ran over their path and matched nothing."""
     for position, exception in enumerate(active):
-        if position not in used and exception.rule in ran:
+        if position not in used and ran.covers(exception.rule, exception.path):
             message = f"{describe(exception)} matches no finding"
             yield UNUSED.diagnostic(message, location=Location(POLICY_FILE))

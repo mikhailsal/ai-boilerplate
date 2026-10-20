@@ -1,6 +1,6 @@
 # 0010 Launcher, bootstrap, doctor, and hooks
 
-Status: accepted (P05).
+Status: accepted (P05); amended in P06.
 
 ## Launcher
 
@@ -36,10 +36,18 @@ before this gate existed, did not add one.
 The core's `bootstrap` command, after the launcher step:
 
 1. installs gitleaks, verified against `tools/quality/toolchains.toml`;
-2. for each component of the staged candidate, installs its interpreter and
-   syncs its lockfile once with network access into a throwaway environment,
-   which fills uv's cache for the offline checks
-   ([decision 0009](0009-python-profile.md));
+2. for each component of the staged candidate, fills the package cache that
+   the offline checks install from:
+   - a Python component: installs its interpreter and syncs its lockfile once
+     with network access into a throwaway environment, which fills uv's cache
+     ([decision 0009](0009-python-profile.md));
+   - a TypeScript component: installs the pinned Node, then runs `npm ci` once
+     with network access in a throwaway copy of the lockfile and the package
+     manifests of the lock directory and its workspace members. The project's
+     `.npmrc` is not copied, so the install uses the public registry without
+     credentials ([decision 0011](0011-typescript-profile.md#environments)).
+     Each lock directory is installed once, even when several components
+     share it;
 3. installs the managed `pre-commit` hook, and the `pre-push` hook with
    `--pre-push`.
 
@@ -75,7 +83,8 @@ to `<name>.local`, or to unset `core.hooksPath`, and run bootstrap again.
 - Git is 2.34 or newer (`git.version`);
 - the core interpreter, uv, gitleaks, Ruff, and Pyright are installed;
 - every component of the staged candidate passes its configuration check and
-  syncs offline;
+  installs offline (`uv sync --offline` for Python, `npm ci --offline` with
+  the installed Node for TypeScript; Node is located, never downloaded);
 - the `pre-commit` hook is current: missing or outdated is `hooks.missing`,
   a foreign file is `hooks.conflict`. The optional `pre-push` hook is listed;
   only an outdated one warns.
