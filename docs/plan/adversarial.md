@@ -16,7 +16,7 @@ listed phases and rerun in P12. A box is checked only after the P12 rerun.
 | [ ] | A09 | Exact threshold edges incl. just-below minima and very small diffs | P04 | TODO |
 | [ ] | A10 | Deleting tests or changing tool/config/lockfile inputs triggers the rerun | P04, P05 | TODO |
 | [ ] | A11 | Unknown source, missing profiles, skipped checks, incomplete matrix jobs cannot pass | P02, P10 | P02: unknown, unowned, and unsupported files fail discovery (`test_classify.py`, `test_inventory.py`); CI jobs in P10 |
-| [ ] | A12 | Secret or large blob added and removed before the tip is detected in new history | P03, P10 | TODO |
+| [ ] | A12 | Secret or large blob added and removed before the tip is detected in new history | P03, P10 | P03: `engine/test_history.py::test_secrets_and_large_blobs_deleted_before_the_tip_fail`; merge gate in P10 |
 | [ ] | A13 | Scenarios not satisfied by skips, expected failures, empty selections, stale results | P09 | TODO |
 | [ ] | A14 | Bootstrap and hooks preserve user changes and never auto-stage fixes | P05 | TODO |
 | [ ] | A15 | The engine and native helpers are tested and covered | P05–P08 | TODO |

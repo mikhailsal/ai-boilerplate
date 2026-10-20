@@ -7,8 +7,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 
 ## Status
 
-- Current phase: P03
-- Next action: implement common file, documentation, secret, and exception gates
+- Current phase: P04
+- Next action: implement the test and coverage engine
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`
 - A box is checked only after the phase implementation commit exists and its
   checks were run; the phase record holds the SHA and evidence.
@@ -20,8 +20,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 | [x] | P00 Inspect and establish the implementation contract | DONE | [P00](docs/plan/phases/P00.md) |
 | [x] | P01 Build and test the minimal core | DONE | [P01](docs/plan/phases/P01.md) |
 | [x] | P02 Implement discovery and candidate snapshots | DONE | [P02](docs/plan/phases/P02.md) |
-| [ ] | P03 Implement common policy and documentation gates | IN_PROGRESS | P03 |
-| [ ] | P04 Implement the test and coverage engine | TODO | P04 |
+| [x] | P03 Implement common policy and documentation gates | DONE | [P03](docs/plan/phases/P03.md) |
+| [ ] | P04 Implement the test and coverage engine | IN_PROGRESS | P04 |
 | [ ] | P05 Complete Python and activate the strict hooks | TODO | P05 |
 | [ ] | P06 Complete TypeScript | TODO | P06 |
 | [ ] | P07 Complete Dart | TODO | P07 |
@@ -57,6 +57,7 @@ environment variable, or permissive mode is added for it.
 - [0004 Candidate snapshots and revision semantics](docs/decisions/0004-candidate-snapshots.md)
 - [0005 Coverage measurement paths](docs/decisions/0005-coverage-measurement.md)
 - [0006 Discovery and classification](docs/decisions/0006-discovery-and-classification.md)
+- [0007 Common gates](docs/decisions/0007-common-gates.md)
 
 ## Resumption
 
