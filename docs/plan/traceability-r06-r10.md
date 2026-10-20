@@ -6,17 +6,17 @@ Continuation of the [traceability matrix](traceability.md).
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| R06.1 | Per component: line 80%, branch 70%, changed lines 90%, new file nonzero | P04 | Threshold engine tests | TODO |
-| R06.2 | Real line and branch collection in all four profiles; missing driver is an error | P04–P08 | Profile acceptance suites | TODO |
-| R06.3 | Expected source inventory derived independently and reconciled | P04–P08 | Unimported-file tests | TODO |
-| R06.4 | Test bodies excluded; reusable test infrastructure covered as tooling | P04, P05 | Core testkit coverage | TODO |
-| R06.5 | Exact integer comparisons; separate counters; no cross-language averages | P04 | Boundary arithmetic tests | TODO |
-| R06.6 | Integration/e2e coverage never satisfies unit thresholds | P04 | Suite separation tests | TODO |
-| R06.7 | Evidence: success, expected suite, fresh parseable reports, complete accounting | P04 | Adversarial report tests | TODO |
-| R06.8 | `NOT_APPLICABLE` only for proven absence; broken globs fail | P04 | Empty inventory tests | TODO |
-| R06.9 | Unit tests isolated from services and network; instrumentation loopback only | P04–P08 | Environment tests, decision 0005 | TODO |
-| R06.10 | Commit runs full unit suites of affected components and reverse dependencies | P04, P05 | Scope invalidation tests | TODO |
-| R06.11 | No custom result cache; CI reruns; no ratchet, regressions reported | P04, P10 | Engine design and tests | TODO |
+| R06.1 | Per component: line 80%, branch 70%, changed lines 90%, new file nonzero | P04 | `rules/test_coverage.py`, `engine/test_suite_scope.py` | DONE |
+| R06.2 | Real line and branch collection in all four profiles; missing driver is an error | P04–P08 | P04: missing branch data fails (`coverage.branch-unmeasured`); real collection in P05–P08 | IN_PROGRESS |
+| R06.3 | Expected source inventory derived independently and reconciled | P04–P08 | P04: `coverage.unaccounted` from snapshot inventory; per-profile proof in P05–P08 | IN_PROGRESS |
+| R06.4 | Test bodies excluded; reusable test infrastructure covered as tooling | P04, P05 | P04: test roots excluded, testkit covered as source; Python runner in P05 | IN_PROGRESS |
+| R06.5 | Exact integer comparisons; separate counters; no cross-language averages | P04 | `coverage/test_model.py`, `rules/test_coverage.py` | DONE |
+| R06.6 | Integration/e2e coverage never satisfies unit thresholds | P04 | `engine/test_suite_scope.py::test_integration_coverage_never_satisfies_unit_floors` | DONE |
+| R06.7 | Evidence: success, expected suite, fresh parseable reports, complete accounting | P04 | `engine/test_suites.py`, parser tests, decision 0008 | DONE |
+| R06.8 | `NOT_APPLICABLE` only for proven absence; broken globs fail | P04 | `rules/test_coverage.py` (not applicable, `coverage.no-source`) | DONE |
+| R06.9 | Unit tests isolated from services and network; instrumentation loopback only | P04–P08 | Runner environments in P05–P08 | TODO |
+| R06.10 | Commit runs full unit suites of affected components and reverse dependencies | P04, P05 | P04: `discovery/test_scope.py`, `engine/test_suite_scope.py`; commit hook in P05 | IN_PROGRESS |
+| R06.11 | No custom result cache; CI reruns; no ratchet, regressions reported | P04, P10 | P04: no result cache or ratchet (decision 0008); regressions and CI in P10 | IN_PROGRESS |
 
 ## R07 Tier 1 profile choices
 
@@ -50,7 +50,7 @@ Continuation of the [traceability matrix](traceability.md).
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
 | R09.1 | CLI decides; CI wrappers translate, install, invoke, publish | P10 | Workflow review and tests | TODO |
-| R09.2 | JSON diagnostics, native coverage, JUnit/LCOV/Cobertura exports, relative paths | P04, P10 | Report tests | TODO |
+| R09.2 | JSON diagnostics, native coverage, JUnit/LCOV/Cobertura exports, relative paths | P04, P10 | P04: native report parsers with repository-relative paths; exports in P10 | IN_PROGRESS |
 | R09.3 | GitHub Actions workflow and GitLab reference wrapper using the same entry points | P10 | actionlint and wrapper tests | TODO |
 | R09.4 | Generic execution without provider variables; live runs reported separately | P10 | Plain Linux gate test | TODO |
 | R09.5 | Aggregate job fails on failed, cancelled, skipped, or missing jobs | P10 | Aggregation tests | TODO |

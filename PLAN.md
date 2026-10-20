@@ -7,8 +7,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 
 ## Status
 
-- Current phase: P04
-- Next action: implement the test and coverage engine
+- Current phase: P05
+- Next action: complete the Python profile and activate the strict hooks
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`
 - A box is checked only after the phase implementation commit exists and its
   checks were run; the phase record holds the SHA and evidence.
@@ -21,8 +21,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 | [x] | P01 Build and test the minimal core | DONE | [P01](docs/plan/phases/P01.md) |
 | [x] | P02 Implement discovery and candidate snapshots | DONE | [P02](docs/plan/phases/P02.md) |
 | [x] | P03 Implement common policy and documentation gates | DONE | [P03](docs/plan/phases/P03.md) |
-| [ ] | P04 Implement the test and coverage engine | IN_PROGRESS | P04 |
-| [ ] | P05 Complete Python and activate the strict hooks | TODO | P05 |
+| [x] | P04 Implement the test and coverage engine | DONE | [P04](docs/plan/phases/P04.md) |
+| [ ] | P05 Complete Python and activate the strict hooks | IN_PROGRESS | P05 |
 | [ ] | P06 Complete TypeScript | TODO | P06 |
 | [ ] | P07 Complete Dart | TODO | P07 |
 | [ ] | P08 Complete PHP | TODO | P08 |
