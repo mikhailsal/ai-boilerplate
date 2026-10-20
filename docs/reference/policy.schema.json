@@ -1,0 +1,529 @@
+{
+  "$defs": {
+    "Architecture": {
+      "additionalProperties": false,
+      "description": "Declared modules and forbidden dependency edges; cycles always fail.",
+      "properties": {
+        "forbidden": {
+          "items": {
+            "$ref": "#/$defs/Edge"
+          },
+          "title": "Forbidden",
+          "type": "array"
+        },
+        "modules": {
+          "items": {
+            "$ref": "#/$defs/ModuleDecl"
+          },
+          "title": "Modules",
+          "type": "array"
+        }
+      },
+      "title": "Architecture",
+      "type": "object"
+    },
+    "Capability": {
+      "description": "Behavioral capabilities a component can declare.",
+      "enum": [
+        "library",
+        "cli",
+        "http-api",
+        "database",
+        "migrations",
+        "contracts",
+        "queues",
+        "ui"
+      ],
+      "title": "Capability",
+      "type": "string"
+    },
+    "Category": {
+      "description": "File categories assigned to every candidate file.",
+      "enum": [
+        "source",
+        "tests",
+        "docs",
+        "config",
+        "generated",
+        "vendor",
+        "assets"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "Classification": {
+      "additionalProperties": false,
+      "description": "An explicit category for files matching a narrow glob.",
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/Category"
+        },
+        "pattern": {
+          "title": "Pattern",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "pattern",
+        "category",
+        "reason"
+      ],
+      "title": "Classification",
+      "type": "object"
+    },
+    "Component": {
+      "additionalProperties": false,
+      "description": "A unit with its own profile, roots, and gates.",
+      "properties": {
+        "architecture": {
+          "$ref": "#/$defs/Architecture"
+        },
+        "capabilities": {
+          "items": {
+            "$ref": "#/$defs/Capability"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "depends_on": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "no_boundary_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "No Boundary Reason"
+        },
+        "profile": {
+          "$ref": "#/$defs/Profile"
+        },
+        "role": {
+          "$ref": "#/$defs/Role"
+        },
+        "root": {
+          "title": "Root",
+          "type": "string"
+        },
+        "source": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Source",
+          "type": "array"
+        },
+        "tests": {
+          "$ref": "#/$defs/Suites"
+        }
+      },
+      "required": [
+        "id",
+        "role",
+        "profile",
+        "root",
+        "source",
+        "tests"
+      ],
+      "title": "Component",
+      "type": "object"
+    },
+    "CoveragePolicy": {
+      "additionalProperties": false,
+      "description": "Blocking unit coverage minima in percent (R06).",
+      "properties": {
+        "branch": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Branch",
+          "type": "integer"
+        },
+        "changed_lines": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Changed Lines",
+          "type": "integer"
+        },
+        "line": {
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Line",
+          "type": "integer"
+        },
+        "new_file_must_be_covered": {
+          "title": "New File Must Be Covered",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "line",
+        "branch",
+        "changed_lines",
+        "new_file_must_be_covered"
+      ],
+      "title": "CoveragePolicy",
+      "type": "object"
+    },
+    "Edge": {
+      "additionalProperties": false,
+      "description": "A forbidden dependency from one module to another.",
+      "properties": {
+        "from": {
+          "title": "From",
+          "type": "string"
+        },
+        "to": {
+          "title": "To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "title": "Edge",
+      "type": "object"
+    },
+    "Limit": {
+      "additionalProperties": false,
+      "description": "A warning and/or error threshold; values above the threshold trigger.",
+      "properties": {
+        "error": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "warning": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Warning"
+        }
+      },
+      "title": "Limit",
+      "type": "object"
+    },
+    "ModuleDecl": {
+      "additionalProperties": false,
+      "description": "A named module: file globs relative to the component root.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "paths": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Paths",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "paths"
+      ],
+      "title": "ModuleDecl",
+      "type": "object"
+    },
+    "PolicyException": {
+      "additionalProperties": false,
+      "description": "A scoped, owned, and reviewed exception to one rule.",
+      "properties": {
+        "expires": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires"
+        },
+        "owner": {
+          "title": "Owner",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review"
+        },
+        "rule": {
+          "title": "Rule",
+          "type": "string"
+        },
+        "symbol": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Symbol"
+        }
+      },
+      "required": [
+        "rule",
+        "path",
+        "reason",
+        "owner"
+      ],
+      "title": "PolicyException",
+      "type": "object"
+    },
+    "Profile": {
+      "description": "Tier 1 language profiles.",
+      "enum": [
+        "python",
+        "typescript",
+        "dart",
+        "php"
+      ],
+      "title": "Profile",
+      "type": "string"
+    },
+    "Repository": {
+      "additionalProperties": false,
+      "description": "Repository-wide settings.",
+      "properties": {
+        "default_branch": {
+          "default": "main",
+          "title": "Default Branch",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "project",
+            "maintainer"
+          ],
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "Repository",
+      "type": "object"
+    },
+    "Role": {
+      "description": "Component roles; see decision 0003.",
+      "enum": [
+        "application",
+        "tooling",
+        "helper"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "Suites": {
+      "additionalProperties": false,
+      "description": "Test roots per suite, relative to the component root.",
+      "properties": {
+        "acceptance": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Acceptance",
+          "type": "array"
+        },
+        "contract": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Contract",
+          "type": "array"
+        },
+        "e2e": {
+          "items": {
+            "type": "string"
+          },
+          "title": "E2E",
+          "type": "array"
+        },
+        "integration": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Integration",
+          "type": "array"
+        },
+        "unit": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Unit",
+          "type": "array"
+        }
+      },
+      "title": "Suites",
+      "type": "object"
+    },
+    "Thresholds": {
+      "additionalProperties": false,
+      "description": "Structural and repository thresholds (R04).",
+      "properties": {
+        "agents_lines": {
+          "exclusiveMinimum": 0,
+          "title": "Agents Lines",
+          "type": "integer"
+        },
+        "agents_words": {
+          "exclusiveMinimum": 0,
+          "title": "Agents Words",
+          "type": "integer"
+        },
+        "blob_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Blob Bytes",
+          "type": "integer"
+        },
+        "cyclomatic_complexity": {
+          "$ref": "#/$defs/Limit"
+        },
+        "doc_page_lines": {
+          "exclusiveMinimum": 0,
+          "title": "Doc Page Lines",
+          "type": "integer"
+        },
+        "doc_page_words": {
+          "exclusiveMinimum": 0,
+          "title": "Doc Page Words",
+          "type": "integer"
+        },
+        "function_code_lines": {
+          "$ref": "#/$defs/Limit"
+        },
+        "nesting_depth": {
+          "$ref": "#/$defs/Limit"
+        },
+        "parameters": {
+          "$ref": "#/$defs/Limit"
+        },
+        "source_file_lines": {
+          "$ref": "#/$defs/Limit"
+        }
+      },
+      "required": [
+        "source_file_lines",
+        "function_code_lines",
+        "cyclomatic_complexity",
+        "nesting_depth",
+        "parameters",
+        "doc_page_lines",
+        "doc_page_words",
+        "agents_lines",
+        "agents_words",
+        "blob_bytes"
+      ],
+      "title": "Thresholds",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The complete repository policy loaded from `quality.toml`.",
+  "properties": {
+    "classification": {
+      "items": {
+        "$ref": "#/$defs/Classification"
+      },
+      "title": "Classification",
+      "type": "array"
+    },
+    "components": {
+      "items": {
+        "$ref": "#/$defs/Component"
+      },
+      "minItems": 1,
+      "title": "Components",
+      "type": "array"
+    },
+    "coverage": {
+      "$ref": "#/$defs/CoveragePolicy"
+    },
+    "exceptions": {
+      "items": {
+        "$ref": "#/$defs/PolicyException"
+      },
+      "title": "Exceptions",
+      "type": "array"
+    },
+    "repository": {
+      "$ref": "#/$defs/Repository"
+    },
+    "schema_version": {
+      "const": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "thresholds": {
+      "$ref": "#/$defs/Thresholds"
+    }
+  },
+  "required": [
+    "schema_version",
+    "repository",
+    "thresholds",
+    "coverage",
+    "components"
+  ],
+  "title": "quality.toml",
+  "type": "object"
+}

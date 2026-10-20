@@ -1,0 +1,80 @@
+"""`quality policy`: validate the policy file and maintain its JSON Schema."""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+from quality.catalog import build_registry
+from quality.cli import Subcommands
+from quality.diagnostics import ExitCode, Location, Outcome
+from quality.diagnostics.render import outcome_to_json, render_text
+from quality.policy import cross_validate, load_policy
+from quality.policy.schema import SCHEMA_PATH, SCHEMA_STALE, policy_schema_text
+
+
+def register(commands: Subcommands) -> None:
+    """Add the `policy` subcommand group."""
+    parser = commands.add_parser(
+        "policy",
+        help="validate quality.toml and maintain its schema",
+        description="Validate the repository policy and maintain its generated JSON Schema.",
+    )
+    actions = parser.add_subparsers(dest="action", metavar="<action>", required=True)
+    validate = actions.add_parser(
+        "validate",
+        help="validate quality.toml",
+        description="Validate quality.toml against the schema and cross-field rules. "
+        "Exit 0 when valid, 2 when the policy is missing or invalid.",
+    )
+    validate.add_argument("--root", type=Path, default=Path.cwd(), help="repository root")
+    validate.add_argument("--json", action="store_true", help="print a JSON report")
+    validate.set_defaults(handler=run_validate)
+    schema = actions.add_parser(
+        "schema",
+        help="print, write, or check the policy JSON Schema",
+        description=f"Print the policy JSON Schema, write it to {SCHEMA_PATH}, or check "
+        "that the committed copy is current (exit 1 when stale).",
+    )
+    schema.add_argument("--root", type=Path, default=Path.cwd(), help="repository root")
+    mode = schema.add_mutually_exclusive_group()
+    mode.add_argument("--write", action="store_true", help=f"write {SCHEMA_PATH}")
+    mode.add_argument("--check", action="store_true", help=f"fail if {SCHEMA_PATH} is stale")
+    schema.set_defaults(handler=run_schema)
+
+
+def run_validate(args: argparse.Namespace) -> int:
+    """Validate the schema and cross-field rules of quality.toml."""
+    root = Path(args.root).resolve()
+    result = load_policy(root)
+    diagnostics = list(result.diagnostics)
+    if result.policy is not None:
+        diagnostics.extend(cross_validate(result.policy, build_registry().ids()))
+    outcome = Outcome.of(diagnostics)
+    text = (
+        outcome_to_json(outcome, command="policy validate") if args.json else render_text(outcome)
+    )
+    sys.stdout.write(text)
+    return int(outcome.exit_code())
+
+
+def run_schema(args: argparse.Namespace) -> int:
+    """Print, write, or check the generated policy JSON Schema."""
+    expected = policy_schema_text()
+    target = Path(args.root).resolve() / SCHEMA_PATH
+    if args.write:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(expected, encoding="utf-8")
+        return int(ExitCode.OK)
+    if args.check:
+        current = target.read_text(encoding="utf-8") if target.is_file() else None
+        if current == expected:
+            return int(ExitCode.OK)
+        outcome = Outcome.of(
+            [SCHEMA_STALE.diagnostic("schema is missing or stale", location=Location(SCHEMA_PATH))]
+        )
+        sys.stdout.write(render_text(outcome))
+        return int(outcome.exit_code())
+    sys.stdout.write(expected)
+    return int(ExitCode.OK)
