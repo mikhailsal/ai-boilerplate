@@ -13,9 +13,9 @@ Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 | --- | --- | --- | --- | --- |
 | R01.1 | Tier 1 profiles: Dart VM, Python, TypeScript on Node, PHP | P05–P08 | Per-profile acceptance suites | TODO |
 | R01.2 | Flutter/web detected separately and reported unsupported | P07 | Discovery acceptance case | TODO |
-| R01.3 | Small typed Python core, uv-locked, native tools reused | P01 | Lockfile, pyright strict gate | TODO |
+| R01.3 | Small typed Python core, uv-locked, native tools reused | P01 | `tools/quality/uv.lock`, Pyright strict config, [P01](phases/P01.md) | DONE |
 | R01.4 | Application, tooling core, and dormant helper roles; activation rules | P02, P11 | Activation unit and template tests | TODO |
-| R01.5 | Separate policy, snapshot, discovery, process, adapters, reports, CI | P01–P04 | Declared module architecture rule on the core | TODO |
+| R01.5 | Separate policy, snapshot, discovery, process, adapters, reports, CI | P01–P04 | Declared module architecture rule on the core | IN_PROGRESS |
 | R01.6 | No new package manager, build system, parser, or test framework | All | Architecture decision 0003 | TODO |
 | R01.7 | Own code, helpers, and adapters pass rules and coverage | P05–P08 | Self-hosted gate on every commit | TODO |
 | R01.8 | Mocked unit tests plus real-tool acceptance tests | P04–P08 | Unit and acceptance suites | TODO |
@@ -25,9 +25,9 @@ Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`.
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| R02.1 | Public operations: bootstrap, doctor, check, test, gate, fix, explain, self-test, component add, tools update | P01, P05, P10, P11 | CLI tests and docs/cli.md | TODO |
-| R02.2 | One schema-validated policy; derived configs generated or verified | P01, P03 | Policy validation tests | TODO |
-| R02.3 | Unknown keys, invalid values, conflicting roots, invalid exceptions detected | P01, P03 | Policy validation tests | TODO |
+| R02.1 | Public operations: bootstrap, doctor, check, test, gate, fix, explain, self-test, component add, tools update | P01, P05, P10, P11 | CLI tests and docs/cli.md | IN_PROGRESS |
+| R02.2 | One schema-validated policy; derived configs generated or verified | P01, P03 | `tests/unit/policy`, `policy schema --check` | IN_PROGRESS |
+| R02.3 | Unknown keys, invalid values, conflicting roots, invalid exceptions detected | P01, P03 | `tests/unit/policy/test_load.py`, `test_validate.py` | IN_PROGRESS |
 | R02.4 | Pinned versions, lockfiles, checksums; clean-environment proof | P00, P05, P11 | Decision 0001, clean container run | TODO |
 | R02.5 | Install only active-profile tools; honest prerequisites | P05, P11 | Bootstrap tests, decision 0002 | TODO |
 | R02.6 | Check-only hooks and CI; no auto-staging; no floating fetches | P05 | Hook tests | TODO |

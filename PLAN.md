@@ -7,8 +7,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 
 ## Status
 
-- Current phase: P01
-- Next action: build the minimal core with locked tooling and native checks
+- Current phase: P02
+- Next action: implement candidate snapshots, component discovery, and file classification
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`
 - A box is checked only after the phase implementation commit exists and its
   checks were run; the phase record holds the SHA and evidence.
@@ -18,8 +18,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 | Done | Phase | Status | Record |
 | --- | --- | --- | --- |
 | [x] | P00 Inspect and establish the implementation contract | DONE | [P00](docs/plan/phases/P00.md) |
-| [ ] | P01 Build and test the minimal core | IN_PROGRESS | P01 |
-| [ ] | P02 Implement discovery and candidate snapshots | TODO | P02 |
+| [x] | P01 Build and test the minimal core | DONE | [P01](docs/plan/phases/P01.md) |
+| [ ] | P02 Implement discovery and candidate snapshots | IN_PROGRESS | P02 |
 | [ ] | P03 Implement common policy and documentation gates | TODO | P03 |
 | [ ] | P04 Implement the test and coverage engine | TODO | P04 |
 | [ ] | P05 Complete Python and activate the strict hooks | TODO | P05 |
