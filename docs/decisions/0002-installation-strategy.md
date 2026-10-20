@@ -1,6 +1,6 @@
 # 0002 Installation strategy
 
-Status: accepted (P00); amended in P03.
+Status: accepted (P00); amended in P03 and P05.
 
 Commands that are not implemented yet are named in plain text with the phase
 that delivers them; `quality check` fails documentation that presents a
@@ -9,11 +9,14 @@ missing command as runnable.
 ## Prerequisites (documented, not promised away)
 
 - Linux on x86_64 or aarch64 with glibc.
-- Git 2.40 or newer.
+- Git 2.34 or newer (Ubuntu 22.04); `quality doctor` reports an older Git as
+  `git.version`. P05 lowered the minimum from 2.40 after the core proved to
+  need no newer plumbing ([decision 0006](0006-discovery-and-classification.md#git-version)).
 - `python3` 3.10 or newer from the distribution. It runs only the stdlib
   launcher `./quality`; the core itself runs on the pinned CPython 3.14.8.
-- Network access while installing tools (`quality tools install`, and the
-  bootstrap command from P05) and while updating pins (P11).
+- Network access while bootstrapping (`./quality bootstrap`, or
+  `quality tools install` for the standalone tools) and while updating pins
+  (P11).
 - For the PHP profile only: PHP 8.4 CLI with the `dom`, `mbstring`, `xml`,
   `xmlwriter`, and `tokenizer` extensions, plus Xdebug 3.5 installed but not
   necessarily enabled (Debian/Ubuntu: `php8.4-cli php8.4-xml php8.4-mbstring
@@ -21,7 +24,7 @@ missing command as runnable.
 
 ## Managed downloads
 
-The bootstrap command (P05) downloads pinned artifacts into a declared cache
+`./quality bootstrap` downloads pinned artifacts into a declared cache
 (`$XDG_CACHE_HOME/quality`, default `~/.cache/quality`) and verifies each
 SHA-256 against `tools/quality/toolchains.toml` before extraction. Since P03,
 `quality tools install` performs the download and verification for the
@@ -36,8 +39,9 @@ standalone tools:
 
 The PHP runtime is the one toolchain not downloaded: portable PHP builds with
 Xdebug are not a maintained upstream artifact. Its minor version and the
-Xdebug minor version are pinned and verified by the doctor command (P05). This is the
-honest gap: patch versions of PHP and Xdebug follow the system packages.
+Xdebug minor version are pinned and verified by `quality doctor` (with the PHP
+profile, P08). This is the honest gap: patch versions of PHP and Xdebug follow
+the system packages.
 
 ## Project dependencies
 

@@ -129,11 +129,24 @@ def _explicit(found: Classified, entry: Classification, head: bytes) -> FileReco
     )
 
 
+def natural_category(region: Region, filetype: FileType) -> Category:
+    """Return the category of a path from its region and type alone.
+
+    Configuration scripts such as `setup.py` or `conftest.py` are code: inside a
+    source root they are source like any other module there.
+    """
+    if region is Region.TESTS:
+        return Category.TESTS
+    if region is Region.SOURCE and filetype.language is not None:
+        return Category.SOURCE
+    return NATURAL[filetype.kind]
+
+
 def classify(policy: Policy, path: str, filetype: FileType, head: bytes = b"") -> Classified:
     """Classify one path; explicit classification applies only where it is allowed."""
     component = owner(policy, path)
     region = region_of(component, path)
-    category = Category.TESTS if region is Region.TESTS else NATURAL[filetype.kind]
+    category = natural_category(region, filetype)
     record = FileRecord(
         path=path,
         category=category,

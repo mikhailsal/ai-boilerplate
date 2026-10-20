@@ -92,6 +92,7 @@ def test_requests_run_in_the_component_root_of_the_snapshot(root: str, expected:
         Path("snap"),
         Path("work/out"),
         started=1.5,
+        work=Path("work"),
     )
     assert request.directory == Path(expected)
 

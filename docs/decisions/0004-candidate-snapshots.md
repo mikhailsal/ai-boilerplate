@@ -1,6 +1,6 @@
 # 0004 Candidate snapshots and revision semantics
 
-Status: accepted (P00); amended in P02.
+Status: accepted (P00); amended in P02 and P05.
 
 ## Candidate identity
 
@@ -43,11 +43,48 @@ Paths with spaces, newlines, or non-UTF-8 bytes are handled as bytes from the
 
 ## Validator provenance
 
-Policy, native configuration, and tests come from the snapshot. The launcher
-runs the core from `tools/quality/src` inside the snapshot using the locked
-environment, so unstaged edits to the validator do not affect the decision.
-A candidate whose core lockfile differs from the installed environment fails
-with an instruction to run the bootstrap command (P05).
+Policy, native configuration, and tests come from the snapshot, and the core
+that judges a candidate is the candidate's own. The launcher starts the core
+from the working tree, so `check`, `test`, and `self-test` first compare it
+with the candidate's `tools/quality`:
+
+- The compared files are `src/quality/**` without `__pycache__` and the
+  toolchain manifest `toolchains.toml`, by mode and blob ID, the same way Git
+  identifies them. A candidate without a core package (any repository that
+  does not vendor the core) is not compared.
+- The candidate's `tools/quality/uv.lock` must equal the lockfile the core
+  environment was synced from. A difference fails with `core.environment`
+  (exit 3): stage or restore the lockfile, so the working tree and the
+  candidate agree.
+- Equal files: the running core judges. Different files: the candidate's core
+  is materialized, checked again against the candidate (a mismatch is an
+  internal error, exit 4), and runs the same command as a child process with
+  the caller's directory, environment, and output. Its exit status is the
+  verdict.
+- A materialized core that still differs from the candidate, because the
+  index changed meanwhile, fails with `git.candidate-changed` instead of
+  starting another child.
+
+There is no option or variable that skips this comparison. Unstaged edits to
+the handlers and everything they call cannot change a verdict in either
+direction; the acceptance suite proves both. Other commands, such as `fix`,
+`doctor`, and `inventory`, run the working-tree core.
+
+Residual risks:
+
+- The comparison itself (the CLI entry point, the provenance module, and the
+  launcher) runs from the working tree, so a local edit there is not defended
+  against. CI runs the committed core and is the boundary.
+- `pyproject.toml` of the core is not compared; its environment is defined by
+  `uv.lock` alone.
+- `--rev` of a commit whose core lockfile differs from the working tree fails
+  with `core.environment`. The pre-push hook checks pushed tips this way, so a
+  branch with a different core lockfile is pushed from its own checkout.
+- An older commit is judged by its own core and rules, including cores from
+  before this step existed.
+- The child runs in its own process session. Ctrl-C stops it; a parent killed
+  with `SIGTERM` or `SIGHUP` leaves it running until it ends or reaches its
+  6-hour timeout, like the other subprocesses of the core.
 
 ## Environment sanitation
 

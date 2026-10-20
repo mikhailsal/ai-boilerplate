@@ -30,7 +30,7 @@ role = "tooling"
 profile = "python"
 root = "tools/quality"
 source = ["src"]
-tests = { unit = ["tests/unit"] }
+tests = { unit = ["tests/unit"], acceptance = ["tests/acceptance"] }
 capabilities = ["cli"]
 
 # Decision 0003: packages depend only on packages listed after them.
@@ -41,6 +41,7 @@ layers = [
     "testkit",
     "engine",
     "toolchain",
+    "hooks",
     "rules",
     "adapters",
     "coverage",
@@ -59,6 +60,7 @@ modules = [
     { name = "testkit", paths = ["src/quality/testkit/**"] },
     { name = "engine", paths = ["src/quality/engine/**"] },
     { name = "toolchain", paths = ["src/quality/toolchain/**"] },
+    { name = "hooks", paths = ["src/quality/hooks/**"] },
     { name = "rules", paths = ["src/quality/rules/**"] },
     { name = "adapters", paths = ["src/quality/adapters/**"] },
     { name = "coverage", paths = ["src/quality/coverage/**"] },
@@ -71,6 +73,22 @@ modules = [
     { name = "process", paths = ["src/quality/process/**"] },
     { name = "diagnostics", paths = ["src/quality/diagnostics/**"] },
 ]
+
+# The stdlib launcher behind the root `quality` symlink; it runs on the system
+# python3 (3.10 or newer) before the core environment exists (decision 0010).
+[[components]]
+id = "quality-launcher"
+role = "tooling"
+profile = "python"
+root = "tools/quality/launcher"
+source = ["src"]
+tests = { unit = ["tests"] }
+capabilities = ["cli"]
+
+[[classification]]
+pattern = "quality"
+category = "config"
+reason = "Symlink to the launcher; its target is checked as quality-launcher source."
 
 [[exceptions]]
 rule = "suppressions.inline"

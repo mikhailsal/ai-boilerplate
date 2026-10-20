@@ -1,17 +1,18 @@
 # 0003 Architecture and configuration layout
 
-Status: accepted (P00).
+Status: accepted (P00); launcher path amended in P05.
 
 ## Repository layout
 
 | Path | Role |
 | --- | --- |
-| `quality` | Symlink to the stdlib launcher `tools/quality/launcher.py` |
+| `quality` | Symlink to the stdlib launcher `tools/quality/launcher/src/quality_launcher.py` ([decision 0010](0010-launcher-bootstrap-and-hooks.md)) |
 | `quality.toml` | The single policy source: thresholds, components, classification, exceptions |
 | `tools/quality/` | The always-required Python tooling core (`pyproject.toml`, `uv.lock`) |
 | `tools/quality/src/quality/` | Core package |
 | `tools/quality/tests/unit/` | Core unit suite (shipped with the template) |
 | `tools/quality/tests/acceptance/` | Maintainer acceptance harness (not exported) |
+| `tools/quality/launcher/` | The launcher component: stdlib source, tests, and its own lockfile |
 | `tools/quality/helpers/{typescript,dart,php}/` | Native helper bundles, each a native project with its own lockfile and tests |
 | `tools/quality/toolchains.toml` | Toolchain pins and checksums |
 | `docs/` | Documentation, decisions, plan records |

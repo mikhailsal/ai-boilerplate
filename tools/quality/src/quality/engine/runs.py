@@ -3,34 +3,17 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Protocol
 
 from quality.adapters.native import ToolFailedError
 from quality.boundedio import ReportError, read_bounded
-from quality.coverage import CoverageReport
 from quality.diagnostics import Diagnostic, Severity
+from quality.engine.profiles import ProfileTests
 from quality.policy import Policy
 from quality.rules import coverage, testing
 from quality.testing import Suite, SuiteRequest, SuiteRun, parse_junit
 
 # File systems with coarse timestamps may date a new report up to this many seconds early.
 FRESHNESS_SLACK = 2.0
-
-
-class ProfileTests(Protocol):
-    """A profile's test runner; it writes its reports only into the request's output."""
-
-    def expected(self, path: str) -> bool:
-        """Whether a source file must appear in this profile's coverage report."""
-        ...
-
-    def run(self, request: SuiteRequest) -> SuiteRun:
-        """Run one suite with coverage; raise ToolFailedError when it cannot run at all."""
-        ...
-
-    def coverage(self, data: bytes, request: SuiteRequest) -> CoverageReport:
-        """Parse the coverage report of a run; raise ReportError when it is unusable."""
-        ...
 
 
 def read_evidence(path: Path, request: SuiteRequest) -> bytes:

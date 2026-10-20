@@ -9,7 +9,9 @@ from datetime import date
 from quality.adapters.web import Probe
 from quality.diagnostics import Rule
 from quality.discovery import build_inventory
-from quality.engine.check import Report, candidate_files, checked_policy
+from quality.engine.check import Report
+from quality.engine.common import candidate_files
+from quality.engine.scope import checked_policy
 from quality.gitio import Candidate, Repository, materialize
 from quality.policy import Category
 from quality.rules import exceptions, external

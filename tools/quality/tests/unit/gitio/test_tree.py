@@ -1,6 +1,8 @@
+import hashlib
+
 import pytest
 
-from quality.gitio import GitioError, list_tree, read_blobs
+from quality.gitio import GitioError, blob_id, list_tree, read_blobs
 from quality.gitio import tree as tree_module
 from quality.gitio.tree import blob_sizes
 from quality.testkit.gitrepo import GitRepo
@@ -56,3 +58,10 @@ def test_blob_sizes_reject_missing_objects(repo: GitRepo) -> None:
     assert blob_sizes(git, []) == {}
     with pytest.raises(GitioError, match="missing"):
         blob_sizes(git, ["f" * 40])
+
+
+def test_blob_ids_match_git(repo: GitRepo) -> None:
+    for data in (b"", b"hello\n", bytes(range(256))):
+        assert blob_id(data) == repo.git("hash-object", "--stdin", stdin=data).strip()
+    expected = hashlib.sha256(b"blob 3\0abc").hexdigest()
+    assert blob_id(b"abc", algorithm="sha256") == expected

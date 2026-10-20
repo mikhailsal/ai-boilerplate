@@ -1,6 +1,14 @@
 """Pinned standalone tools: manifest, cache location, and verified installation."""
 
-from quality.toolchain.install import RULES, ToolchainError, cache_root, extra_path, install, locate
+from quality.toolchain.install import (
+    RULES,
+    ToolchainError,
+    cache_root,
+    extra_path,
+    install,
+    locate,
+    python_root,
+)
 from quality.toolchain.manifest import (
     Artifact,
     ManifestError,
@@ -21,4 +29,5 @@ __all__ = [
     "load_manifest",
     "locate",
     "parse_manifest",
+    "python_root",
 ]

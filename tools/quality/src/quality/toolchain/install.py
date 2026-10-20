@@ -75,6 +75,11 @@ def cache_root(environ: Mapping[str, str] | None = None) -> Path:
     return Path(base) / "quality" / "toolchains"
 
 
+def python_root(environ: Mapping[str, str] | None = None) -> Path:
+    """Return the directory of uv-managed interpreters, beside the tool cache."""
+    return cache_root(environ).parent / "python"
+
+
 def machine() -> Architecture | None:
     """Return the normalized machine architecture, if it is supported."""
     return MACHINES.get(platform.machine().lower())

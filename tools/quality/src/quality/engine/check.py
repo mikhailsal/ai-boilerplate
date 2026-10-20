@@ -1,117 +1,51 @@
-"""`quality check`: the common gates over one isolated candidate snapshot."""
+"""`quality check`: every gate over one isolated candidate snapshot.
+
+The common gates cover the whole candidate. Profile gates and unit suites with
+their coverage floors cover the components the change affects, or every active
+component when asked; a component whose profile has no adapter fails.
+"""
 
 from __future__ import annotations
 
-import os
-from collections.abc import Callable, Iterable, Iterator, Mapping
-from dataclasses import dataclass
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
 from datetime import date
-from pathlib import Path, PurePosixPath
 
-from quality.adapters import markdown, native, secrets
-from quality.adapters.python.imports import file_dependencies, import_roots
-from quality.adapters.python.structure import PythonStructure
-from quality.diagnostics import Diagnostic, Kind, Rule
-from quality.discovery import Inventory, Region, active_components, build_inventory
-from quality.gitio import Candidate, Repository, Snapshot, TreeEntry, materialize, tree_changes
-from quality.metrics import FileMetrics, StructureError
-from quality.policy import Category, Component, Policy, Profile, cross_validate, load_policy
-from quality.rules import architecture, config, docs, exceptions, files, structure, suppressions
-from quality.rules.links import is_markdown
-from quality.rules.model import CandidateFile
-
-UNAVAILABLE = Rule(
-    id="profiles.unavailable",
-    title="Profile gates are not available in this build",
-    requirement="R01",
-    explanation=(
-        "An active component uses a profile whose adapter is not implemented yet, so its "
-        "formatting, lint, type, structure, and test gates cannot run. Nothing passes silently."
-    ),
-    remedy="Use a supported profile or update the boilerplate to a version that provides it.",
-    kind=Kind.ENVIRONMENT,
+from quality.diagnostics import Diagnostic, Rule
+from quality.engine.common import (
+    COMMON_RULES,
+    PYTHON_RULES,
+    TOOL_RULES,
+    Commands,
+    Tools,
+    candidate_files,
+    common_gates,
+    tool_findings,
 )
+from quality.engine.profiles import ProfileAdapter
+from quality.engine.scope import (
+    UNAVAILABLE,
+    Scope,
+    candidate_scope,
+    checked_policy,
+    prepare_components,
+    unavailable,
+)
+from quality.engine.suites import suite_findings
+from quality.gitio import Candidate, Repository, materialize
+from quality.policy import Component, Profile
+from quality.rules import exceptions
+from quality.rules.coverage import ComponentCoverage
+from quality.testing import Suite
+
 RULES = (UNAVAILABLE,)
 
-COMMON_RULES = (*files.RULES, *config.RULES, *suppressions.RULES, *docs.RULES)
-TOOL_RULES = (*markdown.RULES, *secrets.RULES)
-PYTHON_RULES = (*structure.RULES, *architecture.RULES)
-STRUCTURE_SUFFIXES = frozenset({".py"})
-
-type Commands = Mapping[str, frozenset[str]]
+type Adapters = Mapping[Profile, ProfileAdapter]
+type Ready = list[tuple[Component, ProfileAdapter]]
 
 
-@dataclass(frozen=True, slots=True)
-class Tools:
-    """Executables and data files the common gates use; all pinned and local."""
-
-    python: Path
-    gitleaks: Path
-    gitleaks_rules: Path
-
-
-@dataclass(frozen=True, slots=True)
-class Report:
-    """The result of checking one candidate."""
-
-    diagnostics: tuple[Diagnostic, ...]
-    files: int = 0
-    excepted: int = 0
-
-
-def _read(root: Path, path: str) -> bytes:
-    descriptor = os.open(root / path, os.O_RDONLY | os.O_NOFOLLOW)
-    with os.fdopen(descriptor, "rb") as stream:
-        return stream.read()
-
-
-def candidate_files(
-    root: Path, entries: Iterable[TreeEntry], inventory: Inventory, limit: int
-) -> list[CandidateFile]:
-    """Pair records with sizes and, for regular files within the blob limit, bytes."""
-    records = {record.path: record for record in inventory.files}
-    found: list[CandidateFile] = []
-    for entry in entries:
-        record = records[entry.path]
-        readable = entry.is_file and entry.size <= limit
-        found.append(
-            CandidateFile(record, entry.size, _read(root, entry.path) if readable else None)
-        )
-    return found
-
-
-def _measured(files: Iterable[CandidateFile], component: Component) -> Iterator[CandidateFile]:
-    for file in files:
-        if (
-            file.record.component == component.id
-            and file.category in {Category.SOURCE, Category.TESTS}
-            and file.record.language == "python"
-            and PurePosixPath(file.path).suffix in STRUCTURE_SUFFIXES
-            and file.data is not None
-        ):
-            yield file
-
-
-def python_gates(
-    component: Component, files: list[CandidateFile], policy: Policy
-) -> Iterator[Diagnostic]:
-    """Structure metrics and module architecture of one Python component."""
-    analyzer = PythonStructure()
-    sources: dict[str, FileMetrics] = {}
-    for file in _measured(files, component):
-        try:
-            metrics = analyzer.analyze(file.path, file.data or b"")
-        except StructureError as error:
-            yield structure.unparseable(error, component=component.id)
-            continue
-        yield from structure.check_structure(metrics, policy.thresholds, component=component.id)
-        if file.record.region is Region.SOURCE:
-            sources[file.path] = metrics
-    if component.architecture.modules:
-        prefix = "" if component.root == "." else component.root + "/"
-        roots = import_roots([prefix + root for root in component.source], sources)
-        edges = file_dependencies(sources, roots)
-        yield from architecture.check_architecture(component, sorted(sources), edges)
+def _no_adapters() -> Adapters:
+    return {}
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,68 +56,56 @@ class Settings:
     commands: Commands
     rules: Mapping[str, Rule]
     today: date
+    profiles: Adapters = field(default_factory=_no_adapters)
+    everything: bool = False
 
 
-def _tool(run: Callable[[], Iterable[Diagnostic]]) -> list[Diagnostic]:
-    try:
-        return list(run())
-    except native.ToolFailedError as error:
-        return [error.diagnostic]
+@dataclass(frozen=True, slots=True)
+class Report:
+    """The result of checking one candidate."""
+
+    diagnostics: tuple[Diagnostic, ...]
+    files: int = 0
+    excepted: int = 0
+    tested: tuple[str, ...] = ()
+    coverage: tuple[ComponentCoverage, ...] = ()
 
 
-def _gates(
-    policy: Policy,
-    active: tuple[Component, ...],
-    candidate: list[CandidateFile],
-    snapshot: Snapshot,
-    settings: Settings,
-) -> Iterator[Diagnostic]:
-    tools = settings.tools
-    yield from files.check_files(candidate, policy.thresholds)
-    yield from config.check_config(candidate)
-    yield from suppressions.check_suppressions(candidate)
-    yield from docs.check_docs(candidate, policy.thresholds, settings.commands)
-    pages = [
-        (file.path, file.data)
-        for file in candidate
-        if file.category is Category.DOCS
-        and is_markdown(file.path)
-        and file.data is not None
-        and file.text() is not None
-    ]
-    if pages:
-        yield from _tool(lambda: markdown.lint_markdown(pages, snapshot.work, python=tools.python))
-
-    def scan() -> Iterator[Diagnostic]:
-        found = secrets.scan_directory(
-            snapshot.root, snapshot.work, gitleaks=tools.gitleaks, rules=tools.gitleaks_rules
-        )
-        return secrets.secret_diagnostics(found)
-
-    yield from _tool(scan)
-    for component in active:
-        if component.profile is Profile.PYTHON:
-            yield from python_gates(component, candidate, policy)
-        else:
-            message = f"the {component.profile} profile of '{component.id}' is not available yet"
-            yield UNAVAILABLE.diagnostic(message, component=component.id)
-
-
-def ran_rules(active: Iterable[Component]) -> frozenset[str]:
+def ran_rules(
+    active: Iterable[Component], checked: Iterable[Component], profiles: Adapters
+) -> frozenset[str]:
     """Return the rules that ran over the whole candidate, so unused exceptions are reliable."""
+    active = tuple(active)
     ran = [*COMMON_RULES, *TOOL_RULES]
     if any(component.profile is Profile.PYTHON for component in active):
         ran.extend(PYTHON_RULES)
+    done = {component.id for component in checked}
+    for profile, adapter in profiles.items():
+        members = [component.id for component in active if component.profile is profile]
+        if members and done.issuperset(members):
+            ran.extend(adapter.rules)
     return frozenset(rule.id for rule in ran)
 
 
-def checked_policy(root: Path, rules: Iterable[str]) -> Policy | tuple[Diagnostic, ...]:
-    """Load and cross-validate the snapshot's policy, or return why it is unusable."""
-    loaded = load_policy(root)
-    if loaded.policy is None:
-        return tuple(loaded.diagnostics)
-    problems = cross_validate(loaded.policy, frozenset(rules))
-    return tuple(problems) if problems else loaded.policy
+def _static(component: Component, adapter: ProfileAdapter, scope: Scope) -> list[Diagnostic]:
+    snapshot = scope.snapshot
+    files = scope.files(component)
+    return tool_findings(lambda: adapter.static(component, snapshot.root, snapshot.work, files))
+
+
+def profile_gates(
+    scope: Scope, profiles: Adapters
+) -> tuple[list[Diagnostic], Ready, list[ComponentCoverage]]:
+    """Native gates and unit suites of the selected components."""
+    found = [unavailable(c) for c in scope.active if c.profile not in profiles]
+    supported = [c for c in scope.selected if c.profile in profiles]
+    ready, problems = prepare_components(profiles, supported, scope.snapshot)
+    found.extend(problems)
+    for component, adapter in ready:
+        found.extend(_static(component, adapter, scope))
+    diagnostics, summaries = suite_findings(scope, ready, (Suite.UNIT,))
+    found.extend(diagnostics)
+    return found, ready, summaries
 
 
 def _inspect(repo: Repository, candidate: Candidate, settings: Settings) -> Report:
@@ -191,22 +113,22 @@ def _inspect(repo: Repository, candidate: Candidate, settings: Settings) -> Repo
         policy = checked_policy(snapshot.root, settings.rules)
         if isinstance(policy, tuple):
             return Report(policy)
-        inventory = build_inventory(policy, snapshot.root, snapshot.entries)
-        changed = [
-            change.path for change in tree_changes(repo, candidate.base_tree, candidate.tree)
-        ]
-        active = active_components(policy, changed)
+        scope = candidate_scope(repo, candidate, snapshot, policy, everything=settings.everything)
         limit = policy.thresholds.blob_bytes
-        found = candidate_files(snapshot.root, snapshot.entries, inventory, limit)
-        gates = _gates(policy, active, found, snapshot, settings)
+        found = candidate_files(snapshot.root, snapshot.entries, scope.inventory, limit)
+        common = common_gates(scope, found, tools=settings.tools, commands=settings.commands)
+        gates = [*scope.inventory.diagnostics, *common]
+        profiled, ready, summaries = profile_gates(scope, settings.profiles)
+        checked = [component for component, _ in ready]
         applied = exceptions.apply_exceptions(
-            [*inventory.diagnostics, *gates],
+            [*gates, *profiled],
             policy.exceptions,
             rules=settings.rules,
-            ran=ran_rules(active),
+            ran=ran_rules(scope.active, checked, settings.profiles),
             today=settings.today,
         )
-    return Report(applied.diagnostics, len(found), applied.excepted)
+    tested = tuple(component.id for component in checked)
+    return Report(applied.diagnostics, len(found), applied.excepted, tested, tuple(summaries))
 
 
 def check_candidate(repo: Repository, candidate: Candidate, settings: Settings) -> Report:

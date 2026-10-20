@@ -3,14 +3,25 @@ from pathlib import Path
 
 import pytest
 
-from quality.cli import check_cmd
+from quality.cli import check_cmd, local
 from quality.cli.main import main
+from quality.engine import ProfileAdapter
+from quality.policy import Profile
 from quality.testkit.gitrepo import GitRepo
 from quality.testkit.policies import policy_toml
+from quality.testkit.suites import ScriptedRunner
 from quality.toolchain import ManifestError, cache_root, load_manifest
 
 README = "# Project\n\nSee [agent instructions](AGENTS.md).\n"
 AGENTS = "# Agents\n\nRun `quality check` before committing.\n"
+COVERED = (
+    "unit coverage of app: line 100.00% (2/2), branch 100.00% (1/1), "
+    "changed lines not applicable (0/0)\n"
+)
+
+
+def scripted() -> dict[Profile, ProfileAdapter]:
+    return {Profile.PYTHON: ScriptedRunner({}, cover=True)}
 
 
 @pytest.fixture
@@ -27,6 +38,7 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> GitRepo:
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("HOME", str(repo.home))
     monkeypatch.setenv("XDG_CACHE_HOME", str(cache))
+    monkeypatch.setattr(check_cmd, "local_profiles", scripted)
     monkeypatch.chdir(repo.path)
     return repo
 
@@ -35,7 +47,8 @@ def test_the_staged_candidate_passes(project: GitRepo, capsys: pytest.CaptureFix
     project.write("src/app/unstaged.py", "def broken(:\n")
     assert main(["check"]) == 0
     assert capsys.readouterr().out == (
-        "PASSED: 0 error(s), 0 warning(s)\nchecked 5 files; 0 findings covered by exceptions\n"
+        f"PASSED: 0 error(s), 0 warning(s)\n{COVERED}"
+        "checked 5 files; 0 findings covered by exceptions\n"
     )
 
 
@@ -47,8 +60,11 @@ def test_violations_fail_with_a_json_report(
     assert main(["check", "--staged", "--json"]) == 1
     report = json.loads(capsys.readouterr().out)
     assert report["command"] == "check"
-    assert (report["files"], report["excepted"]) == (6, 0)
+    assert (report["files"], report["excepted"], report["tested"]) == (6, 0, ["app"])
     assert [d["rule"] for d in report["diagnostics"]] == ["suppressions.inline"]
+    (coverage,) = report["coverage"]
+    assert coverage["component"] == "app"
+    assert coverage["line"] == {"covered": 4, "total": 4}
 
 
 def test_a_revision_is_checked(project: GitRepo, capsys: pytest.CaptureFixture[str]) -> None:
@@ -86,7 +102,7 @@ def test_a_broken_manifest_is_an_environment_error(
         msg = "bad manifest"
         raise ManifestError(msg)
 
-    monkeypatch.setattr(check_cmd, "load_manifest", broken)
+    monkeypatch.setattr(local, "load_manifest", broken)
     assert main(["check"]) == 3
     assert "toolchain manifest: bad manifest (tools.missing)" in capsys.readouterr().out
 

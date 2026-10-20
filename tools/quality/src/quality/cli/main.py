@@ -10,13 +10,19 @@ from typing import cast
 
 from quality import __version__
 from quality.cli import (
+    bootstrap_cmd,
     check_cmd,
+    doctor_cmd,
     explain_cmd,
+    fix_cmd,
     inventory_cmd,
     links_cmd,
     policy_cmd,
+    selftest_cmd,
+    suites_cmd,
     tools_cmd,
 )
+from quality.cli.provenance import judge
 from quality.diagnostics import ExitCode
 
 type Handler = Callable[[argparse.Namespace], int]
@@ -27,7 +33,19 @@ fail; Git hooks and CI only call it. Exit codes: 0 pass, 1 violations,
 2 usage or policy error, 3 environment or tool error, 4 internal error.
 """
 
-COMMANDS = (check_cmd, explain_cmd, inventory_cmd, links_cmd, policy_cmd, tools_cmd)
+COMMANDS = (
+    bootstrap_cmd,
+    check_cmd,
+    doctor_cmd,
+    explain_cmd,
+    fix_cmd,
+    inventory_cmd,
+    links_cmd,
+    policy_cmd,
+    selftest_cmd,
+    suites_cmd,
+    tools_cmd,
+)
 
 
 def command_table() -> dict[str, frozenset[str]]:
@@ -52,11 +70,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI and return a deterministic exit code."""
-    parser = build_parser()
-    args = parser.parse_args(argv)
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    args = build_parser().parse_args(arguments)
     handler = cast(Handler, args.handler)
     try:
-        return int(handler(args))
+        # Verdict commands first make sure the candidate's own core judges it.
+        verdict = judge(args, arguments) if getattr(args, "judged", False) else None
+        return int(handler(args)) if verdict is None else verdict
     except KeyboardInterrupt:
         print("interrupted", file=sys.stderr)
         return 130

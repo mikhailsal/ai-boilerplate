@@ -62,6 +62,7 @@ class SuiteRequest:
     """One suite to run: the component, its test roots, and a new empty output directory.
 
     `started` is the time the output directory was created; reports must not be older.
+    `work` is the snapshot's private work area, where runners keep environments.
     """
 
     component: Component
@@ -70,6 +71,7 @@ class SuiteRequest:
     snapshot: Path
     output: Path
     started: float
+    work: Path
 
     @property
     def directory(self) -> Path:

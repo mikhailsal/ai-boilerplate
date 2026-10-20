@@ -6,7 +6,7 @@ from pathlib import Path, PurePosixPath
 
 from quality.adapters import native, secrets
 from quality.diagnostics import Diagnostic
-from quality.engine.check import Tools
+from quality.engine.common import Tools
 from quality.gitio import HistoryBlob, Repository, RevisionRange, new_blobs, read_blobs
 from quality.rules import files
 

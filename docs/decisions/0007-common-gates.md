@@ -68,8 +68,9 @@ which uses only the standard `ast` and `tokenize` modules.
   `**kwargs`. The receiver (`self`, `cls`) of a method defined directly in a
   class is excluded unless the method is a `staticmethod`.
 - File length counts physical lines, and a last line without a newline still
-  counts. The formatter check (P05) makes the staged file canonical, so the
-  count is taken after canonical formatting.
+  counts. The formatter check ([decision 0009](0009-python-profile.md)) makes
+  the staged file canonical, so the count is taken after canonical
+  formatting.
 
 The TypeScript, Dart, and PHP helpers implement the same definitions with
 their own parsers in P06–P08.

@@ -8,9 +8,10 @@ The test engine runs the test suites of the components a candidate affects
 and enforces the unit coverage floors of [`quality.toml`](../../quality.toml)
 separately for each component. Profiles plug in a runner with three
 operations: which source files it must account for, how to run one suite, and
-how to parse its native coverage report. The Python runner and the command
-that calls the engine arrive in P05; the other profiles follow in P06–P08. Native measurement semantics are described in
-[decision 0005](0005-coverage-measurement.md).
+how to parse its native coverage report. The Python runner
+([decision 0009](0009-python-profile.md)) and `quality test` arrived in P05;
+the other profiles follow in P06–P08. Native measurement semantics are
+described in [decision 0005](0005-coverage-measurement.md).
 
 ## Which components run
 

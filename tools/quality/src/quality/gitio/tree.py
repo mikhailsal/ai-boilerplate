@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
@@ -45,6 +46,14 @@ class TreeEntry:
     def is_gitlink(self) -> bool:
         """A submodule commit reference."""
         return self.mode == GITLINK
+
+
+def blob_id(data: bytes, *, algorithm: str = "sha1") -> str:
+    """Return the object ID Git gives a blob with these bytes ("sha1" or "sha256")."""
+    digest = hashlib.new(algorithm)
+    digest.update(b"blob %d\0" % len(data))
+    digest.update(data)
+    return digest.hexdigest()
 
 
 def list_tree(repo: Repository, tree: str) -> tuple[TreeEntry, ...]:

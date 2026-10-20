@@ -65,8 +65,20 @@ SNAPSHOT_NOT_ISOLATED = Rule(
     remedy="Remove the reported file or point TMPDIR at a directory without project markers.",
     kind=Kind.ENVIRONMENT,
 )
+GIT_VERSION = Rule(
+    id="git.version",
+    title="The installed Git is older than the supported minimum",
+    requirement="R02",
+    explanation=(
+        "The gate relies on Git 2.34 or newer for its plumbing output and hook behavior. "
+        "Older versions are not tested and may report candidates incorrectly."
+    ),
+    remedy="Install Git 2.34 or newer and make it the first 'git' on the PATH.",
+    kind=Kind.ENVIRONMENT,
+)
 RULES = (
     GIT_FAILED,
+    GIT_VERSION,
     GIT_UNMERGED,
     GIT_CANDIDATE_CHANGED,
     GIT_SYMLINK_ESCAPE,

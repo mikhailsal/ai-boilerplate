@@ -1,29 +1,42 @@
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
 import pytest
 
+from quality.adapters import native
+from quality.adapters.python.config import CONFIG
+from quality.adapters.python.ruff import FORMAT
+from quality.adapters.python.ruff import RULES as FORMAT_RULES
 from quality.catalog import build_registry
 from quality.cli.main import command_table
-from quality.diagnostics import Diagnostic, Kind
+from quality.diagnostics import Diagnostic, Kind, Severity
 from quality.engine import Report, Settings, Tools, check_candidate
-from quality.engine.check import PYTHON_RULES, ran_rules
+from quality.engine.check import PYTHON_RULES, UNAVAILABLE, ran_rules
+from quality.engine.profiles import ProfileAdapter
 from quality.gitio import revision, staged
+from quality.policy import Profile
 from quality.testkit.candidates import pinned_tools
 from quality.testkit.gitrepo import GitRepo
 from quality.testkit.policies import ComponentSpec, build_policy, policy_toml
+from quality.testkit.suites import ScriptedRunner
 
 TODAY = date(2026, 10, 20)
 README = "# Project\n\nSee [agent instructions](AGENTS.md).\n"
 AGENTS = "# Agents\n\nRun `quality check` before committing.\n"
 
 
-def settings(tools: Tools | None = None) -> Settings:
+def scripted() -> ScriptedRunner:
+    return ScriptedRunner({}, cover=True)
+
+
+def settings(tools: Tools | None = None, adapter: ProfileAdapter | None = None) -> Settings:
     return Settings(
         tools=tools or pinned_tools(),
         commands=command_table(),
         rules={rule.id: rule for rule in build_registry()},
         today=TODAY,
+        profiles={Profile.PYTHON: adapter or scripted()},
     )
 
 
@@ -57,7 +70,10 @@ def only(report: Report, rule: str) -> Diagnostic:
 
 def test_a_clean_project_passes(project: GitRepo) -> None:
     report = check(project)
-    assert report == Report((), files=6, excepted=0)
+    assert (report.diagnostics, report.files, report.excepted) == ((), 6, 0)
+    assert report.tested == ("app",)
+    (summary,) = report.coverage
+    assert (summary.component, summary.line.covered, summary.line.total) == ("app", 4, 4)
 
 
 def test_a_revision_is_checked(project: GitRepo) -> None:
@@ -130,7 +146,9 @@ expires = 2026-12-31
     report = check(project)
     unavailable = only(report, "profiles.unavailable")
     assert unavailable.kind is Kind.ENVIRONMENT
-    assert unavailable.message == "the typescript profile of 'web' is not available yet"
+    assert unavailable.message == (
+        "'web' uses the typescript profile; this build has no adapter for it"
+    )
     assert "exceptions.unused" not in rules_of(report)
 
 
@@ -197,5 +215,98 @@ def test_agent_instructions_are_required(project: GitRepo) -> None:
 def test_rules_that_ran() -> None:
     python = build_policy().components
     typescript = build_policy(ComponentSpec(profile="typescript")).components
-    assert {rule.id for rule in PYTHON_RULES} <= ran_rules(python)
-    assert not {rule.id for rule in PYTHON_RULES} & ran_rules(typescript)
+    assert {rule.id for rule in PYTHON_RULES} <= ran_rules(python, (), {})
+    assert not {rule.id for rule in PYTHON_RULES} & ran_rules(typescript, (), {})
+
+
+def test_adapter_rules_ran_only_when_every_member_was_checked() -> None:
+    adapter = ScriptedRunner({}, rules=(UNAVAILABLE,))
+    two = build_policy(ComponentSpec(id="a", root="a"), ComponentSpec(id="b", root="b"))
+    profiles = {Profile.PYTHON: adapter}
+    first, second = two.components
+    assert UNAVAILABLE.id in ran_rules(two.components, two.components, profiles)
+    assert UNAVAILABLE.id not in ran_rules(two.components, (first,), profiles)
+    assert UNAVAILABLE.id not in ran_rules((), (), profiles)
+    assert UNAVAILABLE.id in ran_rules((second,), (second,), profiles)
+
+
+def test_static_findings_cover_the_component_files(project: GitRepo) -> None:
+    finding = FORMAT.diagnostic("would reformat", component="app")
+    adapter = ScriptedRunner({}, cover=True, findings={"app": [finding]})
+    git = project.repository()
+    report = check_candidate(git, staged(git), settings(adapter=adapter))
+    assert report.diagnostics == (finding,)
+    assert adapter.checked == [
+        ("app", ("src/app/__init__.py", "src/app/core.py", "tests/test_core.py"))
+    ]
+
+
+def test_configuration_errors_stop_the_component(project: GitRepo) -> None:
+    exception = """
+[[exceptions]]
+rule = "python.format"
+path = "src/app/core.py"
+reason = "pending"
+owner = "team"
+expires = 2026-12-31
+"""
+    project.write("quality.toml", policy_toml(extra=exception))
+    project.git("add", "-A")
+    problem = CONFIG.diagnostic("pyproject.toml has no [project] table", component="app")
+    adapter = ScriptedRunner({}, rules=FORMAT_RULES, problems={"app": [problem]})
+    git = project.repository()
+    report = check_candidate(git, staged(git), settings(adapter=adapter))
+    assert report.diagnostics == (problem,)
+    assert (adapter.checked, adapter.requests, report.tested) == ([], [], ())
+
+
+def test_warnings_do_not_stop_the_component(project: GitRepo) -> None:
+    warning = CONFIG.diagnostic("w", component="app", severity=Severity.WARNING)
+    adapter = ScriptedRunner({}, cover=True, problems={"app": [warning]})
+    git = project.repository()
+    report = check_candidate(git, staged(git), settings(adapter=adapter))
+    assert report.diagnostics == (warning,)
+    assert report.tested == ("app",)
+
+
+def test_an_environment_that_cannot_be_prepared_fails(project: GitRepo) -> None:
+    broken = native.failure("uv sync", "no network")
+    adapter = ScriptedRunner({}, broken={"app": broken.diagnostic})
+    git = project.repository()
+    report = check_candidate(git, staged(git), settings(adapter=adapter))
+    assert rules_of(report) == ["tools.failed"]
+    assert report.diagnostics[0].message == "uv sync: no network"
+
+
+def test_only_affected_components_are_prepared_unless_all(project: GitRepo) -> None:
+    specs = (ComponentSpec(id="a", root="a"), ComponentSpec(id="b", root="b"))
+    project.write("quality.toml", policy_toml(*specs))
+    for name in ("a", "b"):
+        project.write(f"{name}/src/{name}/__init__.py", "")
+        project.write(f"{name}/tests/test_{name}.py", "def test_ok():\n    assert True\n")
+    project.git("rm", "-q", "-r", "--cached", "src", "tests")
+    project.git("add", "-A", "quality.toml", "a", "b")
+    project.git("commit", "-q", "-m", "first")
+    project.write("a/src/a/__init__.py", "X = 1\n")
+    project.git("add", "-A", "a")
+    git = project.repository()
+    adapter = scripted()
+    assert check_candidate(git, staged(git), settings(adapter=adapter)).tested == ("a",)
+    assert adapter.prepared == ["a"]
+    every = replace(settings(adapter=scripted()), everything=True)
+    assert check_candidate(git, staged(git), every).tested == ("a", "b")
+
+
+def test_without_profile_adapters_every_component_is_unavailable(project: GitRepo) -> None:
+    bare = Settings(
+        tools=pinned_tools(),
+        commands=command_table(),
+        rules={rule.id: rule for rule in build_registry()},
+        today=TODAY,
+    )
+    git = project.repository()
+    report = check_candidate(git, staged(git), bare)
+    found = only(report, UNAVAILABLE.id)
+    message = "'app' uses the python profile; this build has no adapter for it"
+    assert (found.component, found.message) == ("app", message)
+    assert report.tested == ()

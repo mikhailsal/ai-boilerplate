@@ -19,6 +19,9 @@ from quality.gitio.errors import GIT_SYMLINK_ESCAPE, SNAPSHOT_NOT_ISOLATED, Giti
 from quality.gitio.repo import Repository
 from quality.gitio.tree import TreeEntry, list_tree, read_blobs
 
+# A snapshot is `<temporary directory>/quality-snapshot-*/candidate`, with `work` beside it.
+SNAPSHOT_PREFIX = "quality-snapshot-"
+CANDIDATE_DIRECTORY = "candidate"
 # Files that tools discover in parent directories and that must not exist above a snapshot.
 ISOLATION_MARKERS = (
     ".git",
@@ -116,9 +119,9 @@ def materialize(repo: Repository, tree: str, *, base: Path | None = None) -> Gen
     """Write `tree` to a fresh private directory and remove it afterwards."""
     parent = (base or Path(tempfile.gettempdir())).resolve()
     check_isolated(parent)
-    top = Path(tempfile.mkdtemp(prefix="quality-snapshot-", dir=parent))
+    top = Path(tempfile.mkdtemp(prefix=SNAPSHOT_PREFIX, dir=parent))
     try:
-        root, work = top / "candidate", top / "work"
+        root, work = top / CANDIDATE_DIRECTORY, top / "work"
         root.mkdir()
         work.mkdir()
         entries = list_tree(repo, tree)

@@ -6,6 +6,7 @@ import os
 import shutil
 import signal
 import subprocess
+import sys
 import tempfile
 import time
 from collections.abc import Mapping
@@ -170,3 +171,32 @@ def run(command: Command) -> Completed:
         stdout_truncated=stdout_truncated,
         stderr_truncated=stderr_truncated,
     )
+
+
+def run_attached(command: Command) -> int:
+    """Run a command that writes straight to this process's stdout and stderr.
+
+    Only the output is shared; the environment, directory, and timeout are the
+    command's own, as with `run`. Returns the exit status.
+    """
+    _validate(command)
+    executable = resolve_executable(command)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    process = subprocess.Popen(
+        [executable, *command.argv[1:]],
+        cwd=command.cwd,
+        env=dict(command.env),
+        stdin=subprocess.PIPE if command.stdin is not None else subprocess.DEVNULL,
+        start_new_session=True,
+        close_fds=True,
+    )
+    try:
+        process.communicate(input=command.stdin, timeout=command.timeout)
+    except subprocess.TimeoutExpired:
+        terminate(process)
+        raise ProcessTimeoutError(command.argv, f"timed out after {command.timeout:g}s") from None
+    except BaseException:
+        terminate(process)
+        raise
+    return process.returncode

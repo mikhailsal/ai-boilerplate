@@ -1,0 +1,167 @@
+"""Scratch projects driven through real Git hooks and the core under test.
+
+Each project is a new repository with Python application components. Its
+`quality` entry point runs this checkout's core with the interpreter running the
+suite, so hooks exercise exactly the code under test. A project can instead
+embed a copy of that core at `tools/quality`, where its entry point runs the
+copy in the work tree as the launcher would. The pinned toolchains and uv's
+package cache are reached through the caller's cache directory; nothing is
+downloaded.
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import shlex
+import shutil
+import sys
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+
+import quality
+from quality.engine.provenance import BOOT
+from quality.process import Command, Completed, run
+from quality.testkit.gitrepo import GitRepo
+from quality.testkit.policies import ComponentSpec, classification_toml, policy_toml
+from quality.testkit.pythonproject import python_project
+
+CORE_SOURCE = Path(quality.__file__).resolve().parents[1]
+EMBEDDED_CORE = "tools/quality"
+README = "# Scratch project\n\nSee [agent instructions](AGENTS.md).\n"
+AGENTS = "# Agents\n\nRun `quality check` before committing and `quality fix` to format.\n"
+IGNORED = ".venv/\n__pycache__/\n"
+CORE = """\
+def sign(value: int) -> int:
+    if value < 0:
+        return -1
+    return 1
+"""
+TESTS = """\
+from {name}.core import sign
+
+
+def test_sign() -> None:
+    assert sign(-3) == -1
+    assert sign(4) == 1
+"""
+TIMEOUT = 900.0
+RULE = re.compile(r"\(([a-z]+\.[a-z-]+)\)(?: \[[^\]]+\])?$", re.MULTILINE)
+
+
+def entry_point(source: Path = CORE_SOURCE) -> str:
+    """Return the `quality` script that runs the core in `source` (the core under test)."""
+    argv = (sys.executable, "-I", "-c", BOOT, str(source))
+    return f'#!/bin/sh\nexec {" ".join(shlex.quote(part) for part in argv)} "$@"\n'
+
+
+def shared_caches(environ: Mapping[str, str]) -> dict[str, str]:
+    """Return the cache variables that lead a scratch user to the installed toolchain."""
+    home = Path(environ.get("HOME") or Path.home())
+    caches = {"XDG_CACHE_HOME": environ.get("XDG_CACHE_HOME") or str(home / ".cache")}
+    if "UV_CACHE_DIR" in environ:
+        caches["UV_CACHE_DIR"] = environ["UV_CACHE_DIR"]
+    return caches
+
+
+def component(name: str = "app") -> ComponentSpec:
+    """Return a Python application component rooted at `name/`."""
+    return ComponentSpec(id=name, root=name)
+
+
+def output(result: Completed) -> str:
+    """Return everything a command printed."""
+    return result.stdout_text() + result.stderr_text()
+
+
+def rules_of(result: Completed) -> set[str]:
+    """Return the rules of the findings a command printed as text."""
+    return set(RULE.findall(output(result)))
+
+
+@dataclass(frozen=True, slots=True)
+class Project:
+    """A repository with Python components, committed before any hook exists."""
+
+    repo: GitRepo
+
+    @property
+    def path(self) -> Path:
+        """The work tree."""
+        return self.repo.path
+
+    def environ(self) -> dict[str, str]:
+        """Return the scratch user's environment with the shared caches."""
+        return self.repo.environ(**shared_caches(os.environ))
+
+    def run(self, *argv: str) -> Completed:
+        """Run a command in the work tree as the user would."""
+        return run(Command(argv, cwd=self.path, timeout=TIMEOUT, env=self.environ()))
+
+    def quality(self, *args: str) -> Completed:
+        """Run the project's `quality` entry point."""
+        return self.run("./quality", *args)
+
+    def git(self, *args: str) -> Completed:
+        """Run Git with the shared caches, so hooks find the toolchain."""
+        return self.run("git", *args)
+
+    def write(self, path: str, text: str) -> None:
+        """Write a work-tree file."""
+        self.repo.write(path, text)
+
+    def commit(self, message: str, *paths: str) -> Completed:
+        """Stage the paths (everything when none) and commit through the hooks."""
+        self.repo.git("add", "--", *(paths or (".",)))
+        return self.git("commit", "-q", "-m", message)
+
+    def head(self) -> str:
+        """Return the current commit."""
+        return self.repo.head()
+
+    def index_tree(self) -> str:
+        """Return the tree the index would commit."""
+        return self.repo.git("write-tree").strip()
+
+    def hook(self, name: str) -> Path:
+        """Return the path of a hook in the repository's hooks directory."""
+        return self.path / ".git" / "hooks" / name
+
+
+def embed_core(path: Path) -> Path:
+    """Copy the core under test, its manifest, and its lock to `path`; return its source root."""
+    ignored = shutil.ignore_patterns("__pycache__")
+    shutil.copytree(CORE_SOURCE / "quality", path / "src" / "quality", ignore=ignored)
+    for name in ("toolchains.toml", "uv.lock"):
+        shutil.copyfile(CORE_SOURCE.parent / name, path / name)
+    return path / "src"
+
+
+def create_project(path: Path, *components: ComponentSpec, core: bool = False) -> Project:
+    """Write and commit a passing project; no hook is installed yet.
+
+    With `core`, the project embeds the core under test at `tools/quality`,
+    classified as vendor content, and its entry point runs that copy.
+    """
+    specs = components or (component(),)
+    extra = classification_toml("quality", "config", "Entry point of the quality gate.")
+    repo = GitRepo.create(path)
+    source = CORE_SOURCE
+    if core:
+        source = embed_core(repo.path / EMBEDDED_CORE)
+        extra += classification_toml(f"{EMBEDDED_CORE}/**", "vendor", "A copy of the core.")
+    repo.write("quality.toml", policy_toml(*specs, extra=extra))
+    repo.write("quality", entry_point(source), executable=True)
+    repo.write("README.md", README)
+    repo.write("AGENTS.md", AGENTS)
+    repo.write(".gitignore", IGNORED)
+    for spec in specs:
+        files = {
+            f"src/{spec.id}/__init__.py": "",
+            f"src/{spec.id}/core.py": CORE,
+            f"tests/test_{spec.id}.py": TESTS.format(name=spec.id),
+        }
+        python_project(repo.path / spec.root, files, name=spec.id)
+    repo.commit_all("initial project")
+    return Project(repo)

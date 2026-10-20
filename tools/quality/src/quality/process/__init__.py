@@ -9,6 +9,7 @@ from quality.process.runner import (
     ProcessError,
     ProcessTimeoutError,
     run,
+    run_attached,
 )
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     "ProcessError",
     "ProcessTimeoutError",
     "run",
+    "run_attached",
     "sanitized",
 ]

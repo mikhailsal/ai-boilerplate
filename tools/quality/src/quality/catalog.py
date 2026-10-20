@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from quality import discovery, engine, gitio, toolchain
+from quality import discovery, engine, gitio, hooks, toolchain
 from quality.adapters import markdown, native, secrets
+from quality.adapters.python import profile
 from quality.diagnostics import RuleRegistry
 from quality.policy import load, schema, validate
 from quality.rules import (
@@ -44,5 +45,7 @@ def build_registry() -> RuleRegistry:
             *native.RULES,
             *toolchain.RULES,
             *engine.RULES,
+            *profile.RULES,
+            *hooks.RULES,
         ]
     )

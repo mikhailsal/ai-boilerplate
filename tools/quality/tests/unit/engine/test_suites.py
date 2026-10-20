@@ -219,7 +219,7 @@ def test_a_runner_that_cannot_start_is_a_tool_failure(project: GitRepo) -> None:
 def test_a_component_without_a_runner_is_unavailable(project: GitRepo) -> None:
     report = run(project, runner(), runners={Profile.DART: runner()})
     assert only(report, "profiles.unavailable").message == (
-        "the python test runner of 'app' is not available"
+        "'app' uses the python profile; this build has no adapter for it"
     )
 
 

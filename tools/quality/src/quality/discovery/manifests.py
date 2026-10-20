@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import configparser
 import json
+import re
 import tomllib
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -15,6 +16,8 @@ import yaml
 from quality.policy import Profile
 
 MAX_MANIFEST_BYTES = 1024 * 1024
+# A setup.py declares a package through setuptools or distutils; other modules may share the name.
+SETUP_IMPORT = re.compile(r"^\s*(?:from|import)\s+(?:setuptools|distutils)\b", re.MULTILINE)
 
 type Document = dict[str, object]
 
@@ -70,8 +73,8 @@ def _composer(text: str) -> tuple[bool, bool]:
     return True, False
 
 
-def _setup_py(_text: str) -> tuple[bool, bool]:
-    return True, False
+def _setup_py(text: str) -> tuple[bool, bool]:
+    return SETUP_IMPORT.search(text) is not None, False
 
 
 PARSERS: dict[str, tuple[Profile, Callable[[str], tuple[bool, bool]]]] = {

@@ -59,6 +59,8 @@ environment variable, or permissive mode is added for it.
 - [0006 Discovery and classification](docs/decisions/0006-discovery-and-classification.md)
 - [0007 Common gates](docs/decisions/0007-common-gates.md)
 - [0008 Test and coverage engine](docs/decisions/0008-test-and-coverage-engine.md)
+- [0009 Python profile](docs/decisions/0009-python-profile.md)
+- [0010 Launcher, bootstrap, doctor, and hooks](docs/decisions/0010-launcher-bootstrap-and-hooks.md)
 
 ## Resumption
 

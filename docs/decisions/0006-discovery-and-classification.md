@@ -1,6 +1,6 @@
 # 0006 Discovery and classification
 
-Status: accepted (P02).
+Status: accepted (P02); amended in P05.
 
 Every candidate file gets a category, an owning component, and a language.
 Discovery reads the materialized snapshot only (decision 0004) and never runs
@@ -17,8 +17,9 @@ silently change which gates apply.
 - Inside its owner a path is in a test root, a source root, or elsewhere, in
   that order of precedence.
 - `pyproject.toml`, `setup.cfg`, `setup.py`, `package.json`, `pubspec.yaml`,
-  and `composer.json` are parsed as data; `setup.py` is never executed and
-  always counts as a Python package.
+  and `composer.json` are parsed as data; `setup.py` is never executed. It
+  declares a package only when it imports `setuptools` or `distutils`, so an
+  ordinary module that happens to be named `setup.py` is not a manifest.
 - A package manifest at a component root must match the component profile
   (`discovery.profile-mismatch`).
 - A package manifest anywhere else fails (`discovery.manifest-outside-component`)
@@ -50,7 +51,7 @@ detected so that it cannot pass unchecked.
 | Situation | Category | Finding |
 | --- | --- | --- |
 | Any file in a test root | `tests` | none; fixtures may have any type |
-| Profile code in a source root | `source` | none |
+| Profile code in a source root, including code-like configuration names such as `setup.py` or `conftest.py` | `source` | none |
 | Code in a language without a profile | `source` | `discovery.unsupported-language` |
 | Code outside every component | `source` | `discovery.unowned-source` |
 | Code outside the source and test roots of its owner | `source` | `discovery.unowned-source` |

@@ -7,24 +7,37 @@ only call it; a pass or fail comes from the tool, not from the wrapper.
 ## Setup
 
 ```sh
-(cd tools/quality && uv sync --frozen --python 3.14.8)
-PYTHONPATH=tools/quality/src tools/quality/.venv/bin/python -m quality tools install
+./quality bootstrap
 ```
 
-Until the `./quality` launcher exists, run every command below as
-`PYTHONPATH=tools/quality/src tools/quality/.venv/bin/python -m quality <command>`.
+Bootstrap installs the pinned tools, fills the package caches, and installs
+the check-only `pre-commit` hook (add `--pre-push` for the push hook). Run it
+again after pulling changes to `tools/quality` or a lockfile;
+`./quality doctor` says whether everything is ready. Prerequisites are in
+[decision 0002](docs/decisions/0002-installation-strategy.md).
 
 ## Checks
 
-- `quality check` checks the staged candidate in an isolated snapshot; stage
-  your changes first, because unstaged and untracked files are ignored.
-- `quality check --rev HEAD` checks a commit.
-- `quality explain <rule-id>` explains a finding and its fix.
-- `quality links` probes external links in the documentation. It needs the
-  network and is not part of `quality check`.
-- `quality policy validate` validates [`quality.toml`](quality.toml).
-- Core development commands (format, lint, types, tests) are listed in the
+- `./quality check` checks the staged candidate in an isolated snapshot; the
+  pre-commit hook runs exactly this. Stage your changes first, because
+  unstaged and untracked files are ignored.
+- `./quality check --rev HEAD` checks a commit; `--all` covers every active
+  component instead of the affected ones.
+- `./quality fix` applies safe formatter and lint fixes to the working tree.
+  It never stages anything: review the change and stage it yourself.
+- `./quality test` runs the unit suites of the affected components with their
+  coverage floors; `--suite`, `--component`, and `--all` select more.
+- `./quality self-test --level unit` or `--level acceptance` tests the
+  quality tooling itself; the acceptance suite drives real Git hooks.
+- `./quality explain <rule-id>` explains a finding and its fix.
+- `./quality links` probes external links in the documentation. It needs the
+  network and is not part of `./quality check`.
+- `./quality policy validate` validates [`quality.toml`](quality.toml).
+- Every command and exit code is listed in the
+  [command-line reference](docs/reference/cli.md).
+- Native commands for working on the core itself are in the
   [core README](tools/quality/README.md#native-development-commands).
+- Never bypass the hooks with `--no-verify`; fix the finding instead.
 
 ## Boundaries
 

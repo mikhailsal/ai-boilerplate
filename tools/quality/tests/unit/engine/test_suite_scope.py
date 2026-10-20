@@ -5,7 +5,7 @@ import pytest
 
 from quality.catalog import build_registry
 from quality.engine import SuiteReport, SuiteSettings, run_suites
-from quality.engine.suites import added_files, changed_paths
+from quality.engine.scope import added_files, changed_paths
 from quality.gitio import FileChange, staged
 from quality.policy import Profile
 from quality.testing import Outcome, Suite

@@ -12,7 +12,8 @@ from quality.gitio.revisions import (
     push_lines,
 )
 from quality.gitio.snapshot import Snapshot, check_isolated, materialize
-from quality.gitio.tree import TreeEntry, list_tree, read_blobs
+from quality.gitio.tree import TreeEntry, blob_id, list_tree, read_blobs
+from quality.gitio.version import parse_version, version_findings
 
 __all__ = [
     "RULES",
@@ -26,6 +27,7 @@ __all__ = [
     "Snapshot",
     "TreeEntry",
     "added_lines",
+    "blob_id",
     "check_isolated",
     "commit_lines",
     "index_tree",
@@ -34,10 +36,12 @@ __all__ = [
     "materialize",
     "merge_queue_lines",
     "new_blobs",
+    "parse_version",
     "pull_request_lines",
     "push_lines",
     "read_blobs",
     "revision",
     "staged",
     "tree_changes",
+    "version_findings",
 ]

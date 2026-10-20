@@ -42,6 +42,9 @@ def test_regions_follow_declared_roots() -> None:
         ("README.md", Category.DOCS, Region.OTHER),
         ("pyproject.toml", Category.CONFIG, Region.OTHER),
         ("setup.py", Category.CONFIG, Region.OTHER),
+        ("src/pkg/setup.py", Category.SOURCE, Region.SOURCE),
+        ("src/pkg/conftest.py", Category.SOURCE, Region.SOURCE),
+        ("src/pkg/settings.toml", Category.CONFIG, Region.SOURCE),
         ("img/logo.png", Category.ASSETS, Region.OTHER),
     ],
 )
