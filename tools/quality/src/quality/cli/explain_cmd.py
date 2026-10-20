@@ -9,11 +9,14 @@ from quality.catalog import build_registry
 from quality.cli import Subcommands
 from quality.diagnostics import ExitCode
 
+NAME = "explain"
+ACTIONS: frozenset[str] = frozenset()
+
 
 def register(commands: Subcommands) -> None:
     """Add the `explain` subcommand."""
     parser = commands.add_parser(
-        "explain",
+        NAME,
         help="explain a rule ID and how to fix it",
         description="Print what a rule checks and how to fix a violation. "
         "Exit 0 when the rule exists, 2 when it is unknown.",

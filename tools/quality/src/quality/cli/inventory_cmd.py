@@ -17,11 +17,14 @@ from quality.discovery import FileRecord, build_inventory
 from quality.gitio import Candidate, GitioError, Repository, materialize, revision, staged
 from quality.policy import cross_validate, load_policy
 
+NAME = "inventory"
+ACTIONS: frozenset[str] = frozenset()
+
 
 def register(commands: Subcommands) -> None:
     """Add the `inventory` subcommand."""
     parser = commands.add_parser(
-        "inventory",
+        NAME,
         help="list candidate files with their category, component, and language",
         description="Materialize the candidate (the index, or --rev) in isolation and print "
         "how each file is classified, followed by discovery findings. Exit 0 when discovery "
@@ -76,7 +79,7 @@ def run_inventory(args: argparse.Namespace) -> int:
     outcome = Outcome.of(diagnostics)
     if args.json:
         extra = {"files": [asdict(record) for record in files]}
-        sys.stdout.write(outcome_to_json(outcome, command="inventory", extra=extra))
+        sys.stdout.write(outcome_to_json(outcome, command=NAME, extra=extra))
     else:
         sys.stdout.write(_render_files(files) + render_text(outcome))
     return int(outcome.exit_code())

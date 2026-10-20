@@ -6,10 +6,12 @@ from quality.policy.models import (
     Category,
     Classification,
     Component,
+    Limit,
     Policy,
     PolicyException,
     Profile,
     Role,
+    Thresholds,
 )
 from quality.policy.validate import cross_validate, owned_paths
 
@@ -18,11 +20,13 @@ __all__ = [
     "Category",
     "Classification",
     "Component",
+    "Limit",
     "LoadResult",
     "Policy",
     "PolicyException",
     "Profile",
     "Role",
+    "Thresholds",
     "cross_validate",
     "load_policy",
     "owned_paths",

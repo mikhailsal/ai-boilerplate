@@ -13,11 +13,14 @@ from quality.diagnostics.render import outcome_to_json, render_text
 from quality.policy import cross_validate, load_policy
 from quality.policy.schema import SCHEMA_PATH, SCHEMA_STALE, policy_schema_text
 
+NAME = "policy"
+ACTIONS = frozenset({"validate", "schema"})
+
 
 def register(commands: Subcommands) -> None:
     """Add the `policy` subcommand group."""
     parser = commands.add_parser(
-        "policy",
+        NAME,
         help="validate quality.toml and maintain its schema",
         description="Validate the repository policy and maintain its generated JSON Schema.",
     )

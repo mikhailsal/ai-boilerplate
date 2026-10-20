@@ -146,9 +146,14 @@ class Edge(StrictModel):
 
 
 class Architecture(StrictModel):
-    """Declared modules and forbidden dependency edges; cycles always fail."""
+    """Declared modules, layers, and forbidden dependency edges; cycles always fail.
+
+    `layers` lists module names from the top down: a module may depend on modules
+    listed after it, never on modules listed before it.
+    """
 
     modules: list[ModuleDecl] = Field(default_factory=list[ModuleDecl])
+    layers: list[Identifier] = Field(default_factory=list[Identifier])
     forbidden: list[Edge] = Field(default_factory=list[Edge])
 
 

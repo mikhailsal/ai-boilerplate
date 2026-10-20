@@ -1,0 +1,71 @@
+# Pinned standalone tools; see docs/decisions/0001-toolchain-pins.md.
+# Checksums come from the vendors' published checksum files.
+schema_version = 1
+
+[tools.uv]
+version = "0.12.24"
+binary = "uv"
+
+[tools.uv.artifacts.x86_64]
+url = "https://github.com/astral-sh/uv/releases/download/0.12.24/uv-x86_64-unknown-linux-gnu.tar.gz"
+sha256 = "b4dfaef47d491a7296981f8374a4595f55dbf84e8937c8ecd2983574d8bb3da6"
+packaging = "tar"
+member = "uv-x86_64-unknown-linux-gnu/uv"
+
+[tools.uv.artifacts.aarch64]
+url = "https://github.com/astral-sh/uv/releases/download/0.12.24/uv-aarch64-unknown-linux-gnu.tar.gz"
+sha256 = "5231be65f496304623895dacdbf1de8504fec90303684bdf05805aa34414dd21"
+packaging = "tar"
+member = "uv-aarch64-unknown-linux-gnu/uv"
+
+[tools.gitleaks]
+version = "8.30.1"
+binary = "gitleaks"
+
+# The rule set embedded in this release, fetched by commit so the secret adapter can
+# derive its configuration outside the scanned tree (decision 0007).
+[tools.gitleaks.extras."gitleaks.toml"]
+url = "https://raw.githubusercontent.com/gitleaks/gitleaks/83d9cd684c87d95d656c1458ef04895a7f1cbd8e/config/gitleaks.toml"
+sha256 = "e163e53b9e7e8a8511e77271e2b323ed057759542a6d988258afe3a1fa329caf"
+
+[tools.gitleaks.artifacts.x86_64]
+url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz"
+sha256 = "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
+packaging = "tar"
+member = "gitleaks"
+
+[tools.gitleaks.artifacts.aarch64]
+url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_arm64.tar.gz"
+sha256 = "e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080"
+packaging = "tar"
+member = "gitleaks"
+
+[tools.osv-scanner]
+version = "2.7.0"
+binary = "osv-scanner"
+
+[tools.osv-scanner.artifacts.x86_64]
+url = "https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64"
+sha256 = "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b"
+packaging = "binary"
+
+[tools.osv-scanner.artifacts.aarch64]
+url = "https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_arm64"
+sha256 = "4061ef4c021ed3c47f203b818f337e351336cc5cd67c0274fc36bd1dfc728dd7"
+packaging = "binary"
+
+[tools.actionlint]
+version = "1.7.12"
+binary = "actionlint"
+
+[tools.actionlint.artifacts.x86_64]
+url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz"
+sha256 = "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8"
+packaging = "tar"
+member = "actionlint"
+
+[tools.actionlint.artifacts.aarch64]
+url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_arm64.tar.gz"
+sha256 = "325e971b6ba9bfa504672e29be93c24981eeb1c07576d730e9f7c8805afff0c6"
+packaging = "tar"
+member = "actionlint"

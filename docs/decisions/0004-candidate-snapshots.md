@@ -47,7 +47,7 @@ Policy, native configuration, and tests come from the snapshot. The launcher
 runs the core from `tools/quality/src` inside the snapshot using the locked
 environment, so unstaged edits to the validator do not affect the decision.
 A candidate whose core lockfile differs from the installed environment fails
-with an instruction to run `quality bootstrap`.
+with an instruction to run the bootstrap command (P05).
 
 ## Environment sanitation
 

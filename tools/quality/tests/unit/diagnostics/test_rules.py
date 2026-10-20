@@ -52,3 +52,10 @@ def test_registry_lists_sorted_and_explains() -> None:
     assert "Requirement: R01" in text
     assert "Default severity: error" in text
     assert text.endswith("How to fix: Fix the demo.")
+
+
+def test_rule_diagnostics_carry_read_only_data() -> None:
+    rule = Rule(id="x.data", title="t", requirement="R04", explanation="e", remedy="r")
+    found = rule.diagnostic("m", data={"symbol": "noqa: E501"})
+    assert found.data == {"symbol": "noqa: E501"}
+    assert rule.diagnostic("m").data == {}

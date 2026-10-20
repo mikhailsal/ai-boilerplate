@@ -123,22 +123,25 @@ def shebang_language(head: bytes) -> str | None:
     return INTERPRETERS.get(program, program or None)
 
 
-def detect(path: str, head: bytes = b"") -> FileType:
-    """Detect a file type from its path and, for extensionless files, its first bytes."""
-    name = PurePosixPath(path).name
+def _by_name(name: str) -> FileType | None:
     suffix = PurePosixPath(name).suffix.lower()
     script = _script_language(name)
-    found: FileType | None = None
     if name in CONFIG_NAMES or CONFIG_NAME_PATTERN.match(name) or script is not None:
-        found = FileType(FileKind.CONFIG, script)
-    elif suffix in CODE_EXTENSIONS:
-        found = FileType(FileKind.CODE, CODE_EXTENSIONS[suffix])
-    elif suffix in DOC_EXTENSIONS or (not suffix and name.upper() in DOC_STEMS):
-        found = FileType(FileKind.DOC)
-    elif suffix in CONFIG_EXTENSIONS:
-        found = FileType(FileKind.CONFIG)
-    elif suffix in ASSET_EXTENSIONS:
-        found = FileType(FileKind.ASSET)
+        return FileType(FileKind.CONFIG, script)
+    if suffix in CODE_EXTENSIONS:
+        return FileType(FileKind.CODE, CODE_EXTENSIONS[suffix])
+    if suffix in DOC_EXTENSIONS or (not suffix and name.upper() in DOC_STEMS):
+        return FileType(FileKind.DOC)
+    if suffix in CONFIG_EXTENSIONS:
+        return FileType(FileKind.CONFIG)
+    if suffix in ASSET_EXTENSIONS:
+        return FileType(FileKind.ASSET)
+    return None
+
+
+def detect(path: str, head: bytes = b"") -> FileType:
+    """Detect a file type from its path and, for extensionless files, its first bytes."""
+    found = _by_name(PurePosixPath(path).name)
     if found is not None:
         return found
     language = shebang_language(head)

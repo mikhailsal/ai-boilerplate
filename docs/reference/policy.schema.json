@@ -2,13 +2,20 @@
   "$defs": {
     "Architecture": {
       "additionalProperties": false,
-      "description": "Declared modules and forbidden dependency edges; cycles always fail.",
+      "description": "Declared modules, layers, and forbidden dependency edges; cycles always fail.\n\n`layers` lists module names from the top down: a module may depend on modules\nlisted after it, never on modules listed before it.",
       "properties": {
         "forbidden": {
           "items": {
             "$ref": "#/$defs/Edge"
           },
           "title": "Forbidden",
+          "type": "array"
+        },
+        "layers": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Layers",
           "type": "array"
         },
         "modules": {

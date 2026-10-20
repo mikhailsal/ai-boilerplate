@@ -36,6 +36,7 @@ class Rule:
         location: Location | None = None,
         component: str | None = None,
         severity: Severity | None = None,
+        data: Mapping[str, str] | None = None,
     ) -> Diagnostic:
         """Create a diagnostic for this rule with the rule's remedy as hint."""
         return Diagnostic(
@@ -46,6 +47,7 @@ class Rule:
             component=component,
             hint=self.remedy,
             kind=self.kind,
+            data=MappingProxyType(dict(data or {})),
         )
 
 

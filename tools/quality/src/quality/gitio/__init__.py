@@ -3,6 +3,7 @@
 from quality.gitio.candidate import Candidate, index_tree, revision, staged
 from quality.gitio.diff import FileChange, Hunk, added_lines, map_line, tree_changes
 from quality.gitio.errors import RULES, GitioError
+from quality.gitio.history import HistoryBlob, RevisionRange, new_blobs
 from quality.gitio.repo import Repository
 from quality.gitio.revisions import (
     commit_lines,
@@ -18,8 +19,10 @@ __all__ = [
     "Candidate",
     "FileChange",
     "GitioError",
+    "HistoryBlob",
     "Hunk",
     "Repository",
+    "RevisionRange",
     "Snapshot",
     "TreeEntry",
     "added_lines",
@@ -30,6 +33,7 @@ __all__ = [
     "map_line",
     "materialize",
     "merge_queue_lines",
+    "new_blobs",
     "pull_request_lines",
     "push_lines",
     "read_blobs",

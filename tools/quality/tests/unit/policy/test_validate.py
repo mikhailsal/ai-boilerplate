@@ -99,6 +99,24 @@ def test_architecture_modules_and_edges_are_checked() -> None:
     ]
 
 
+LAYERS = """
+[components.architecture]
+layers = ["web", "domain", "web"]
+
+[[components.architecture.modules]]
+name = "domain"
+paths = ["src/domain/**"]
+"""
+
+
+def test_layers_must_name_declared_modules_once() -> None:
+    assert problems(extra=LAYERS) == [
+        ("policy.conflict", "layer 'web' is listed more than once"),
+        ("policy.reference", "layers refer to undeclared module 'web'"),
+        ("policy.reference", "layers refer to undeclared module 'web'"),
+    ]
+
+
 def exception(rule: str, symbol: str = "") -> str:
     lines = [
         "[[exceptions]]",

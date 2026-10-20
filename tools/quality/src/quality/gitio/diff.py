@@ -151,6 +151,11 @@ def _whole_files(repo: Repository, changes: list[FileChange]) -> dict[str, froze
     return result
 
 
+def _edited_lines(repo: Repository, change: FileChange) -> frozenset[int]:
+    hunks = blob_hunks(repo, change.old_oid, change.new_oid)
+    return frozenset(line for hunk in hunks or () for line in hunk.added())
+
+
 def added_lines(repo: Repository, old_tree: str, new_tree: str) -> dict[str, frozenset[int]]:
     """Return the new-side lines added or modified in text files between two trees."""
     result: dict[str, frozenset[int]] = {}
@@ -160,9 +165,8 @@ def added_lines(repo: Repository, old_tree: str, new_tree: str) -> dict[str, fro
             continue
         if change.status == "A" or not change.old_is_file:
             whole.append(change)
-            continue
-        hunks = blob_hunks(repo, change.old_oid, change.new_oid)
-        result[change.path] = frozenset(line for hunk in hunks or () for line in hunk.added())
+        else:
+            result[change.path] = _edited_lines(repo, change)
     result.update(_whole_files(repo, whole))
     return {path: lines for path, lines in sorted(result.items()) if lines}
 
@@ -178,12 +182,16 @@ def carry_lines(repo: Repository, lines: LineSet, old_tree: str, new_tree: str) 
         if change is None:
             carried[path] = numbers
             continue
-        if change.status == "D" or not change.new_is_file:
-            continue
-        hunks = blob_hunks(repo, change.old_oid, change.new_oid) if change.old_is_file else None
-        if hunks is None:
-            continue
-        mapped = frozenset(m for m in (map_line(hunks, n) for n in numbers) if m is not None)
+        mapped = _moved_lines(repo, change, numbers)
         if mapped:
             carried[change.path] = carried.get(change.path, frozenset()) | mapped
     return carried
+
+
+def _moved_lines(repo: Repository, change: FileChange, numbers: frozenset[int]) -> frozenset[int]:
+    if change.status == "D" or not change.new_is_file or not change.old_is_file:
+        return frozenset()
+    hunks = blob_hunks(repo, change.old_oid, change.new_oid)
+    if hunks is None:
+        return frozenset()
+    return frozenset(m for m in (map_line(hunks, n) for n in numbers) if m is not None)

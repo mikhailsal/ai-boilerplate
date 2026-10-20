@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable, Iterator
-from itertools import combinations
+from itertools import combinations, product
 
 from quality.diagnostics import Diagnostic, Kind, Location, Rule
 from quality.policy.load import POLICY_FILE
@@ -58,11 +58,10 @@ def _component_conflicts(policy: Policy) -> Iterator[Diagnostic]:
             f"several components share the root '{dup}'", location=_at()
         )
     for left, right in combinations(policy.components, 2):
-        for a in owned_paths(left):
-            for b in owned_paths(right):
-                if _overlaps(a, b):
-                    message = f"'{a}' of '{left.id}' overlaps '{b}' of '{right.id}'"
-                    yield POLICY_CONFLICT.diagnostic(message, location=_at(), component=left.id)
+        for a, b in product(owned_paths(left), owned_paths(right)):
+            if _overlaps(a, b):
+                message = f"'{a}' of '{left.id}' overlaps '{b}' of '{right.id}'"
+                yield POLICY_CONFLICT.diagnostic(message, location=_at(), component=left.id)
 
 
 def _internal_conflicts(component: Component) -> Iterator[Diagnostic]:
@@ -82,6 +81,13 @@ def _architecture(component: Component) -> Iterator[Diagnostic]:
     for dup in _duplicates(names):
         message = f"module '{dup}' is declared more than once"
         yield POLICY_CONFLICT.diagnostic(message, location=_at(), component=component.id)
+    for dup in _duplicates(component.architecture.layers):
+        message = f"layer '{dup}' is listed more than once"
+        yield POLICY_CONFLICT.diagnostic(message, location=_at(), component=component.id)
+    for name in component.architecture.layers:
+        if name not in names:
+            message = f"layers refer to undeclared module '{name}'"
+            yield POLICY_REFERENCE.diagnostic(message, location=_at(), component=component.id)
     for edge in component.architecture.forbidden:
         for name in (edge.source, edge.target):
             if name not in names:

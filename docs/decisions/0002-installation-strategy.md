@@ -1,6 +1,10 @@
 # 0002 Installation strategy
 
-Status: accepted (P00).
+Status: accepted (P00); amended in P03.
+
+Commands that are not implemented yet are named in plain text with the phase
+that delivers them; `quality check` fails documentation that presents a
+missing command as runnable.
 
 ## Prerequisites (documented, not promised away)
 
@@ -8,7 +12,8 @@ Status: accepted (P00).
 - Git 2.40 or newer.
 - `python3` 3.10 or newer from the distribution. It runs only the stdlib
   launcher `./quality`; the core itself runs on the pinned CPython 3.14.8.
-- Network access during `quality bootstrap` and `quality tools update`.
+- Network access while installing tools (`quality tools install`, and the
+  bootstrap command from P05) and while updating pins (P11).
 - For the PHP profile only: PHP 8.4 CLI with the `dom`, `mbstring`, `xml`,
   `xmlwriter`, and `tokenizer` extensions, plus Xdebug 3.5 installed but not
   necessarily enabled (Debian/Ubuntu: `php8.4-cli php8.4-xml php8.4-mbstring
@@ -16,9 +21,11 @@ Status: accepted (P00).
 
 ## Managed downloads
 
-`quality bootstrap` downloads pinned artifacts into a declared cache
+The bootstrap command (P05) downloads pinned artifacts into a declared cache
 (`$XDG_CACHE_HOME/quality`, default `~/.cache/quality`) and verifies each
-SHA-256 against `tools/quality/toolchains.toml` before extraction:
+SHA-256 against `tools/quality/toolchains.toml` before extraction. Since P03,
+`quality tools install` performs the download and verification for the
+standalone tools:
 
 - always: uv, then the uv-managed CPython 3.14.8 and the locked core
   environment, gitleaks;
@@ -29,7 +36,7 @@ SHA-256 against `tools/quality/toolchains.toml` before extraction:
 
 The PHP runtime is the one toolchain not downloaded: portable PHP builds with
 Xdebug are not a maintained upstream artifact. Its minor version and the
-Xdebug minor version are pinned and verified by `quality doctor`. This is the
+Xdebug minor version are pinned and verified by the doctor command (P05). This is the
 honest gap: patch versions of PHP and Xdebug follow the system packages.
 
 ## Project dependencies
@@ -42,16 +49,16 @@ honest gap: patch versions of PHP and Xdebug follow the system packages.
 Bootstrap fills the package caches. Ordinary checks run the same commands in
 offline mode (`--offline`, `COMPOSER_DISABLE_NETWORK=1`), so a check never
 fetches floating tools or rules; a cache miss is an actionable error that
-names `quality bootstrap`.
+names the install command.
 
 ## Clean-environment proof
 
 P11 runs a fresh template export in a pinned `ubuntu` container image
-(referenced by digest) with only the prerequisites above, then runs
-`./quality bootstrap`, `./quality doctor`, and `./quality check --all`.
+(referenced by digest) with only the prerequisites above, then runs the
+bootstrap, doctor, and whole-repository check commands.
 
 ## Updates
 
-`quality tools update` rewrites pins and checksums in
+A tools update command (P11) rewrites pins and checksums in
 `tools/quality/toolchains.toml` from vendor checksum files, producing a
 reviewable diff. It never runs during checks.

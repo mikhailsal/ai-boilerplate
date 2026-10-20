@@ -6,7 +6,7 @@ import pytest
 
 from quality import __version__
 from quality.cli import explain_cmd
-from quality.cli.main import build_parser, main
+from quality.cli.main import build_parser, command_table, main
 
 
 def test_version_is_printed(capsys: pytest.CaptureFixture[str]) -> None:
@@ -83,3 +83,20 @@ def test_subcommand_help_states_exit_codes(
     with pytest.raises(SystemExit):
         main(argv)
     assert expected in " ".join(capsys.readouterr().out.split())
+
+
+def test_the_command_table_matches_the_parser(capsys: pytest.CaptureFixture[str]) -> None:
+    table = command_table()
+    assert set(table) == {"check", "explain", "inventory", "links", "policy", "tools"}
+    parser = build_parser()
+    assert parser.parse_args(["explain", "--list"]).command_table == table
+    for name, actions in table.items():
+        for argv in ([name, "--help"], *([name, action, "--help"] for action in actions)):
+            with pytest.raises(SystemExit) as raised:
+                parser.parse_args(argv)
+            assert raised.value.code == 0
+    capsys.readouterr()
+    for name in ("policy", "tools"):
+        with pytest.raises(SystemExit) as raised:
+            parser.parse_args([name, "unknown"])
+        assert raised.value.code == 2
