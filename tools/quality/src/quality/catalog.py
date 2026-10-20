@@ -9,12 +9,14 @@ from quality.policy import load, schema, validate
 from quality.rules import (
     architecture,
     config,
+    coverage,
     docs,
     exceptions,
     external,
     files,
     structure,
     suppressions,
+    testing,
 )
 
 
@@ -34,6 +36,8 @@ def build_registry() -> RuleRegistry:
             *structure.RULES,
             *architecture.RULES,
             *exceptions.RULES,
+            *testing.RULES,
+            *coverage.RULES,
             *external.RULES,
             *markdown.RULES,
             *secrets.RULES,

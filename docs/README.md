@@ -11,6 +11,7 @@
 | [0005](decisions/0005-coverage-measurement.md) | Coverage measurement |
 | [0006](decisions/0006-discovery-and-classification.md) | Discovery and classification |
 | [0007](decisions/0007-common-gates.md) | Common repository, documentation, and structure gates |
+| [0008](decisions/0008-test-and-coverage-engine.md) | Test and coverage engine |
 
 ## Reference
 

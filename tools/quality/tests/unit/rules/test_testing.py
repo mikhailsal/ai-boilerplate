@@ -1,0 +1,129 @@
+import pytest
+
+from quality.diagnostics import Diagnostic, Kind, Severity
+from quality.rules.testing import (
+    EVIDENCE,
+    FAILED,
+    NONE,
+    RULES,
+    SKIPPED,
+    invalid_evidence,
+    judge,
+    missing_suite,
+)
+from quality.testing import CaseResult, Outcome, Suite, SuiteResults
+
+PASSED = Outcome.PASSED
+
+
+def results(*outcomes: Outcome) -> SuiteResults:
+    return SuiteResults(tuple(CaseResult(f"t{i}", o) for i, o in enumerate(outcomes)))
+
+
+def summary(found: list[Diagnostic]) -> list[tuple[str, Severity, str]]:
+    return [(d.rule, d.severity, d.message) for d in found]
+
+
+def test_a_clean_run_has_no_findings() -> None:
+    assert judge("app", Suite.UNIT, 0, results(PASSED, PASSED)) == []
+
+
+@pytest.mark.parametrize(
+    "found",
+    [results(), results(Outcome.SKIPPED), results(Outcome.SKIPPED, Outcome.SKIPPED)],
+    ids=["empty", "one-skipped", "all-skipped"],
+)
+def test_a_run_that_executes_nothing_fails(found: SuiteResults) -> None:
+    diagnostics = judge("app", Suite.UNIT, 0, found)
+    assert diagnostics[0].rule == NONE.id
+    assert (
+        diagnostics[0].message == "the unit suite of 'app' executed no tests (runner exit status 0)"
+    )
+    assert diagnostics[0].component == "app"
+    skipped = [d.rule for d in diagnostics[1:]]
+    assert skipped == ([SKIPPED.id] if found.cases else [])
+
+
+def test_an_empty_run_reports_the_runner_status() -> None:
+    found = judge("app", Suite.UNIT, 5, results())
+    assert summary(found) == [
+        (
+            NONE.id,
+            Severity.ERROR,
+            "the unit suite of 'app' executed no tests (runner exit status 5)",
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    ("outcomes", "failing"),
+    [((Outcome.FAILED, PASSED), 1), ((Outcome.ERROR, Outcome.FAILED, PASSED), 2)],
+)
+def test_failing_cases_fail_the_suite(outcomes: tuple[Outcome, ...], failing: int) -> None:
+    found = judge("app", Suite.INTEGRATION, 1, results(*outcomes))
+    executed = len(outcomes)
+    message = (
+        f"the integration suite of 'app': {failing} of {executed} tests failed; "
+        "runner exit status 1"
+    )
+    assert summary(found) == [(FAILED.id, Severity.ERROR, message)]
+
+
+def test_a_failed_runner_fails_the_suite_even_when_every_case_passed() -> None:
+    found = judge("app", Suite.UNIT, 2, results(PASSED))
+    message = "the unit suite of 'app': 0 of 1 tests failed; runner exit status 2"
+    assert summary(found) == [(FAILED.id, Severity.ERROR, message)]
+
+
+def test_failing_cases_fail_the_suite_even_when_the_runner_exits_zero() -> None:
+    found = judge("app", Suite.UNIT, 0, results(Outcome.FAILED))
+    assert [d.rule for d in found] == [FAILED.id]
+
+
+def test_skipped_cases_warn_alongside_passing_ones() -> None:
+    found = judge("app", Suite.UNIT, 0, results(PASSED, Outcome.SKIPPED, Outcome.SKIPPED))
+    assert summary(found) == [
+        (SKIPPED.id, Severity.WARNING, "the unit suite of 'app' skipped 2 tests"),
+    ]
+
+
+def test_skipped_cases_warn_alongside_failures() -> None:
+    found = judge("app", Suite.UNIT, 1, results(Outcome.FAILED, Outcome.SKIPPED))
+    assert [(d.rule, d.severity) for d in found] == [
+        (FAILED.id, Severity.ERROR),
+        (SKIPPED.id, Severity.WARNING),
+    ]
+
+
+def test_a_component_without_unit_roots_has_no_suite() -> None:
+    found = missing_suite("lib")
+    assert (found.rule, found.severity, found.component) == (NONE.id, Severity.ERROR, "lib")
+    assert found.message == "'lib' declares no unit test roots"
+
+
+def test_invalid_evidence_is_an_environment_error() -> None:
+    found = invalid_evidence("lib", Suite.UNIT, "report 'junit.xml' is older than the run")
+    assert (found.rule, found.kind, found.severity) == (
+        EVIDENCE.id,
+        Kind.ENVIRONMENT,
+        Severity.ERROR,
+    )
+    assert found.message == "the unit suite of 'lib': report 'junit.xml' is older than the run"
+    assert found.component == "lib"
+    assert found.location is None
+
+
+def test_the_rules_are_registered_with_their_requirement() -> None:
+    assert [rule.id for rule in RULES] == [
+        "tests.failed",
+        "tests.none",
+        "tests.skipped",
+        "tests.evidence",
+    ]
+    assert {rule.requirement for rule in RULES} == {"R06"}
+    assert [rule.kind for rule in RULES] == [
+        Kind.VIOLATION,
+        Kind.VIOLATION,
+        Kind.VIOLATION,
+        Kind.ENVIRONMENT,
+    ]

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Hand-made in the shape of PHPUnit's Clover writer; real PHPUnit output arrives with the PHP profile. -->
+<coverage generated="1760983559">
+  <project timestamp="1760983559">
+    <package name="App">
+      <file name="/work/snapshot/src/Calc.php">
+        <class name="App\Calc" namespace="App">
+          <metrics complexity="3" methods="2" coveredmethods="1" conditionals="4" coveredconditionals="3" statements="5" coveredstatements="3" elements="7" coveredelements="4"/>
+        </class>
+        <line num="7" type="method" name="add" visibility="public" complexity="1" crap="1" count="1"/>
+        <line num="9" type="stmt" count="1"/>
+        <line num="10" type="stmt" count="1"/>
+        <line num="13" type="method" name="divide" visibility="public" complexity="2" crap="2.15" count="1"/>
+        <line num="15" type="stmt" count="1"/>
+        <line num="16" type="stmt" count="0"/>
+        <line num="18" type="stmt" count="0"/>
+        <metrics loc="21" ncloc="21" classes="1" methods="2" coveredmethods="1" conditionals="4" coveredconditionals="3" statements="5" coveredstatements="3" elements="7" coveredelements="4"/>
+      </file>
+    </package>
+    <file name="/work/snapshot/src/helpers.php">
+      <line num="3" type="method" name="unused" visibility="public" complexity="1" crap="2" count="0"/>
+      <line num="5" type="stmt" count="0"/>
+      <metrics loc="6" ncloc="6" classes="0" methods="1" coveredmethods="0" conditionals="0" coveredconditionals="0" statements="1" coveredstatements="0" elements="2" coveredelements="0"/>
+    </file>
+    <metrics files="2" loc="27" ncloc="27" classes="1" methods="3" coveredmethods="1" conditionals="4" coveredconditionals="3" statements="6" coveredstatements="3" elements="9" coveredelements="4"/>
+  </project>
+</coverage>

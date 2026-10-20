@@ -45,5 +45,5 @@ Fix the finding first. When an exception is justified, add an
 symbol (for an inline marker, its text from the marker on), a reason, an
 owner, and `expires` for a temporary or `review` for a permanent exception.
 Expired and unused exceptions fail the check; rules about the policy, Git,
-discovery, secrets, and exceptions themselves cannot be excepted. Details are
-in [decision 0007](docs/decisions/0007-common-gates.md).
+discovery, secrets, tests, coverage, and exceptions themselves cannot be
+excepted. Details are in [decision 0007](docs/decisions/0007-common-gates.md).

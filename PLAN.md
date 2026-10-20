@@ -58,6 +58,7 @@ environment variable, or permissive mode is added for it.
 - [0005 Coverage measurement paths](docs/decisions/0005-coverage-measurement.md)
 - [0006 Discovery and classification](docs/decisions/0006-discovery-and-classification.md)
 - [0007 Common gates](docs/decisions/0007-common-gates.md)
+- [0008 Test and coverage engine](docs/decisions/0008-test-and-coverage-engine.md)
 
 ## Resumption
 

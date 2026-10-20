@@ -39,14 +39,22 @@ NOT_ALLOWED = Rule(
     title="Rule cannot be excepted",
     requirement="R05",
     explanation=(
-        "Policy, Git, discovery, secret, exception, and tool failure rules cannot be excepted; "
-        "classification and inline suppression exceptions are the supported mechanisms."
+        "Policy, Git, discovery, secret, exception, test, coverage, and tool failure rules "
+        "cannot be excepted; coverage floors change only in quality.toml, for every component."
     ),
     remedy="Remove the exception and fix the cause.",
 )
 RULES = (EXPIRED, REVIEW_DUE, UNUSED, NOT_ALLOWED)
 
-FIXED_PREFIXES = ("policy.", "git.", "discovery.", "secrets.", "exceptions.")
+FIXED_PREFIXES = (
+    "policy.",
+    "git.",
+    "discovery.",
+    "secrets.",
+    "exceptions.",
+    "tests.",
+    "coverage.",
+)
 POLICY_FILE = "quality.toml"
 
 

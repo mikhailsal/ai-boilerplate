@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Hand-written in the shape of PHPUnit 11 JUnit output: nested suites per configuration, class, and data provider. A real PHPUnit sample follows with the PHP profile. -->
+<testsuites>
+  <testsuite name="" tests="6" assertions="5" errors="1" failures="1" skipped="1" time="0.001">
+    <testsuite name="unit" tests="6" assertions="5" errors="1" failures="1" skipped="1" time="0.001">
+      <testsuite name="App\Tests\MathTest" file="tests/MathTest.php" tests="6" assertions="5" errors="1" failures="1" skipped="1" time="0.001">
+        <testcase name="testAdds" file="tests/MathTest.php" line="12" class="App\Tests\MathTest" classname="App.Tests.MathTest" assertions="1" time="0.001"/>
+        <testcase name="testFails" file="tests/MathTest.php" line="17" class="App\Tests\MathTest" classname="App.Tests.MathTest" assertions="1" time="0.001">
+          <failure type="PHPUnit\Framework\ExpectationFailedException">App\Tests\MathTest::testFails
+Failed asserting that 2 is identical to 3.
+
+tests/MathTest.php:19</failure>
+        </testcase>
+        <testcase name="testErrors" file="tests/MathTest.php" line="22" class="App\Tests\MathTest" classname="App.Tests.MathTest" assertions="0" time="0.001">
+          <error type="RuntimeException">App\Tests\MathTest::testErrors
+RuntimeException: boom
+
+tests/MathTest.php:24</error>
+        </testcase>
+        <testcase name="testSkipped" file="tests/MathTest.php" line="27" class="App\Tests\MathTest" classname="App.Tests.MathTest" assertions="0" time="0.001">
+          <skipped/>
+        </testcase>
+        <testsuite name="App\Tests\MathTest::testData" tests="2" assertions="2" errors="0" failures="0" skipped="0" time="0.001">
+          <testcase name="testData with data set #0" file="tests/MathTest.php" line="33" class="App\Tests\MathTest" classname="App.Tests.MathTest" assertions="1" time="0.001"/>
+          <testcase name="testData with data set #1" file="tests/MathTest.php" line="33" class="App\Tests\MathTest" classname="App.Tests.MathTest" assertions="1" time="0.001"/>
+        </testsuite>
+      </testsuite>
+    </testsuite>
+  </testsuite>
+</testsuites>

@@ -46,8 +46,15 @@ class ComponentSpec:
     role: str = "application"
     source: tuple[str, ...] = ("src",)
     unit: tuple[str, ...] = ("tests",)
+    integration: tuple[str, ...] = ()
     capabilities: tuple[str, ...] = ("library",)
     extra: str = ""
+
+    def _suites(self) -> str:
+        suites = [f"unit = {_toml_list(self.unit)}"]
+        if self.integration:
+            suites.append(f"integration = {_toml_list(self.integration)}")
+        return ", ".join(suites)
 
     def toml(self) -> str:
         """Render the component as TOML."""
@@ -58,7 +65,7 @@ class ComponentSpec:
             f'profile = "{self.profile}"',
             f'root = "{self.root}"',
             f"source = {_toml_list(self.source)}",
-            f"tests = {{ unit = {_toml_list(self.unit)} }}",
+            f"tests = {{ {self._suites()} }}",
         ]
         if self.capabilities:
             lines.append(f"capabilities = {_toml_list(self.capabilities)}")

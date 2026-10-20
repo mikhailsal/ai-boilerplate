@@ -158,8 +158,8 @@ permanent one.
 - A past `review` date warns, and the exception still applies.
 - An exception that matches nothing fails when its rule ran over the whole
   candidate.
-- Rules about the policy, Git, discovery, secrets, and exceptions cannot be
-  excepted, and neither can environment or usage errors.
+- Rules about the policy, Git, discovery, secrets, exceptions, tests, and
+  coverage cannot be excepted, and neither can environment or usage errors.
 
 A generated or vendor classification is not an exemption: such files keep
 the blob limit and the secret scan, and a generated marker alone changes

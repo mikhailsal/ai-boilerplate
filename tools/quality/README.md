@@ -12,13 +12,15 @@ unit tests, and locked development tooling.
 | `src/quality/process` | Subprocess runner and allowlisted child environments |
 | `src/quality/policy` | `quality.toml` models, loading, cross-validation, schema export |
 | `src/quality/gitio` | Candidate trees, isolated snapshots, and changed-line diffs from Git plumbing |
-| `src/quality/discovery` | File types, manifests, classification, component ownership, helper activation |
+| `src/quality/discovery` | File types, manifests, classification, ownership, activation, test scope |
 | `src/quality/metrics` | Structure metrics model shared by profile adapters |
 | `src/quality/boundedio.py` | Bounded JSON and XML readers for native tool reports |
+| `src/quality/testing` | Suite and result model, JUnit XML parser |
+| `src/quality/coverage` | Coverage model and parsers for coverage.py JSON, LCOV, and Clover |
 | `src/quality/adapters` | Native tool adapters: Python structure and imports, Markdown lint, gitleaks, HTTP probes |
-| `src/quality/rules` | Common rules: files, configuration, suppressions, docs, links, structure, architecture, exceptions |
+| `src/quality/rules` | Common rules: files, configuration, suppressions, docs, links, structure, architecture, exceptions, tests, coverage |
 | `src/quality/toolchain` | Pinned standalone tool manifest and verified installation |
-| `src/quality/engine` | Gate orchestration for `check`, history ranges, and external links |
+| `src/quality/engine` | Orchestration of `check`, history ranges, external links, and test suites |
 | `src/quality/catalog.py` | The registry of every rule the core can report |
 | `src/quality/cli` | Argument parsing and subcommands (`check`, `explain`, `inventory`, `links`, `policy`, `tools`) |
 | `src/quality/testkit` | Test builders shared by unit and contract tests |
@@ -29,7 +31,9 @@ Packages depend only on lower layers, as described in
 [decision 0003](../../docs/decisions/0003-architecture.md); the layer order is
 declared in the root `quality.toml` and enforced by `quality check`. The gates
 themselves are described in
-[decision 0007](../../docs/decisions/0007-common-gates.md).
+[decision 0007](../../docs/decisions/0007-common-gates.md), and the test and
+coverage engine in
+[decision 0008](../../docs/decisions/0008-test-and-coverage-engine.md).
 
 ## Exit codes
 

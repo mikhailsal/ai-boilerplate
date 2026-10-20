@@ -6,6 +6,7 @@ from quality.discovery.filetypes import FileKind, FileType, detect, shebang_lang
 from quality.discovery.inventory import Inventory, build_inventory
 from quality.discovery.manifests import Manifest, ManifestError, parse_manifest
 from quality.discovery.rules import RULES
+from quality.discovery.scope import affected_components
 
 __all__ = [
     "RULES",
@@ -17,6 +18,7 @@ __all__ = [
     "ManifestError",
     "Region",
     "active_components",
+    "affected_components",
     "build_inventory",
     "classify",
     "detect",
