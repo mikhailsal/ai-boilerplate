@@ -1,7 +1,7 @@
 import json
 
 from quality.diagnostics import Diagnostic, Location, Outcome, Severity
-from quality.diagnostics.render import diagnostic_to_dict, outcome_to_json, render_text
+from quality.diagnostics.render import diagnostic_to_dict, outcome_to_json, printable, render_text
 
 LOCATED = Diagnostic(
     rule="size.file",
@@ -54,3 +54,29 @@ def test_render_text_reports_location_hint_component_and_verdict() -> None:
 
 def test_render_text_of_empty_outcome_passes() -> None:
     assert render_text(Outcome.of([])) == "PASSED: 0 error(s), 0 warning(s)\n"
+
+
+def test_printable_escapes_controls_and_undecodable_bytes() -> None:
+    assert printable("a\x1b[1mb\tc\udcffd\x85e\ud800f\x7fé") == (
+        "a\\x1b[1mb\\x09c\\xffd\\x85e\\ud800f\\x7fé"
+    )
+
+
+def test_text_output_cannot_drive_the_terminal() -> None:
+    diagnostic = Diagnostic(
+        rule="x.y",
+        severity=Severity.ERROR,
+        message="bad\x1b]0;title\x07",
+        location=Location("a\nb"),
+        hint="h\r",
+    )
+    assert render_text(Outcome.of([diagnostic])).splitlines()[:2] == [
+        "a\\x0ab: error: bad\\x1b]0;title\\x07 (x.y)",
+        "  hint: h\\x0d",
+    ]
+
+
+def test_json_output_is_ascii_and_accepts_extra_sections() -> None:
+    text = outcome_to_json(Outcome.of([]), command="inventory", extra={"files": ["é\udcff"]})
+    assert text.isascii()
+    assert json.loads(text)["files"] == ["é\udcff"]

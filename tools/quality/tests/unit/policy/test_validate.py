@@ -131,3 +131,13 @@ def test_classification_patterns_must_be_unique() -> None:
     assert problems(extra=entry * 2) == [
         ("policy.conflict", "classification pattern 'gen/**' is declared twice"),
     ]
+
+
+@pytest.mark.parametrize("category", ["source", "tests"])
+def test_classification_cannot_assign_source_or_tests(category: str) -> None:
+    entry = f'[[classification]]\npattern = "x/**"\ncategory = "{category}"\nreason = "move"\n'
+    message = (
+        f"classification pattern 'x/**' assigns '{category}'; "
+        "source and test files are declared by component roots"
+    )
+    assert problems(extra=entry) == [("policy.conflict", message)]

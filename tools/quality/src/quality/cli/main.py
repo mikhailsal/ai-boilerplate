@@ -9,7 +9,7 @@ from collections.abc import Callable, Sequence
 from typing import cast
 
 from quality import __version__
-from quality.cli import explain_cmd, policy_cmd
+from quality.cli import explain_cmd, inventory_cmd, policy_cmd
 from quality.diagnostics import ExitCode
 
 type Handler = Callable[[argparse.Namespace], int]
@@ -31,6 +31,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="version", version=f"quality {__version__}")
     commands = parser.add_subparsers(dest="command", metavar="<command>", required=True)
     explain_cmd.register(commands)
+    inventory_cmd.register(commands)
     policy_cmd.register(commands)
     return parser
 

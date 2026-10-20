@@ -56,6 +56,7 @@ environment variable, or permissive mode is added for it.
 - [0003 Architecture and configuration layout](docs/decisions/0003-architecture.md)
 - [0004 Candidate snapshots and revision semantics](docs/decisions/0004-candidate-snapshots.md)
 - [0005 Coverage measurement paths](docs/decisions/0005-coverage-measurement.md)
+- [0006 Discovery and classification](docs/decisions/0006-discovery-and-classification.md)
 
 ## Resumption
 

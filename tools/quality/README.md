@@ -11,8 +11,10 @@ unit tests, and locked development tooling.
 | `src/quality/diagnostics` | Finding model, rule registry, text and JSON renderers |
 | `src/quality/process` | Subprocess runner and allowlisted child environments |
 | `src/quality/policy` | `quality.toml` models, loading, cross-validation, schema export |
+| `src/quality/gitio` | Candidate trees, isolated snapshots, and changed-line diffs from Git plumbing |
+| `src/quality/discovery` | File types, manifests, classification, component ownership, helper activation |
 | `src/quality/boundedio.py` | Bounded JSON and XML readers for native tool reports |
-| `src/quality/cli` | Argument parsing and subcommands |
+| `src/quality/cli` | Argument parsing and subcommands (`explain`, `inventory`, `policy`) |
 | `src/quality/testkit` | Test builders shared by unit and contract tests |
 | `tests/unit` | Unit tests; they must keep core coverage at the policy minimum |
 

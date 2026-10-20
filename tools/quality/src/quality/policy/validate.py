@@ -8,7 +8,7 @@ from itertools import combinations
 
 from quality.diagnostics import Diagnostic, Kind, Location, Rule
 from quality.policy.load import POLICY_FILE
-from quality.policy.models import Component, Policy
+from quality.policy.models import Category, Component, Policy
 
 POLICY_CONFLICT = Rule(
     id="policy.conflict",
@@ -121,6 +121,13 @@ def _classification(policy: Policy) -> Iterator[Diagnostic]:
         yield POLICY_CONFLICT.diagnostic(
             f"classification pattern '{dup}' is declared twice", location=_at()
         )
+    for entry in policy.classification:
+        if entry.category in {Category.SOURCE, Category.TESTS}:
+            message = (
+                f"classification pattern '{entry.pattern}' assigns '{entry.category}'; "
+                "source and test files are declared by component roots"
+            )
+            yield POLICY_CONFLICT.diagnostic(message, location=_at())
 
 
 def cross_validate(policy: Policy, known_rules: frozenset[str]) -> tuple[Diagnostic, ...]:

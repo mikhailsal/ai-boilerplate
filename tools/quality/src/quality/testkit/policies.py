@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from quality.policy import Policy, parse_policy
+
 BASE_POLICY = """\
 schema_version = 1
 
@@ -74,3 +76,18 @@ def policy_toml(*components: ComponentSpec, mode: str = "project", extra: str = 
     if extra:
         body.append(extra.strip() + "\n")
     return "\n".join(body)
+
+
+def classification_toml(pattern: str, category: str, reason: str = "test fixture") -> str:
+    """Render one `[[classification]]` table."""
+    lines = [f'pattern = "{pattern}"', f'category = "{category}"', f'reason = "{reason}"']
+    return "\n".join(["[[classification]]", *lines]) + "\n"
+
+
+def build_policy(*components: ComponentSpec, mode: str = "project", extra: str = "") -> Policy:
+    """Parse a rendered policy, failing loudly when the test document is invalid."""
+    result = parse_policy(policy_toml(*components, mode=mode, extra=extra).encode())
+    if result.policy is None:
+        msg = f"invalid test policy: {[d.message for d in result.diagnostics]}"
+        raise AssertionError(msg)
+    return result.policy

@@ -4,6 +4,7 @@ from quality.policy.load import LoadResult, load_policy, parse_policy
 from quality.policy.models import (
     Capability,
     Category,
+    Classification,
     Component,
     Policy,
     PolicyException,
@@ -15,6 +16,7 @@ from quality.policy.validate import cross_validate, owned_paths
 __all__ = [
     "Capability",
     "Category",
+    "Classification",
     "Component",
     "LoadResult",
     "Policy",

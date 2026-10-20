@@ -1,13 +1,15 @@
 # 0004 Candidate snapshots and revision semantics
 
-Status: accepted (P00).
+Status: accepted (P00); amended in P02.
 
 ## Candidate identity
 
 - Commit stage: the candidate is the index named by `GIT_INDEX_FILE` (or the
   default index). The core copies that file and runs `git write-tree` on the
-  copy, so the original index is never rewritten. Unmerged entries
-  (`git ls-files -u`) reject the commit before any other check.
+  copy, so the original index is never rewritten. Like `git commit`, this may
+  add unreferenced tree objects to the object database; refs, the index, and
+  the work tree are unchanged. Unmerged entries (`git ls-files -u`) reject the
+  commit before any other check.
 - Merge stage and `--head`: the candidate is the tree of a resolved revision.
 - The candidate identity is the tree object ID. Before returning success the
   core recomputes it from the original source; a difference fails with
@@ -20,16 +22,24 @@ and `git cat-file --batch`, which yields exact blob bytes without clean,
 smudge, or end-of-line filters:
 
 - `100644` and `100755` become files with the matching executable bit;
-- `120000` symlinks are created only when the target, resolved lexically
-  inside the snapshot, stays inside it; absolute or escaping targets fail;
-- `160000` gitlinks (submodules) fail with `git.submodule-unsupported` unless
-  classified as excluded vendor content, in which case the path is empty;
+- `120000` symlinks must have relative targets; after writing, every link is
+  resolved with `realpath`, including chains through other links, and must
+  stay inside the snapshot, otherwise `git.symlink-escape` fails the run;
+- `160000` gitlinks (submodules) become empty directories; discovery rejects
+  them with `discovery.submodule-unsupported` unless they are classified as
+  vendor content ([decision 0006](0006-discovery-and-classification.md));
 - Git LFS pointer files are materialized as pointers. Pointer text is checked;
   object content is not inspected, which the asset policy states explicitly.
 
 Unstaged edits, untracked files, ignored files, and old reports therefore
-cannot influence the result. Paths with spaces, newlines, or non-UTF-8 bytes
-are handled as bytes from the `-z` output.
+cannot influence the result. Native tools search parent directories for
+configuration, so the snapshot's parent directories must not contain project
+markers such as `quality.toml`, `pyproject.toml`, `conftest.py`,
+`package.json`, `node_modules`, `pubspec.yaml`, or `composer.json`; one
+found there fails with `git.snapshot-not-isolated`.
+
+Paths with spaces, newlines, or non-UTF-8 bytes are handled as bytes from the
+`-z` output.
 
 ## Validator provenance
 
