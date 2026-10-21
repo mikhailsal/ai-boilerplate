@@ -56,16 +56,16 @@ Continuation of the [traceability matrix](traceability.md).
 | R09.5 | Aggregate job fails on failed, cancelled, skipped, or missing jobs | P10 | `ci/test_verdict.py`, `cli/test_ci_cmd.py`, `ci/test_aggregate.py` | DONE |
 | R09.6 | Protection guidance and CODEOWNERS for control files incl. CODEOWNERS | P10 | `ci/test_control.py`, `ci/test_codeowners.py`, `ci/test_gates.py::test_every_control_file_needs_an_owner`, `engine/test_control_changes.py`, `test_ci_wrappers.py::test_the_prepared_ruleset_requires_review_and_the_aggregate_status`; [protection guide](../guides/protection.md) | DONE |
 | R09.7 | No privileged untrusted execution; pinned actions; minimal permissions | P10 | `ci/test_workflow.py`, `adapters/test_actionlint.py`, `test_ci_wrappers.py::test_the_github_workflow_meets_the_trust_rules_and_the_ci_policy` | DONE |
-| R09.8 | Honest trust boundary documented | P10, P11 | P10: [protection guide](../guides/protection.md#the-real-boundary); template documentation in P11 | IN_PROGRESS |
+| R09.8 | Honest trust boundary documented | P10, P11 | P10: [protection guide](../guides/protection.md#the-real-boundary); P11: the template [README](../../README.md#getting-started) says that local hooks can be bypassed and links to the boundary | DONE |
 
 ## R10 Template lifecycle and evidence
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| R10.1 | Fresh copy: bootstrap, discovery, checks, add component without engine edits | P11 | Template lifecycle acceptance | TODO |
-| R10.2 | Repeated bootstrap preserves user content and hooks; conflicts non-destructive | P05, P11 | `acceptance/test_bootstrap.py`, `hooks/test_install.py`; fresh template copy in P11 | IN_PROGRESS |
-| R10.3 | Extension guide and adapter contract tests; unsupported source fails | P11 | Contract tests | TODO |
-| R10.4 | Copied projects update policy and tools through reviewable changes | P11 | docs/maintenance.md | TODO |
+| R10.1 | Fresh copy: bootstrap, discovery, checks, add component without engine edits | P11 | `acceptance/test_template.py` (scenario `template-lifecycle`): an export bootstraps twice, makes its first commit, checks a changed dormant helper, and adds a component of every profile with `quality component add` alone; the clean container run ([decision 0002](../decisions/0002-installation-strategy.md#clean-environment-proof)) | DONE |
+| R10.2 | Repeated bootstrap preserves user content and hooks; conflicts non-destructive | P05, P11 | `acceptance/test_bootstrap.py`, `hooks/test_install.py`; P11: `acceptance/test_template.py::test_the_export_bootstraps_twice_with_only_the_python_tooling` (an exported project bootstrapped twice keeps an unstaged README edit, its `pre-commit.local` hook, and an unchanged managed hook; in `test_the_first_commit_adds_a_python_component_through_the_hook` the local hook runs before the managed one) | DONE |
+| R10.3 | Extension guide and adapter contract tests; unsupported source fails | P11 | [Extension guide](../guides/extending.md); `tests/unit/test_profile_contract.py` (every stage knows each profile, rules registered and explained, own-source coverage only, empty or malformed reports fail, source of another or an unsupported language fails) | DONE |
+| R10.4 | Copied projects update policy and tools through reviewable changes | P11 | [Maintenance guide](../guides/maintenance.md); `toolchain/test_update.py`, `cli/test_tools_cmd.py`; the root commit's `Quality-Template` trailer (`template/test_export.py::test_the_export_is_a_repository_whose_root_commit_names_the_template`); the update procedure was run by hand ([P11](phases/P11.md#checks-run)) | DONE |
 | R10.5 | Invalid fixtures as templates or generated; runtime secrets and large blobs | All | Fixture layout | TODO |
 | R10.6 | Regression test for every gate defect found during implementation | All | Phase records; P05: `acceptance/test_commit.py::test_modules_named_like_configuration_are_checked_as_source`, `discovery/test_manifests.py`, `engine/test_fixes.py::test_a_fixer_that_cannot_run_is_reported_and_not_counted` | IN_PROGRESS |
 | R10.7 | Bounded summaries with commands, versions, exit codes, commit references | All | Phase records | TODO |
