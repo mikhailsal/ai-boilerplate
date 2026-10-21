@@ -13,7 +13,7 @@ from pathlib import Path
 
 from quality.adapters.native import fail, failure
 from quality.adapters.python.config import check_config
-from quality.adapters.python.environment import DOWNLOAD_TIMEOUT, Uv, sync
+from quality.adapters.python.environment import DOWNLOAD_TIMEOUT, Sync, Uv, sync
 from quality.diagnostics import Diagnostic
 from quality.policy import Component
 from quality.process import Command, ProcessError, run
@@ -40,22 +40,22 @@ class PythonSetup:
         if not completed.ok:
             fail(TOOL, f"{label}: {completed.stderr_text().strip() or completed.returncode}")
 
-    def _synced(self, component: Component, root: Path, *, offline: bool) -> list[Diagnostic]:
+    def _synced(self, component: Component, root: Path, mode: Sync) -> list[Diagnostic]:
         settings, report = check_config(component, root)
         if settings is None or report.found:
             return report.found
         directory = root / component.root
-        if not offline:
+        if mode is Sync.DOWNLOAD:
             self._install_python(directory, component.id)
         with tempfile.TemporaryDirectory(prefix=f"quality-{component.id}-") as scratch:
             target = Path(scratch) / "environment"
-            sync(self.uv, directory, target, label=component.id, offline=offline)
+            sync(self.uv, directory, target, label=component.id, mode=mode)
         return []
 
     def provision(self, component: Component, root: Path) -> list[Diagnostic]:
         """Install the pinned interpreter and cache the locked packages."""
-        return self._synced(component, root, offline=False)
+        return self._synced(component, root, Sync.DOWNLOAD)
 
     def probe(self, component: Component, root: Path) -> list[Diagnostic]:
         """Sync the locked environment offline into a throwaway directory."""
-        return self._synced(component, root, offline=True)
+        return self._synced(component, root, Sync.PROBE)

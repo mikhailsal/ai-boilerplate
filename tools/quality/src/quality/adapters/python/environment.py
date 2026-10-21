@@ -4,7 +4,9 @@ Every snapshot gets its own environment per component, built from the candidate'
 `uv.lock` by the pinned uv. Checks never download: a package or interpreter that is
 not cached is an environment error that names the bootstrap command. `uv sync
 --frozen` installs the lockfile as it is, so `uv lock --check` first confirms
-that it still matches pyproject.toml.
+that it still matches pyproject.toml. A check's environment compiles its installed
+packages once, because its suites never write bytecode and would otherwise compile
+them again in every process; the candidate's own source is not compiled.
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
 
 from quality.adapters.native import fail, failure, run_tool
@@ -28,6 +31,14 @@ LOCK_TOOL = "uv lock --check"
 # `uv lock --check` exits 1 when the lockfile needs an update or cannot be resolved offline.
 STALE = 1
 BOOTSTRAP_HINT = "run `./quality bootstrap` to install the locked packages and interpreter"
+
+
+class Sync(Enum):
+    """How a sync runs: a check's environment, an offline probe, or a download."""
+
+    CHECK = ("--offline", "--compile-bytecode")
+    PROBE = ("--offline",)
+    DOWNLOAD = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,12 +67,11 @@ class Uv:
         return sanitized(base, extra=extra)
 
 
-def sync(uv: Uv, project: Path, target: Path, *, label: str, offline: bool = True) -> Path:
+def sync(uv: Uv, project: Path, target: Path, *, label: str, mode: Sync = Sync.PROBE) -> Path:
     """Install the project's locked environment into `target` and return its interpreter."""
-    flags = ("--offline",) if offline else ()
-    argv = (str(uv.executable), "sync", "--frozen", "--quiet", *flags)
+    argv = (str(uv.executable), "sync", "--frozen", "--quiet", *mode.value)
     env = uv.environ(project_environment=target)
-    timeout = SYNC_TIMEOUT if offline else DOWNLOAD_TIMEOUT
+    timeout = DOWNLOAD_TIMEOUT if mode is Sync.DOWNLOAD else SYNC_TIMEOUT
     try:
         completed = run(Command(argv, cwd=project, timeout=timeout, env=env))
     except ProcessError as error:
@@ -101,5 +111,7 @@ class Environments:
         target = self.location(component, work)
         if target not in self._ready:
             project = snapshot / component.root
-            self._ready[target] = sync(self.uv, project, target, label=component.id)
+            self._ready[target] = sync(
+                self.uv, project, target, label=component.id, mode=Sync.CHECK
+            )
         return self._ready[target]

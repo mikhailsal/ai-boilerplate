@@ -1,6 +1,6 @@
 # 0009 Python profile
 
-Status: accepted (P05); amended in P11.
+Status: accepted (P05); amended in P11 and P12.
 
 ## Scope
 
@@ -37,8 +37,11 @@ deep, and must stay inside the repository. Coverage settings
 ## Environments
 
 Every check builds a new environment for each component it covers, inside the
-snapshot's work area: the pinned uv runs `uv sync --frozen --offline` from the
-candidate's `uv.lock` with the interpreter of `.python-version`. Checks never
+snapshot's work area: the pinned uv runs `uv sync --frozen --offline
+--compile-bytecode` from the candidate's `uv.lock` with the interpreter of
+`.python-version`. The suites never write bytecode, so without the compiled
+packages every Python process of a suite would compile pytest and coverage.py
+again; the candidate's own source stays uncompiled. Checks never
 download. A package or interpreter missing from uv's cache is an environment
 error that names `./quality bootstrap`, which fills the cache
 ([decision 0010](0010-launcher-bootstrap-and-hooks.md)).

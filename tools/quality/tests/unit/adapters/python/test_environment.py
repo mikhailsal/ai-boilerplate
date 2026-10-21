@@ -9,6 +9,7 @@ from quality.adapters.python.environment import (
     DOWNLOAD_TIMEOUT,
     SYNC_TIMEOUT,
     Environments,
+    Sync,
     Uv,
     stale_lock,
     sync,
@@ -20,10 +21,10 @@ from quality.testkit.policies import ComponentSpec, build_policy
 from quality.testkit.pythonproject import python_project
 
 FAKE_UV = Uv(Path("/opt/uv"), Path("/opt/pythons"))
-# Records each sync's directory and creates the interpreter where uv would.
+# Records each sync's directory and arguments and creates the interpreter where uv would.
 RECORDING_UV = """\
 #!/bin/sh
-echo "$PWD" >> "{log}"
+echo "$PWD $*" >> "{log}"
 mkdir -p "$UV_PROJECT_ENVIRONMENT/bin" && touch "$UV_PROJECT_ENVIRONMENT/bin/python"
 """
 
@@ -76,6 +77,15 @@ def test_a_locked_project_syncs_offline(tmp_path: Path) -> None:
     assert done.ok, done.stderr_text()
 
 
+def test_a_compiled_environment_holds_the_bytecode_of_its_packages(tmp_path: Path) -> None:
+    project = python_project(tmp_path / "app", {})
+    sync(local_uv(), project, tmp_path / "plain", label="app")
+    sync(local_uv(), project, tmp_path / "compiled", label="app", mode=Sync.CHECK)
+    assert not list((tmp_path / "plain").rglob("pytest/__pycache__/*.pyc"))
+    assert list((tmp_path / "compiled").rglob("pytest/__pycache__/*.pyc"))
+    assert not list(project.rglob("__pycache__"))
+
+
 def test_checks_sync_offline_and_bootstrap_downloads(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -90,10 +100,12 @@ def test_checks_sync_offline_and_bootstrap_downloads(
 
     monkeypatch.setattr(environment, "run", fake)
     sync(FAKE_UV, tmp_path, target, label="app")
-    sync(FAKE_UV, tmp_path, target, label="app", offline=False)
-    offline, online = seen
+    sync(FAKE_UV, tmp_path, target, label="app", mode=Sync.DOWNLOAD)
+    sync(FAKE_UV, tmp_path, target, label="app", mode=Sync.CHECK)
+    offline, online, compiled = seen
     assert offline.argv == ("/opt/uv", "sync", "--frozen", "--quiet", "--offline")
     assert online.argv == ("/opt/uv", "sync", "--frozen", "--quiet")
+    assert compiled.argv == (*offline.argv, "--compile-bytecode")
     assert (offline.timeout, online.timeout) == (SYNC_TIMEOUT, DOWNLOAD_TIMEOUT)
     assert (offline.cwd, offline.env["UV_PROJECT_ENVIRONMENT"]) == (tmp_path, str(target))
 
@@ -135,7 +147,8 @@ def test_environments_sync_once_per_component_and_work_area(tmp_path: Path) -> N
         environments.python(app, snapshot, second)
         == second / "python-env" / "app" / "bin" / "python"
     )
-    assert log.read_text().splitlines() == [str(snapshot / "app")] * 2
+    synced = f"{snapshot / 'app'} sync --frozen --quiet --offline --compile-bytecode"
+    assert log.read_text().splitlines() == [synced] * 2
 
 
 def test_a_lockfile_that_no_longer_matches_its_project_is_stale(tmp_path: Path) -> None:
