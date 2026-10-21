@@ -108,16 +108,22 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Install the PHP runtime (decision 0002)
+        run: |
+          sudo add-apt-repository --yes ppa:ondrej/php
+          sudo apt-get update
+          sudo apt-get install --yes php8.4-cli php8.4-xml php8.4-mbstring php8.4-zip \
+            php8.4-xdebug php8.4-pcov
+          sudo phpdismod -v 8.4 -s ALL xdebug pcov
+          sudo update-alternatives --set php /usr/bin/php8.4
       - name: Restore the download cache of the default branch
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/quality
           key: quality-cache-${{ hashFiles('tools/quality/toolchains.toml', '**/*.lock', '**/package-lock.json') }}
           restore-keys: quality-cache-
-      - name: Install the pinned scanner
-        # The launcher installs the core; the audit reads only lockfiles, so no
-        # component environment is needed.
-        run: ./quality tools install osv-scanner
+      - name: Install the pinned tools and packages
+        run: ./quality bootstrap
       - name: Match the lockfiles against current advisories
         run: ./quality audit --rev HEAD
 
@@ -133,16 +139,25 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Install the PHP runtime (decision 0002)
+        run: |
+          sudo add-apt-repository --yes ppa:ondrej/php
+          sudo apt-get update
+          sudo apt-get install --yes php8.4-cli php8.4-xml php8.4-mbstring php8.4-zip \
+            php8.4-xdebug php8.4-pcov
+          sudo phpdismod -v 8.4 -s ALL xdebug pcov
+          sudo update-alternatives --set php /usr/bin/php8.4
       - name: Restore the download cache of the default branch
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/quality
           key: quality-cache-${{ hashFiles('tools/quality/toolchains.toml', '**/*.lock', '**/package-lock.json') }}
           restore-keys: quality-cache-
+      - name: Install the pinned tools and packages
+        run: ./quality bootstrap
       - name: Decide from the results of every required job
         env:
           NEEDS: ${{ toJSON(needs) }}
-        # The launcher installs the pinned core on first use.
         run: |
           printf '%s' "$NEEDS" > "$RUNNER_TEMP/needs.json"
           ./quality ci verdict --needs "$RUNNER_TEMP/needs.json"

@@ -99,13 +99,13 @@ Caches never carry trust from a pull request: jobs restore the cache of the
 default branch, and only a push to the default branch saves it. The coverage
 baseline is the `report.json` saved by that push.
 
-The `gate` job installs PHP 8.4, the one runtime that bootstrap does not
-download ([decision 0002](0002-installation-strategy.md)), and lifts the
-AppArmor restriction of Ubuntu 24.04 on unprivileged user namespaces; without
-them the suites run with the network and the gate warns
-([decision 0008](0008-test-and-coverage-engine.md#network-isolation)). The
-`audit` and `required` jobs need neither, because the launcher installs the
-core on first use.
+Every job installs PHP 8.4, the one runtime that bootstrap does not download
+([decision 0002](0002-installation-strategy.md)), and runs `quality
+bootstrap`, because only bootstrap downloads, including the core's uv
+([decision 0010](0010-launcher-bootstrap-and-hooks.md#launcher)). The `gate`
+job also lifts the AppArmor restriction of Ubuntu 24.04 on unprivileged user
+namespaces; without it the suites run with the network and the gate warns
+([decision 0008](0008-test-and-coverage-engine.md#network-isolation)).
 
 ## Dependency gates
 
@@ -131,8 +131,7 @@ Each finding's symbol is the first advisory ID, so an `[[exceptions]]` entry
 covers exactly one advisory in one lockfile.
 
 osv-scanner is a default tool of `quality bootstrap`, because the core's own
-tests run it against offline databases. The `audit` job installs only the
-scanner: an audit reads lockfiles and needs no component environment.
+tests run it against offline databases.
 
 ## Control files
 
