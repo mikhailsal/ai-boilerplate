@@ -16,7 +16,7 @@ Continuation of the [traceability matrix](traceability.md).
 | R06.8 | `NOT_APPLICABLE` only for proven absence; broken globs fail | P04 | `rules/test_coverage.py` (not applicable, `coverage.no-source`) | DONE |
 | R06.9 | Unit tests isolated from services and network; instrumentation loopback only | P04–P08 | Every unit suite runs in its own user and network namespace with loopback only ([decision 0008](../decisions/0008-test-and-coverage-engine.md#network-isolation)): `process/test_isolation.py`, `adapters/test_native.py::test_only_unit_suites_are_contained`, `engine/test_suites.py::test_a_unit_suite_with_the_network_warns_and_still_counts` (`tests.network` where namespaces are unavailable); Python: `acceptance/test_profile_cases.py::test_unit_tests_reach_loopback_and_nothing_else`; Dart: `acceptance/test_dart_boundaries.py::test_unit_tests_keep_the_vm_service_on_loopback_and_reach_nothing_else`; fresh home, temporary directory, and allowlisted environment in every runner; PHP: `acceptance/test_php_boundaries.py::test_unit_tests_reach_loopback_and_nothing_else`, `adapters/php/test_analyzer.py::test_the_analysis_runs_behind_the_network_isolation` | DONE |
 | R06.10 | Commit runs full unit suites of affected components and reverse dependencies | P04, P05 | P04: `discovery/test_scope.py`, `engine/test_suite_scope.py`; P05: `acceptance/test_profile_cases.py::test_each_component_is_tested_and_counted_on_its_own`, `acceptance/test_commit.py::test_a10_a_lockfile_change_reruns_the_suites` | DONE |
-| R06.11 | No custom result cache; CI reruns; no ratchet, regressions reported | P04, P10 | P04: no result cache or ratchet (decision 0008); regressions and CI in P10 | IN_PROGRESS |
+| R06.11 | No custom result cache; CI reruns; no ratchet, regressions reported | P04, P10 | P04: no result cache or ratchet (decision 0008); `rules/test_regressions.py`, `cli/test_gate_cmd.py::test_a_baseline_reports_regressions_without_failing`; `acceptance/test_gate.py::test_a_stricter_policy_on_main_invalidates_an_earlier_green_result` | DONE |
 
 ## R07 Tier 1 profile choices
 
@@ -49,14 +49,14 @@ Continuation of the [traceability matrix](traceability.md).
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| R09.1 | CLI decides; CI wrappers translate, install, invoke, publish | P10 | Workflow review and tests | TODO |
-| R09.2 | JSON diagnostics, native coverage, JUnit/LCOV/Cobertura exports, relative paths | P04, P10 | P04: native report parsers with repository-relative paths; exports in P10 | IN_PROGRESS |
-| R09.3 | GitHub Actions workflow and GitLab reference wrapper using the same entry points | P10 | actionlint and wrapper tests | TODO |
-| R09.4 | Generic execution without provider variables; live runs reported separately | P10 | Plain Linux gate test | TODO |
-| R09.5 | Aggregate job fails on failed, cancelled, skipped, or missing jobs | P10 | Aggregation tests | TODO |
-| R09.6 | Protection guidance and CODEOWNERS for control files incl. CODEOWNERS | P10 | Control-file tests | TODO |
-| R09.7 | No privileged untrusted execution; pinned actions; minimal permissions | P10 | Workflow lint tests | TODO |
-| R09.8 | Honest trust boundary documented | P10, P11 | docs/trust-boundary.md | TODO |
+| R09.1 | CLI decides; CI wrappers translate, install, invoke, publish | P10 | `test_ci_wrappers.py::test_both_wrappers_call_the_same_entry_points`; `ci/test_verdict.py`; [decision 0015](../decisions/0015-ci-wrappers-and-merge-gates.md#scope) | DONE |
+| R09.2 | JSON diagnostics, native coverage, JUnit/LCOV/Cobertura exports, relative paths | P04, P10 | P04: native report parsers with repository-relative paths; `reports/test_exports.py`, `reports/test_write.py`, `cli/test_gate_cmd.py::test_reports_are_written_once_into_a_fresh_directory`, `acceptance/test_gate.py::test_a_pull_request_passes_on_plain_linux_with_exported_reports` | DONE |
+| R09.3 | GitHub Actions workflow and GitLab reference wrapper using the same entry points | P10 | `.github/workflows/quality.yml` (actionlint and `ci.*` rules on every check), `ci/gitlab/quality.gitlab-ci.yml`; `test_ci_wrappers.py`; the GitHub workflow passed on a hosted runner ([P10 record](phases/P10.md#hosted-status)); the GitLab wrapper is validated locally only | DONE |
+| R09.4 | Generic execution without provider variables; live runs reported separately | P10 | `acceptance/test_gate.py::test_a_pull_request_passes_on_plain_linux_with_exported_reports`, `test_provider_variables_do_not_change_the_verdict`; hosted runs reported in the [P10 record](phases/P10.md#hosted-status) | DONE |
+| R09.5 | Aggregate job fails on failed, cancelled, skipped, or missing jobs | P10 | `ci/test_verdict.py`, `cli/test_ci_cmd.py`, `ci/test_aggregate.py` | DONE |
+| R09.6 | Protection guidance and CODEOWNERS for control files incl. CODEOWNERS | P10 | `ci/test_control.py`, `ci/test_codeowners.py`, `ci/test_gates.py::test_every_control_file_needs_an_owner`, `engine/test_control_changes.py`, `test_ci_wrappers.py::test_the_prepared_ruleset_requires_review_and_the_aggregate_status`; [protection guide](../guides/protection.md) | DONE |
+| R09.7 | No privileged untrusted execution; pinned actions; minimal permissions | P10 | `ci/test_workflow.py`, `adapters/test_actionlint.py`, `test_ci_wrappers.py::test_the_github_workflow_meets_the_trust_rules_and_the_ci_policy` | DONE |
+| R09.8 | Honest trust boundary documented | P10, P11 | P10: [protection guide](../guides/protection.md#the-real-boundary); template documentation in P11 | IN_PROGRESS |
 
 ## R10 Template lifecycle and evidence
 
