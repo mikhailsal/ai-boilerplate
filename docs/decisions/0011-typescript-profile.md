@@ -104,11 +104,18 @@ for such a finding is reported unused only when its component was checked.
 Vitest runs with a configuration the gate writes into the run's output
 directory. It imports the component's `vitest.config.*` or `vite.config.*`
 and overrides what decides the verdict: the test files (the declared suite
-roots with Vitest's default test-file pattern), the reporters (JUnit into the
-output directory), and coverage (V8, LCOV into the output directory, the
+roots with Vitest's default test-file pattern), retries (off), the reporters
+(JUnit into the output directory, and the gate's own reporter), and coverage (V8, LCOV into the output directory, the
 source roots' TypeScript files included, declaration files excluded). When the
 component sets no `oxc` options, `.cts` files are transformed too; tsconfig
 `paths` are resolved unless the component configures `resolve.tsconfigPaths`.
+
+The gate's reporter writes what JUnit cannot say: the tests marked
+`test.fails`, which JUnit reports as passing when they fail as expected and
+which count as expected failures; the tests that passed only on a retry,
+which a test's own `retry` option still allows and which count as failures;
+and the number of errors raised outside any test, which fail the suite
+([decision 0014](0014-behavioral-scenarios.md)).
 
 Each run gets a new home, cache, and temporary directory in the work area,
 like the Python runner.

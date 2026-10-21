@@ -98,7 +98,7 @@ measured but never imported by the generated coverage test.
 
 ## Suites
 
-Unit suites run `dart test --platform vm --branch-coverage
+Unit suites run `dart test --platform vm --no-retry --branch-coverage
 --coverage=<raw> --file-reporter json:<results>` over the declared roots and
 one generated test, written only in the snapshot under `.dart_tool/quality`,
 that imports every non-part library of the source roots. The component's
@@ -111,7 +111,10 @@ Results are read from the JSON reporter's events. A run without its final
 `done` event, a malformed event, or an unknown or repeated test is a report
 error. Zero tests fail with `tests.none`, and a missing suite root is a
 failing load case; neither is a pass. Coverage is formatted only after a unit
-run that exits 0.
+run that exits 0. Every suite runs with `--no-retry`, so a test's `retry` option
+cannot turn a failure into a pass. A `solo` test makes `dart test` skip
+every other test; the gate reports it as `tests.focused`
+([decision 0014](0014-behavioral-scenarios.md)).
 
 After a clean unit run, a source file that the report lacks was compiled
 through the generated test and has no coverable line, so it counts as

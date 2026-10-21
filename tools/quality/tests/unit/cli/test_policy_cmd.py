@@ -4,7 +4,12 @@ from pathlib import Path
 import pytest
 
 from quality.cli.main import main
-from quality.policy.schema import SCHEMA_PATH, policy_schema_text
+from quality.policy.schema import (
+    SCENARIOS_SCHEMA_PATH,
+    SCHEMA_PATH,
+    policy_schema_text,
+    scenarios_schema_text,
+)
 from quality.testkit.policies import ComponentSpec, policy_toml
 
 
@@ -53,11 +58,24 @@ def test_schema_is_printed_by_default(tmp_path: Path, capsys: pytest.CaptureFixt
     assert not (tmp_path / SCHEMA_PATH).exists()
 
 
+def test_the_scenario_schema_is_printed_on_request(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    assert main(["policy", "schema", "--root", str(tmp_path), "--scenarios"]) == 0
+    assert capsys.readouterr().out == scenarios_schema_text()
+
+
 def test_schema_write_then_check(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["policy", "schema", "--root", str(tmp_path), "--check"]) == 1
-    assert "(policy.schema-stale)" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert out.count("(policy.schema-stale)") == 2
+    assert SCENARIOS_SCHEMA_PATH in out
     assert main(["policy", "schema", "--root", str(tmp_path), "--write"]) == 0
     assert (tmp_path / SCHEMA_PATH).read_text() == policy_schema_text()
+    assert (tmp_path / SCENARIOS_SCHEMA_PATH).read_text() == scenarios_schema_text()
     assert main(["policy", "schema", "--root", str(tmp_path), "--check"]) == 0
-    (tmp_path / SCHEMA_PATH).write_text("{}\n")
+    (tmp_path / SCENARIOS_SCHEMA_PATH).write_text("{}\n")
     assert main(["policy", "schema", "--root", str(tmp_path), "--check"]) == 1
+    out = capsys.readouterr().out
+    assert out.count("(policy.schema-stale)") == 1
+    assert SCENARIOS_SCHEMA_PATH in out

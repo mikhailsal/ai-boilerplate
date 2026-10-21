@@ -17,6 +17,12 @@
 | [0011](decisions/0011-typescript-profile.md) | TypeScript profile: Prettier, ESLint, tsc, Vitest |
 | [0012](decisions/0012-dart-profile.md) | Dart profile: dart format, dart analyze, package:test, package:coverage |
 | [0013](decisions/0013-php-profile.md) | PHP profile: Composer, PHP CS Fixer, PHPStan, PHPUnit with Xdebug |
+| [0014](decisions/0014-behavioral-scenarios.md) | Behavioral scenarios: capabilities, manifests, proof, and quarantine |
+
+## Guides
+
+- [Test quality](guides/test-quality.md): what counts as test evidence and how
+  to write tests that prove scenarios.
 
 ## Reference
 
@@ -24,6 +30,8 @@
   and JSON reports.
 - [Policy JSON Schema](reference/policy.schema.json), generated from the
   policy models; the policy itself is [`quality.toml`](../quality.toml).
+- [Scenario manifest JSON Schema](reference/scenarios.schema.json), generated
+  from the manifest models.
 - [Quality core](../tools/quality/README.md): layout, exit codes, and native
   development commands.
 - [Agent instructions](../AGENTS.md): setup and the everyday commands.

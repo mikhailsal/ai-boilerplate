@@ -123,6 +123,7 @@ def test_unit_runs_collect_branch_coverage_and_other_suites_do_not(
         "test",
         "--platform",
         "vm",
+        "--no-retry",
         "--branch-coverage",
         f"--coverage={unit.output / 'raw'}",
         "--reporter=failures-only",
@@ -135,6 +136,7 @@ def test_unit_runs_collect_branch_coverage_and_other_suites_do_not(
     assert suite_argv(sdk, other, None)[3:] == (
         "--platform",
         "vm",
+        "--no-retry",
         "--reporter=failures-only",
         f"--file-reporter=json:{other.output / RESULTS}",
         "./integration",

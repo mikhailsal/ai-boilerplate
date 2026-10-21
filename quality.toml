@@ -30,8 +30,9 @@ role = "tooling"
 profile = "python"
 root = "tools/quality"
 source = ["src"]
-tests = { unit = ["tests/unit"], acceptance = ["tests/acceptance"] }
+tests = { unit = ["tests/unit"], e2e = ["tests/e2e"], acceptance = ["tests/acceptance"] }
 capabilities = ["cli"]
+scenarios = "scenarios.toml"
 
 # Decision 0003: packages depend only on packages listed after them.
 [components.architecture]
@@ -40,6 +41,7 @@ layers = [
     "catalog",
     "testkit",
     "engine",
+    "scenarios",
     "toolchain",
     "hooks",
     "rules",
@@ -59,6 +61,7 @@ modules = [
     { name = "catalog", paths = ["src/quality/catalog.py"] },
     { name = "testkit", paths = ["src/quality/testkit/**"] },
     { name = "engine", paths = ["src/quality/engine/**"] },
+    { name = "scenarios", paths = ["src/quality/scenarios/**"] },
     { name = "toolchain", paths = ["src/quality/toolchain/**"] },
     { name = "hooks", paths = ["src/quality/hooks/**"] },
     { name = "rules", paths = ["src/quality/rules/**"] },
@@ -82,8 +85,9 @@ role = "tooling"
 profile = "python"
 root = "tools/quality/launcher"
 source = ["src"]
-tests = { unit = ["tests"] }
+tests = { unit = ["tests"], e2e = ["e2e"] }
 capabilities = ["cli"]
+scenarios = "scenarios.toml"
 
 # The Node helper of the TypeScript profile (decision 0011), checked by that
 # profile. A helper bundle is active in this maintainer repository (decision 0003).
@@ -94,7 +98,8 @@ profile = "typescript"
 root = "tools/quality/helpers/typescript"
 source = ["src"]
 tests = { unit = ["tests"] }
-capabilities = ["cli"]
+capabilities = []
+no_boundary_reason = "Internal helper run by its profile adapter; the core's acceptance suites drive it."
 
 # The Dart helper of the Dart profile (decision 0012), checked by that profile.
 [[components]]
@@ -104,7 +109,8 @@ profile = "dart"
 root = "tools/quality/helpers/dart"
 source = ["bin", "lib"]
 tests = { unit = ["test"] }
-capabilities = ["cli"]
+capabilities = []
+no_boundary_reason = "Internal helper run by its profile adapter; the core's acceptance suites drive it."
 
 # The PHP helper of the PHP profile (decision 0013), checked by that profile.
 [[components]]
@@ -114,7 +120,8 @@ profile = "php"
 root = "tools/quality/helpers/php"
 source = ["bin", "src"]
 tests = { unit = ["tests"] }
-capabilities = ["cli"]
+capabilities = []
+no_boundary_reason = "Internal helper run by its profile adapter; the core's acceptance suites drive it."
 
 [[classification]]
 pattern = "quality"

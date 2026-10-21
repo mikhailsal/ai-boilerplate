@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from enum import StrEnum
 from typing import Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from quality.policy.enums import Capability, Category, Enhancement, Profile, Role, Suite
 from quality.policy.types import (
     Date,
     Flag,
     Glob,
     Identifier,
+    Name,
     Percent,
     PositiveInt,
     RelPath,
@@ -25,48 +26,6 @@ class StrictModel(BaseModel):
     """Base model: frozen, unknown keys forbidden; scalar types are strict."""
 
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
-
-
-class Category(StrEnum):
-    """File categories assigned to every candidate file."""
-
-    SOURCE = "source"
-    TESTS = "tests"
-    DOCS = "docs"
-    CONFIG = "config"
-    GENERATED = "generated"
-    VENDOR = "vendor"
-    ASSETS = "assets"
-
-
-class Role(StrEnum):
-    """Component roles; see decision 0003."""
-
-    APPLICATION = "application"
-    TOOLING = "tooling"
-    HELPER = "helper"
-
-
-class Profile(StrEnum):
-    """Tier 1 language profiles."""
-
-    PYTHON = "python"
-    TYPESCRIPT = "typescript"
-    DART = "dart"
-    PHP = "php"
-
-
-class Capability(StrEnum):
-    """Behavioral capabilities a component can declare."""
-
-    LIBRARY = "library"
-    CLI = "cli"
-    HTTP_API = "http-api"
-    DATABASE = "database"
-    MIGRATIONS = "migrations"
-    CONTRACTS = "contracts"
-    QUEUES = "queues"
-    UI = "ui"
 
 
 class Repository(StrictModel):
@@ -130,6 +89,17 @@ class Suites(StrictModel):
         """Every declared test root of every suite."""
         return [*self.unit, *self.integration, *self.contract, *self.e2e, *self.acceptance]
 
+    def of(self, suite: Suite) -> list[str]:
+        """Return the test roots of one suite."""
+        roots = {
+            Suite.UNIT: self.unit,
+            Suite.INTEGRATION: self.integration,
+            Suite.CONTRACT: self.contract,
+            Suite.E2E: self.e2e,
+            Suite.ACCEPTANCE: self.acceptance,
+        }
+        return roots[suite]
+
 
 class ModuleDecl(StrictModel):
     """A named module: file globs relative to the component root."""
@@ -168,6 +138,8 @@ class Component(StrictModel):
     tests: Suites
     capabilities: list[Capability] = Field(default_factory=list[Capability])
     no_boundary_reason: Text | None = None
+    scenarios: RelPath | None = None
+    enhanced: list[Enhancement] = Field(default_factory=list[Enhancement])
     depends_on: list[Identifier] = Field(default_factory=list[Identifier])
     architecture: Architecture = Field(default_factory=Architecture)
 
@@ -209,6 +181,22 @@ class PolicyException(StrictModel):
         return self
 
 
+class Quarantine(StrictModel):
+    """A flaky test whose failure does not fail its suite until the entry expires.
+
+    A quarantined test never satisfies a scenario; the scenarios it lists are
+    suspended instead of failing while the entry lasts.
+    """
+
+    component: Identifier
+    suite: Suite
+    test: Text
+    reason: Text
+    owner: Text
+    expires: Date
+    scenarios: list[Name] = Field(default_factory=list[Name])
+
+
 class Policy(StrictModel):
     """The complete repository policy loaded from `quality.toml`."""
 
@@ -219,3 +207,4 @@ class Policy(StrictModel):
     components: list[Component] = Field(min_length=1)
     classification: list[Classification] = Field(default_factory=list[Classification])
     exceptions: list[PolicyException] = Field(default_factory=list[PolicyException])
+    quarantine: list[Quarantine] = Field(default_factory=list[Quarantine])

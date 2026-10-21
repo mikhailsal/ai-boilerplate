@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from quality.testkit import greetfixture, notesfixture
 from quality.testkit.scratch import Project, create_project, dart, output, php, typescript
 
 
@@ -41,6 +42,26 @@ def calc(tmp_path: Path) -> Project:
 def shop(tmp_path: Path) -> Project:
     """Return a bootstrapped project with one PHP component, `shop`."""
     created = create_project(tmp_path / "project", php("shop"))
+    result = created.quality("bootstrap")
+    assert result.returncode == 0, output(result)
+    return created
+
+
+@pytest.fixture
+def greet(tmp_path: Path) -> Project:
+    """Return a bootstrapped project with the `greet` reference fixture."""
+    files = {"greet": greetfixture.FILES}
+    created = create_project(tmp_path / "project", greetfixture.SPEC, files=files)
+    result = created.quality("bootstrap")
+    assert result.returncode == 0, output(result)
+    return created
+
+
+@pytest.fixture
+def notes(tmp_path: Path) -> Project:
+    """Return a bootstrapped project with the `notes` reference fixture."""
+    files = {"notes": notesfixture.FILES}
+    created = create_project(tmp_path / "project", notesfixture.SPEC, files=files)
     result = created.quality("bootstrap")
     assert result.returncode == 0, output(result)
     return created

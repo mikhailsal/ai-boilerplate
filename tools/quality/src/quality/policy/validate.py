@@ -8,7 +8,7 @@ from itertools import combinations, product
 
 from quality.diagnostics import Diagnostic, Kind, Location, Rule
 from quality.policy.load import POLICY_FILE
-from quality.policy.models import Category, Component, Policy
+from quality.policy.models import Category, Component, Policy, Suite
 
 POLICY_CONFLICT = Rule(
     id="policy.conflict",
@@ -16,7 +16,8 @@ POLICY_CONFLICT = Rule(
     requirement="R02",
     explanation=(
         "Component IDs must be unique, component roots must differ, and no path may be "
-        "owned by two components or be both a source and a test root."
+        "owned by two components or be both a source and a test root. A test is "
+        "quarantined at most once, and never in a unit suite."
     ),
     remedy="Give each component a distinct root and disjoint source and test paths.",
     kind=Kind.USAGE,
@@ -25,7 +26,10 @@ POLICY_REFERENCE = Rule(
     id="policy.reference",
     title="Policy refers to something that does not exist",
     requirement="R02",
-    explanation="Dependencies, architecture edges, and exceptions must refer to declared items.",
+    explanation=(
+        "Dependencies, architecture edges, exceptions, and quarantine entries must refer "
+        "to declared items."
+    ),
     remedy="Declare the referenced item or correct the reference.",
     kind=Kind.USAGE,
 )
@@ -136,6 +140,25 @@ def _classification(policy: Policy) -> Iterator[Diagnostic]:
             yield POLICY_CONFLICT.diagnostic(message, location=_at())
 
 
+def _quarantine(policy: Policy) -> Iterator[Diagnostic]:
+    components = {component.id: component for component in policy.components}
+    keys = [(entry.component, entry.suite.value, entry.test) for entry in policy.quarantine]
+    for component, suite, test in sorted({key for key in keys if keys.count(key) > 1}):
+        message = f"'{test}' of the {suite} suite is quarantined more than once"
+        yield POLICY_CONFLICT.diagnostic(message, location=_at(), component=component)
+    for entry in policy.quarantine:
+        component = components.get(entry.component)
+        if component is None:
+            message = f"quarantine refers to undeclared component '{entry.component}'"
+            yield POLICY_REFERENCE.diagnostic(message, location=_at())
+        elif entry.suite is Suite.UNIT:
+            message = f"'{entry.test}' is a unit test; unit tests cannot be quarantined"
+            yield POLICY_CONFLICT.diagnostic(message, location=_at(), component=component.id)
+        elif not component.tests.of(entry.suite):
+            message = f"quarantine refers to the {entry.suite} suite, which is not declared"
+            yield POLICY_REFERENCE.diagnostic(message, location=_at(), component=component.id)
+
+
 def cross_validate(policy: Policy, known_rules: frozenset[str]) -> tuple[Diagnostic, ...]:
     """Return every cross-field problem of a schema-valid policy."""
     found: list[Diagnostic] = [*_component_conflicts(policy), *_dependencies(policy)]
@@ -144,4 +167,5 @@ def cross_validate(policy: Policy, known_rules: frozenset[str]) -> tuple[Diagnos
         found.extend(_architecture(component))
     found.extend(_exceptions(policy, known_rules))
     found.extend(_classification(policy))
+    found.extend(_quarantine(policy))
     return tuple(found)

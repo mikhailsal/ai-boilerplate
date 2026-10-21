@@ -10,7 +10,11 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 from quality.testing import Outcome
 
 MARKERS = {Outcome.FAILED: "failure", Outcome.ERROR: "error", Outcome.SKIPPED: "skipped"}
-DECLARED = {Outcome.FAILED: "failures", Outcome.ERROR: "errors", Outcome.SKIPPED: "skipped"}
+DECLARED = {
+    "failures": (Outcome.FAILED,),
+    "errors": (Outcome.ERROR,),
+    "skipped": (Outcome.SKIPPED, Outcome.EXPECTED_FAILURE),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +76,9 @@ def junit_xml(cases: Iterable[tuple[str, Outcome]]) -> bytes:
         case = SubElement(suite, "testcase", classname="tests", name=name)
         if outcome in MARKERS:
             SubElement(case, MARKERS[outcome])
+        elif outcome is Outcome.EXPECTED_FAILURE:
+            SubElement(case, "skipped", type="pytest.xfail")
     suite.set("tests", str(len(listed)))
-    for outcome, key in DECLARED.items():
-        suite.set(key, str(sum(1 for _, found in listed if found is outcome)))
+    for key, outcomes in DECLARED.items():
+        suite.set(key, str(sum(1 for _, found in listed if found in outcomes)))
     return tostring(root, encoding="utf-8")

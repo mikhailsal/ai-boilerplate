@@ -11,7 +11,14 @@ from quality.cli import Subcommands
 from quality.diagnostics import ExitCode, Location, Outcome
 from quality.diagnostics.render import outcome_to_json, render_text
 from quality.policy import cross_validate, load_policy
-from quality.policy.schema import SCHEMA_PATH, SCHEMA_STALE, policy_schema_text
+from quality.policy.schema import (
+    SCENARIOS_SCHEMA_PATH,
+    SCHEMA_PATH,
+    SCHEMA_STALE,
+    SCHEMAS,
+    policy_schema_text,
+    scenarios_schema_text,
+)
 
 NAME = "policy"
 ACTIONS = frozenset({"validate", "schema"})
@@ -36,14 +43,18 @@ def register(commands: Subcommands) -> None:
     validate.set_defaults(handler=run_validate)
     schema = actions.add_parser(
         "schema",
-        help="print, write, or check the policy JSON Schema",
-        description=f"Print the policy JSON Schema, write it to {SCHEMA_PATH}, or check "
-        "that the committed copy is current (exit 1 when stale).",
+        help="print, write, or check the policy and scenario manifest JSON Schemas",
+        description=f"Print the policy JSON Schema (or with --scenarios the scenario "
+        f"manifest schema), write both to {SCHEMA_PATH} and {SCENARIOS_SCHEMA_PATH}, or "
+        "check that the committed copies are current (exit 1 when stale).",
     )
     schema.add_argument("--root", type=Path, default=Path.cwd(), help="repository root")
+    schema.add_argument(
+        "--scenarios", action="store_true", help="print the scenario manifest schema"
+    )
     mode = schema.add_mutually_exclusive_group()
-    mode.add_argument("--write", action="store_true", help=f"write {SCHEMA_PATH}")
-    mode.add_argument("--check", action="store_true", help=f"fail if {SCHEMA_PATH} is stale")
+    mode.add_argument("--write", action="store_true", help="write both schemas")
+    mode.add_argument("--check", action="store_true", help="fail if a schema is stale")
     schema.set_defaults(handler=run_schema)
 
 
@@ -63,21 +74,24 @@ def run_validate(args: argparse.Namespace) -> int:
 
 
 def run_schema(args: argparse.Namespace) -> int:
-    """Print, write, or check the generated policy JSON Schema."""
-    expected = policy_schema_text()
-    target = Path(args.root).resolve() / SCHEMA_PATH
+    """Print, write, or check the generated JSON Schemas."""
+    root = Path(args.root).resolve()
     if args.write:
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(expected, encoding="utf-8")
+        for path, render in SCHEMAS.items():
+            target = root / path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(render(), encoding="utf-8")
         return int(ExitCode.OK)
     if args.check:
-        current = target.read_text(encoding="utf-8") if target.is_file() else None
-        if current == expected:
+        stale = [
+            SCHEMA_STALE.diagnostic("schema is missing or stale", location=Location(path))
+            for path, render in SCHEMAS.items()
+            if not (root / path).is_file() or (root / path).read_text(encoding="utf-8") != render()
+        ]
+        if not stale:
             return int(ExitCode.OK)
-        outcome = Outcome.of(
-            [SCHEMA_STALE.diagnostic("schema is missing or stale", location=Location(SCHEMA_PATH))]
-        )
+        outcome = Outcome.of(stale)
         sys.stdout.write(render_text(outcome))
         return int(outcome.exit_code())
-    sys.stdout.write(expected)
+    sys.stdout.write(scenarios_schema_text() if args.scenarios else policy_schema_text())
     return int(ExitCode.OK)

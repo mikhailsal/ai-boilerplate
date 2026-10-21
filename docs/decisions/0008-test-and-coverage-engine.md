@@ -51,7 +51,11 @@ coverage report. The engine accepts a report only if it is:
 
 A run passes only if the runner exits with status 0, at least one test
 executed, and no test failed or raised an error; `tests.failed` names the
-first five failing tests. Skipped tests warn and do not count as executed.
+first five failing tests. Skipped tests warn and do not count as executed,
+and neither do expected failures. A pass that a runner reports only after a
+retry is a failure. What each profile does so that a test cannot look
+successful without running, and how a flaky test is quarantined, are in
+[decision 0014](0014-behavioral-scenarios.md).
 Coverage is parsed only after a clean unit run, so a failed
 runner that still wrote a perfect report fails. Integration, contract,
 end-to-end, and acceptance suites never feed the unit floors; their coverage

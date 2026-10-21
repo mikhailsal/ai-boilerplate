@@ -3,9 +3,16 @@ from pathlib import Path
 
 import pytest
 
-from quality.cli.verdict import candidate_of, coverage_json, coverage_text
+from quality.cli.verdict import (
+    candidate_of,
+    coverage_json,
+    coverage_text,
+    scenarios_json,
+    scenarios_text,
+)
 from quality.coverage import Counter
 from quality.rules.coverage import ComponentCoverage
+from quality.scenarios.reconcile import ScenarioSummary
 from quality.testkit.gitrepo import GitRepo
 
 SUMMARIES = (
@@ -75,3 +82,19 @@ def test_coverage_is_reported_as_json_counters() -> None:
         },
     ]
     assert coverage_json(()) == []
+
+
+def test_scenario_counts_are_described_per_component() -> None:
+    summaries = (
+        ScenarioSummary("a", 3, 2, suspended=1, deferred=4),
+        ScenarioSummary("b", 1, 1),
+    )
+    assert scenarios_text(summaries) == (
+        "scenarios of a: 2 of 3 proved, 1 suspended, 4 not required by this run\n"
+        "scenarios of b: 1 of 1 proved\n"
+    )
+    assert scenarios_text(()) == ""
+    assert scenarios_json(summaries) == [
+        {"component": "a", "required": 3, "proved": 2, "suspended": 1, "deferred": 4},
+        {"component": "b", "required": 1, "proved": 1, "suspended": 0, "deferred": 0},
+    ]

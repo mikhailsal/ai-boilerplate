@@ -96,6 +96,7 @@ def test_the_command_table_matches_the_parser(capsys: pytest.CaptureFixture[str]
         "inventory",
         "links",
         "policy",
+        "scenarios",
         "self-test",
         "test",
         "tools",

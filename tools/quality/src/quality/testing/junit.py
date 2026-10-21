@@ -12,11 +12,17 @@ NUMBER = re.compile(r"[0-9]+")
 MAX_DEPTH = 32
 # A case with several markers counts as the most severe one.
 MARKERS = (("error", Outcome.ERROR), ("failure", Outcome.FAILED), ("skipped", Outcome.SKIPPED))
+# pytest reports an expected failure as a skip of this type.
+XFAIL = "pytest.xfail"
 
 
 def _outcome(case: Element) -> Outcome:
     tags = {child.tag for child in case}
-    return next((outcome for tag, outcome in MARKERS if tag in tags), Outcome.PASSED)
+    outcome = next((outcome for tag, outcome in MARKERS if tag in tags), Outcome.PASSED)
+    skipped = case.find("skipped")
+    if outcome is Outcome.SKIPPED and skipped is not None and skipped.get("type") == XFAIL:
+        return Outcome.EXPECTED_FAILURE
+    return outcome
 
 
 def _case(case: Element, origin: str) -> CaseResult:
@@ -34,7 +40,7 @@ def _check_declared(element: Element, cases: list[CaseResult], origin: str) -> N
         "tests": len(cases),
         "failures": results.count(Outcome.FAILED),
         "errors": results.count(Outcome.ERROR),
-        "skipped": results.count(Outcome.SKIPPED),
+        "skipped": results.count(Outcome.SKIPPED, Outcome.EXPECTED_FAILURE),
     }
     for key, value in actual.items():
         declared = element.get(key)

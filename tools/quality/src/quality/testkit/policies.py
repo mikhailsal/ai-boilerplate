@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 
 from quality.policy import Policy, parse_policy
@@ -38,7 +39,7 @@ def _toml_list(values: tuple[str, ...]) -> str:
 
 @dataclass(frozen=True, slots=True)
 class ComponentSpec:
-    """One `[[components]]` table; defaults describe a small Python library."""
+    """One `[[components]]` table; defaults describe a small Python library without boundaries."""
 
     id: str = "app"
     root: str = "."
@@ -47,13 +48,17 @@ class ComponentSpec:
     source: tuple[str, ...] = ("src",)
     unit: tuple[str, ...] = ("tests",)
     integration: tuple[str, ...] = ()
-    capabilities: tuple[str, ...] = ("library",)
+    e2e: tuple[str, ...] = ()
+    capabilities: tuple[str, ...] = ()
+    scenarios: str | None = None
     extra: str = ""
 
     def _suites(self) -> str:
         suites = [f"unit = {_toml_list(self.unit)}"]
         if self.integration:
             suites.append(f"integration = {_toml_list(self.integration)}")
+        if self.e2e:
+            suites.append(f"e2e = {_toml_list(self.e2e)}")
         return ", ".join(suites)
 
     def toml(self) -> str:
@@ -71,6 +76,8 @@ class ComponentSpec:
             lines.append(f"capabilities = {_toml_list(self.capabilities)}")
         else:
             lines.append('no_boundary_reason = "pure computation without external boundaries"')
+        if self.scenarios is not None:
+            lines.append(f'scenarios = "{self.scenarios}"')
         if self.extra:
             lines.append(self.extra.strip())
         return "\n".join(lines) + "\n"
@@ -83,6 +90,27 @@ def policy_toml(*components: ComponentSpec, mode: str = "project", extra: str = 
     if extra:
         body.append(extra.strip() + "\n")
     return "\n".join(body)
+
+
+def quarantine_toml(
+    test: str,
+    *scenarios: str,
+    suite: str = "integration",
+    expires: str = "2999-01-01",
+    component: str = "app",
+) -> str:
+    """Render one `[[quarantine]]` table that suspends `scenarios`."""
+    lines = [
+        "[[quarantine]]",
+        f'component = "{component}"',
+        f'suite = "{suite}"',
+        f"test = {json.dumps(test)}",
+        'reason = "flaky in the test fixture"',
+        'owner = "fixtures"',
+        f"expires = {expires}",
+        f"scenarios = {_toml_list(scenarios)}",
+    ]
+    return "\n".join(lines) + "\n"
 
 
 def classification_toml(pattern: str, category: str, reason: str = "test fixture") -> str:

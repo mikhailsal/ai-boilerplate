@@ -65,7 +65,10 @@ unused because its component was skipped.
 
 pytest runs from the component environment with `-c <settings>`,
 `--rootdir=<component>`, no cache provider, and a JUnit report in the run's
-output directory. Unit runs add `--cov` for each source root, `--cov-branch`,
+output directory. Every run sets `xfail_strict=true`, so an unexpected pass
+of an expected failure fails, and disables the rerun plugins
+`rerunfailures` and `flaky`; an expected failure counts as skipped
+([decision 0014](0014-behavioral-scenarios.md)). Unit runs add `--cov` for each source root, `--cov-branch`,
 and a coverage configuration written by the runner (branches on, data file in
 the output directory). The JSON coverage report is read under the rules of
 decision 0008.

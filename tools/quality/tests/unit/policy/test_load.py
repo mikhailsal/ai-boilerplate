@@ -23,7 +23,11 @@ def test_template_policy_is_valid() -> None:
         Role.APPLICATION,
         Profile.PYTHON,
     )
-    assert component.capabilities == [Capability.LIBRARY]
+    assert component.capabilities == []
+    assert component.no_boundary_reason == "pure computation without external boundaries"
+    library = parse_policy(policy_toml(ComponentSpec(capabilities=("library",))).encode()).policy
+    assert library is not None
+    assert library.components[0].capabilities == [Capability.LIBRARY]
     assert result.policy.repository.default_branch == "main"
     assert result.policy.thresholds.parameters.error is None
 
@@ -102,7 +106,7 @@ INVALID = [
 
 @pytest.mark.parametrize(("old", "new", "key"), INVALID)
 def test_invalid_values_are_reported_with_their_key(old: str, new: str, key: str) -> None:
-    text = policy_toml()
+    text = policy_toml(ComponentSpec(capabilities=("library",)))
     assert old in text
     found = rules_of(text.replace(old, new, 1))
     assert found

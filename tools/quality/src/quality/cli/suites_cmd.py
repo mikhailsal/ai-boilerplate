@@ -9,7 +9,13 @@ from collections.abc import Callable
 from quality.catalog import build_registry
 from quality.cli import Subcommands
 from quality.cli.local import local_profiles
-from quality.cli.verdict import candidate_of, coverage_json, coverage_text
+from quality.cli.verdict import (
+    candidate_of,
+    coverage_json,
+    coverage_text,
+    scenarios_json,
+    scenarios_text,
+)
 from quality.diagnostics import Outcome
 from quality.diagnostics.render import outcome_to_json, render_text
 from quality.engine import SuiteReport, SuiteSettings, run_suites
@@ -27,10 +33,11 @@ def register(commands: Subcommands) -> None:
         NAME,
         help="run declared test suites over the staged candidate or a revision",
         description="Materialize the candidate (the index by default, or --rev) in isolation "
-        "and run the unit suites with their coverage floors of the components the change "
-        "affects (every active component with --all, or the components named with "
-        "--component). Exit 0 on pass, 1 on failures, 2 on usage or policy errors, 3 on "
-        "environment errors.",
+        "and run the selected suites (the unit suites, with their coverage floors, by "
+        "default) of the components the change affects (every active component with --all, "
+        "or the components named with --component), then prove the scenarios those suites "
+        "map. Exit 0 on pass, 1 on failures, 2 on usage or policy errors, 3 on environment "
+        "errors.",
     )
     parser.add_argument("--rev", help="test a commit instead of the index")
     parser.add_argument(
@@ -69,12 +76,17 @@ def write_report(report: SuiteReport, *, command: str, json: bool) -> int:
     """Print the report as text or JSON and return its exit status."""
     outcome = Outcome.of(report.diagnostics)
     if json:
-        extra = {"tested": list(report.tested), "coverage": coverage_json(report.coverage)}
+        extra = {
+            "tested": list(report.tested),
+            "coverage": coverage_json(report.coverage),
+            "scenarios": scenarios_json(report.scenarios),
+        }
         sys.stdout.write(outcome_to_json(outcome, command=command, extra=extra))
     else:
         tested = ", ".join(report.tested) or "no components"
         summary = f"tested {tested}\n"
-        sys.stdout.write(render_text(outcome) + coverage_text(report.coverage) + summary)
+        lines = coverage_text(report.coverage) + scenarios_text(report.scenarios)
+        sys.stdout.write(render_text(outcome) + lines + summary)
     return int(outcome.exit_code())
 
 

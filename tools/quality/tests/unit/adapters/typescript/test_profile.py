@@ -26,7 +26,11 @@ RECORD = 'echo "$@" >> "$(dirname "$0")/calls"\n'
 CLEAN = {
     "prettier": RECORD + "exit 0\n",
     "eslint": RECORD + "echo '[]'\n",
-    "vitest": 'echo "<testsuites/>" > "$(dirname "$3")/junit.xml"\n',
+    "vitest": (
+        'echo "<testsuites/>" > "$(dirname "$3")/junit.xml"\n'
+        """echo '{"inverted": [], "retried": [], "unhandled": 0}' """
+        '> "$(dirname "$3")/annotations.json"\n'
+    ),
 }
 
 

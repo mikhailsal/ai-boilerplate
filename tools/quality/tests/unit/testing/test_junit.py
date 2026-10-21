@@ -32,7 +32,7 @@ def test_a_real_pytest_report_is_parsed() -> None:
         (f"{group}::test_fails_and_teardown_errors", FAILED),
         (f"{group}::test_fails_and_teardown_errors", ERROR),
     ]
-    assert (results.executed, results.failing) == (6, 4)
+    assert (results.executed, results.count(FAILED, ERROR)) == (6, 4)
 
 
 def test_a_real_vitest_report_is_parsed() -> None:
@@ -60,7 +60,17 @@ def test_a_real_phpunit_report_with_nested_suites_is_parsed() -> None:
         (f"{group}::testData with data set #0", PASSED),
         (f'{group}::testData with data set "two"', PASSED),
     ]
-    assert (results.executed, results.failing) == (5, 2)
+    assert (results.executed, results.count(FAILED, ERROR)) == (5, 2)
+
+
+def test_a_pytest_expected_failure_is_neither_a_pass_nor_a_skip() -> None:
+    xfail = '<testcase classname="c" name="x"><skipped type="pytest.xfail" message="m"/></testcase>'
+    skip = '<testcase classname="c" name="s"><skipped type="pytest.skip" message="m"/></testcase>'
+    data = f'<testsuite tests="2" skipped="2">{xfail}{skip}</testsuite>'.encode()
+    assert outcomes(parse_junit(data, "r")) == [
+        ("c::x", Outcome.EXPECTED_FAILURE),
+        ("c::s", SKIPPED),
+    ]
 
 
 def test_a_single_testsuite_root_is_accepted() -> None:

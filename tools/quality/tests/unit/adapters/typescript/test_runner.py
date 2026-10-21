@@ -9,19 +9,24 @@ from quality.adapters.typescript.environment import Node
 from quality.adapters.typescript.runner import (
     coverage_settings,
     expected,
+    read_annotations,
+    reporter,
     run_vitest,
     user_config,
     wrapper,
 )
+from quality.boundedio import ReportError
 from quality.testing import Suite, SuiteRequest
 from quality.testkit.nodefakes import script, typescript_component
 from quality.testkit.suites import direct
 
-# The fake Vitest records its call and writes JUnit results beside the wrapper it was given.
+# The fake Vitest records its call and writes JUnit results and the annotations of the
+# gate's reporter beside the wrapper it was given.
 VITEST = """\
 echo "$@" > "$HOME/argv"
 env > "$HOME/env"
 echo '<testsuites tests="0"/>' > "$(dirname "$3")/junit.xml"
+echo '{"inverted": ["a::x"], "retried": [], "unhandled": 2}' > "$(dirname "$3")/annotations.json"
 exit 1
 """
 
@@ -75,6 +80,8 @@ def test_the_wrapper_overrides_what_decides_the_verdict(tmp_path: Path) -> None:
         False,
     )
     assert settings["outputFile"] == {"junit": str(unit.output / "junit.xml")}
+    assert settings["retry"] == 0
+    assert settings["reporters"] == ["default", "junit", str(unit.output / "quality-reporter.mjs")]
     assert settings["coverage"] == coverage_settings(unit)
     assert "tsconfigPaths: base.resolve?.tsconfigPaths ?? true" in text
     assert "projects: undefined, testNamePattern: undefined, ...settings" in text
@@ -104,6 +111,8 @@ def test_a_run_reports_its_results_and_coverage(node: Node, tmp_path: Path) -> N
     run = run_vitest(node, vitest, unit)
     assert (run.returncode, run.results) == (1, unit.output / "junit.xml")
     assert run.coverage == unit.output / "coverage" / "lcov.info"
+    assert (run.inverted, run.retried, run.unhandled) == (frozenset({"a::x"}), frozenset(), 2)
+    assert (unit.output / "quality-reporter.mjs").read_text() == reporter(unit)
     home = unit.output.parent / f"{unit.output.name}-home"
     argv = (home / "argv").read_text().split()
     config = str(unit.output / "vitest.quality.mjs")
@@ -135,3 +144,46 @@ def test_a_unit_run_says_why_it_had_the_network(
     assert run_vitest(node, vitest, request(tmp_path)).unisolated == "no namespaces"
     integration = request(tmp_path / "other", Suite.INTEGRATION)
     assert run_vitest(node, vitest, integration).unisolated is None
+
+
+def test_the_reporter_writes_its_annotations_into_the_output_directory(tmp_path: Path) -> None:
+    unit = request(tmp_path)
+    text = reporter(unit)
+    assert text.startswith(f"const output = {json.dumps(str(unit.output / 'annotations.json'))};\n")
+    assert "test.options.fails" in text
+    assert "retryCount" in text
+    assert "unhandled: errors.length" in text
+
+
+def test_annotations_are_read_and_validated(tmp_path: Path) -> None:
+    path = tmp_path / "annotations.json"
+    path.write_text('{"inverted": ["a"], "retried": ["b", "c"], "unhandled": 0}')
+    assert read_annotations(path) == (frozenset({"a"}), frozenset({"b", "c"}), 0)
+
+
+@pytest.mark.parametrize(
+    ("text", "problem"),
+    [
+        ("[]", "must hold a JSON object"),
+        ('{"inverted": [], "retried": []}', "'unhandled' must be a non-negative integer"),
+        ('{"inverted": [], "retried": [], "unhandled": -1}', "'unhandled' must be a non-negative"),
+        (
+            '{"inverted": [], "retried": [], "unhandled": true}',
+            "'unhandled' must be a non-negative",
+        ),
+        ('{"inverted": "a", "retried": [], "unhandled": 0}', "'inverted' must be a list"),
+        ('{"inverted": [], "retried": [1], "unhandled": 0}', "'retried' must be a list"),
+    ],
+)
+def test_invalid_annotations_are_rejected(tmp_path: Path, text: str, problem: str) -> None:
+    path = tmp_path / "annotations.json"
+    path.write_text(text)
+    with pytest.raises(ReportError, match=problem):
+        read_annotations(path)
+
+
+def test_a_run_whose_reporter_wrote_nothing_has_no_evidence(node: Node, tmp_path: Path) -> None:
+    body = 'echo "<testsuites/>" > "$(dirname "$3")/junit.xml"\n'
+    vitest = script(tmp_path / "vitest.sh", body)
+    with pytest.raises(ReportError, match=r"annotations\.json"):
+        run_vitest(node, vitest, request(tmp_path))

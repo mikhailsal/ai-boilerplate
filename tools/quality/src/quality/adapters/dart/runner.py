@@ -32,6 +32,8 @@ report without cases, which the engine reports as `tests.none`. Each run gets a
 new home, cache, and temporary directory, as for Python, and is reaped when it
 exits, so no VM service outlives it. A unit suite reaches loopback only where
 the system allows it (decision 0008); the VM service needs nothing else.
+Every run passes `--no-retry`, so a test's `retry` option cannot turn a flaky
+failure into a pass.
 """
 
 from __future__ import annotations
@@ -130,7 +132,8 @@ def suite_argv(sdk: Sdk, request: SuiteRequest, generated: Generated | None) -> 
     reports = ("--reporter=failures-only", f"--file-reporter=json:{output / RESULTS}")
     roots = [posixpath.join(".", root) for root in request.roots]
     extra = [posixpath.relpath(generated.path, request.directory)] if generated else []
-    return sdk.command("test", "--platform", "vm", *coverage, *reports, *roots, *extra)
+    options = ("--platform", "vm", "--no-retry", *coverage, *reports)
+    return sdk.command("test", *options, *roots, *extra)
 
 
 def _format_coverage(sdk: Sdk, request: SuiteRequest, env: Mapping[str, str]) -> Path:

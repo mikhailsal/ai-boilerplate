@@ -30,7 +30,7 @@
       "type": "object"
     },
     "Capability": {
-      "description": "Behavioral capabilities a component can declare.",
+      "description": "Behavioral capabilities a component can declare (decision 0014).",
       "enum": [
         "library",
         "cli",
@@ -39,7 +39,8 @@
         "migrations",
         "contracts",
         "queues",
-        "ui"
+        "ui",
+        "authorization"
       ],
       "title": "Capability",
       "type": "string"
@@ -103,6 +104,13 @@
           "title": "Depends On",
           "type": "array"
         },
+        "enhanced": {
+          "items": {
+            "$ref": "#/$defs/Enhancement"
+          },
+          "title": "Enhanced",
+          "type": "array"
+        },
         "id": {
           "title": "Id",
           "type": "string"
@@ -128,6 +136,18 @@
         "root": {
           "title": "Root",
           "type": "string"
+        },
+        "scenarios": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scenarios"
         },
         "source": {
           "items": {
@@ -207,6 +227,16 @@
       ],
       "title": "Edge",
       "type": "object"
+    },
+    "Enhancement": {
+      "description": "Optional enhanced test profiles a component can enable (decision 0014).",
+      "enum": [
+        "property",
+        "performance",
+        "mutation"
+      ],
+      "title": "Enhancement",
+      "type": "string"
     },
     "Limit": {
       "additionalProperties": false,
@@ -345,6 +375,53 @@
       "title": "Profile",
       "type": "string"
     },
+    "Quarantine": {
+      "additionalProperties": false,
+      "description": "A flaky test whose failure does not fail its suite until the entry expires.\n\nA quarantined test never satisfies a scenario; the scenarios it lists are\nsuspended instead of failing while the entry lasts.",
+      "properties": {
+        "component": {
+          "title": "Component",
+          "type": "string"
+        },
+        "expires": {
+          "format": "date",
+          "title": "Expires",
+          "type": "string"
+        },
+        "owner": {
+          "title": "Owner",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "scenarios": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Scenarios",
+          "type": "array"
+        },
+        "suite": {
+          "$ref": "#/$defs/Suite"
+        },
+        "test": {
+          "title": "Test",
+          "type": "string"
+        }
+      },
+      "required": [
+        "component",
+        "suite",
+        "test",
+        "reason",
+        "owner",
+        "expires"
+      ],
+      "title": "Quarantine",
+      "type": "object"
+    },
     "Repository": {
       "additionalProperties": false,
       "description": "Repository-wide settings.",
@@ -377,6 +454,18 @@
         "helper"
       ],
       "title": "Role",
+      "type": "string"
+    },
+    "Suite": {
+      "description": "A declared test suite; only unit suites feed the coverage thresholds.",
+      "enum": [
+        "unit",
+        "integration",
+        "contract",
+        "e2e",
+        "acceptance"
+      ],
+      "title": "Suite",
       "type": "string"
     },
     "Suites": {
@@ -510,6 +599,13 @@
         "$ref": "#/$defs/PolicyException"
       },
       "title": "Exceptions",
+      "type": "array"
+    },
+    "quarantine": {
+      "items": {
+        "$ref": "#/$defs/Quarantine"
+      },
+      "title": "Quarantine",
       "type": "array"
     },
     "repository": {

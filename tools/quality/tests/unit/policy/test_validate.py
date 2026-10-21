@@ -2,7 +2,7 @@ import pytest
 
 from quality.catalog import build_registry
 from quality.policy import Policy, cross_validate, owned_paths, parse_policy
-from quality.testkit.policies import ComponentSpec, policy_toml
+from quality.testkit.policies import ComponentSpec, policy_toml, quarantine_toml
 
 KNOWN = build_registry().ids()
 
@@ -159,3 +159,27 @@ def test_classification_cannot_assign_source_or_tests(category: str) -> None:
         "source and test files are declared by component roots"
     )
     assert problems(extra=entry) == [("policy.conflict", message)]
+
+
+def test_quarantine_entries_must_be_unique_and_name_a_declared_suite() -> None:
+    spec = ComponentSpec(integration=("integration",))
+    entries = [
+        quarantine_toml("a::b"),
+        quarantine_toml("a::b"),
+        quarantine_toml("a::c", component="ghost"),
+        quarantine_toml("a::d", suite="unit"),
+        quarantine_toml("a::e", suite="e2e"),
+        quarantine_toml("a::b", suite="e2e", component="ghost"),
+    ]
+    assert problems(spec, extra="\n".join(entries)) == [
+        ("policy.conflict", "'a::b' of the integration suite is quarantined more than once"),
+        ("policy.reference", "quarantine refers to undeclared component 'ghost'"),
+        ("policy.conflict", "'a::d' is a unit test; unit tests cannot be quarantined"),
+        ("policy.reference", "quarantine refers to the e2e suite, which is not declared"),
+        ("policy.reference", "quarantine refers to undeclared component 'ghost'"),
+    ]
+
+
+def test_a_valid_quarantine_entry_has_no_conflicts() -> None:
+    spec = ComponentSpec(integration=("integration",))
+    assert problems(spec, extra=quarantine_toml("a::b", "flow")) == []

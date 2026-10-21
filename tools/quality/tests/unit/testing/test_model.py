@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from quality.boundedio import ReportError
 from quality.policy import Component
 from quality.testing import (
     CaseResult,
@@ -46,13 +47,32 @@ def test_results_count_cases_by_outcome() -> None:
     assert found.count(Outcome.PASSED) == 2
     assert found.count(Outcome.FAILED, Outcome.ERROR) == 2
     assert found.count() == 0
-    assert (found.executed, found.failing) == (4, 2)
+    assert found.executed == 4
 
 
-def test_skipped_cases_are_not_executed() -> None:
-    assert results(Outcome.SKIPPED, Outcome.SKIPPED).executed == 0
+def test_skipped_cases_and_expected_failures_are_not_executed() -> None:
+    assert results(Outcome.SKIPPED, Outcome.EXPECTED_FAILURE).executed == 0
     assert results().executed == 0
-    assert results().failing == 0
+
+
+def test_annotations_turn_inverted_and_retried_passes_into_what_they_prove() -> None:
+    found = SuiteResults(
+        results(Outcome.PASSED, Outcome.PASSED, Outcome.FAILED, Outcome.PASSED).cases, focused=True
+    )
+    annotated = found.annotated(frozenset({"t0", "t2"}), frozenset({"t1", "t2"}))
+    assert [case.outcome for case in annotated.cases] == [
+        Outcome.EXPECTED_FAILURE,
+        Outcome.FAILED,
+        Outcome.FAILED,
+        Outcome.PASSED,
+    ]
+    assert annotated.focused
+    assert found.annotated(frozenset(), frozenset()) == found
+
+
+def test_annotations_must_name_cases_of_the_results() -> None:
+    with pytest.raises(ReportError, match="annotated tests are not among the results: t5, x"):
+        results(Outcome.PASSED).annotated(frozenset({"x"}), frozenset({"t5", "t0"}))
 
 
 @pytest.mark.parametrize(
@@ -100,4 +120,10 @@ def test_requests_run_in_the_component_root_of_the_snapshot(root: str, expected:
 def test_a_run_without_coverage_names_only_its_results() -> None:
     run = SuiteRun(1, Path("out/junit.xml"))
     assert run.coverage is None
+    assert (run.inverted, run.retried, run.unhandled, run.failure_status) == (
+        frozenset(),
+        frozenset(),
+        0,
+        frozenset({1}),
+    )
     assert SuiteRun(0, Path("r"), Path("c")).coverage == Path("c")

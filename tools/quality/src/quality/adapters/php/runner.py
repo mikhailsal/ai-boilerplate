@@ -27,7 +27,8 @@ new home, cache, and temporary directory, as for the other profiles. A run that
 writes no results could not run at all, and neither could one that leaves an
 empty results file, as PHPUnit does when it refuses to start; the failure
 quotes PHPUnit's reason. A unit suite reaches loopback only where the system
-allows it (decision 0008).
+allows it (decision 0008). PHPUnit exits 1 when a test failed and 2 when one
+raised an error.
 """
 
 from __future__ import annotations
@@ -47,6 +48,7 @@ from quality.testing import ResultsFormat, Suite, SuiteRequest, SuiteRun
 
 SUITE_TIMEOUT = 3600.0
 TOOL = "phpunit"
+FAILURE_STATUS = frozenset({1, 2})
 BINARY = "vendor/phpunit/phpunit/phpunit"
 VENDOR = "vendor"
 CONFIGURATION = "phpunit.xml"
@@ -184,6 +186,7 @@ def run_phpunit(php: Php, request: SuiteRequest, files: Iterable[PhpFile]) -> Su
         clover if unit and clover.is_file() else None,
         results_format=ResultsFormat.JUNIT,
         unisolated=unisolated,
+        failure_status=FAILURE_STATUS,
     )
 
 

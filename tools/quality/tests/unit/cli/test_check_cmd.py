@@ -8,7 +8,8 @@ from quality.cli.main import main
 from quality.engine import ProfileAdapter
 from quality.policy import Profile
 from quality.testkit.gitrepo import GitRepo
-from quality.testkit.policies import policy_toml
+from quality.testkit.policies import ComponentSpec, policy_toml
+from quality.testkit.scenarios import ScenarioSpec, manifest_toml
 from quality.testkit.suites import ScriptedRunner
 from quality.toolchain import ManifestError, cache_root, load_manifest
 
@@ -119,3 +120,34 @@ def test_outside_a_repository_is_an_environment_error(
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     assert main(["check"]) == 3
     assert "(git.failed)" in capsys.readouterr().out
+
+
+def test_the_stage_decides_which_scenarios_are_proved(
+    project: GitRepo, capsys: pytest.CaptureFixture[str]
+) -> None:
+    spec = ComponentSpec(
+        capabilities=("cli",), integration=("it",), e2e=("e2e",), scenarios="scenarios.toml"
+    )
+    smoke = ScenarioSpec("smoke", ("tests::test_ok",), "cli", "e2e", requirements=("cli.smoke",))
+    flows = ScenarioSpec(
+        "flows",
+        ("tests::test_ok",),
+        "cli",
+        "integration",
+        stage="merge",
+        requirements=("cli.flows",),
+    )
+    project.write("quality.toml", policy_toml(spec))
+    project.write("scenarios.toml", manifest_toml(smoke, flows))
+    project.write("it/test_flow.py", "def test_ok():\n    pass\n")
+    project.write("e2e/test_smoke.py", "def test_ok():\n    pass\n")
+    project.git("add", "-A")
+    assert main(["check"]) == 0
+    assert (
+        "scenarios of app: 1 of 1 proved, 1 not required by this run\n" in capsys.readouterr().out
+    )
+    assert main(["check", "--stage", "merge", "--json"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["scenarios"] == [
+        {"component": "app", "required": 2, "proved": 2, "suspended": 0, "deferred": 0}
+    ]

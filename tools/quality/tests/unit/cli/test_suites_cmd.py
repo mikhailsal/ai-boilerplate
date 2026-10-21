@@ -10,7 +10,8 @@ from quality.engine import ProfileAdapter
 from quality.policy import Profile
 from quality.testing import Suite
 from quality.testkit.gitrepo import GitRepo
-from quality.testkit.policies import policy_toml
+from quality.testkit.policies import ComponentSpec, policy_toml
+from quality.testkit.scenarios import ScenarioSpec, manifest_toml
 from quality.testkit.suites import ScriptedRunner
 from quality.toolchain import ToolchainError
 from quality.toolchain.install import MISSING
@@ -117,3 +118,24 @@ def test_outside_a_repository_is_an_environment_error(
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
     assert main(["test"]) == 3
     assert "(git.failed)" in capsys.readouterr().out
+
+
+def test_the_scenarios_of_the_suites_that_ran_are_proved(
+    project: GitRepo, capsys: pytest.CaptureFixture[str]
+) -> None:
+    spec = ComponentSpec(capabilities=("cli",), e2e=("e2e",), scenarios="scenarios.toml")
+    smoke = ScenarioSpec("smoke", ("tests::test_ok",), "cli", "e2e", requirements=("cli.smoke",))
+    flows = ScenarioSpec("flows", ("tests::test_ok",), "cli", "e2e", requirements=("cli.flows",))
+    project.write("quality.toml", policy_toml(spec))
+    project.write("scenarios.toml", manifest_toml(smoke, flows))
+    project.write("e2e/test_smoke.py", "def test_ok():\n    pass\n")
+    project.git("add", "-A")
+    assert main(["test", "--suite", "e2e"]) == 0
+    assert capsys.readouterr().out == (
+        "PASSED: 0 error(s), 0 warning(s)\nscenarios of app: 2 of 2 proved\ntested app\n"
+    )
+    assert main(["test", "--suite", "e2e", "--json"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["scenarios"] == [
+        {"component": "app", "required": 2, "proved": 2, "suspended": 0, "deferred": 0}
+    ]

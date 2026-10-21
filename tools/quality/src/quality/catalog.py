@@ -18,10 +18,12 @@ from quality.rules import (
     exceptions,
     external,
     files,
+    quarantine,
     structure,
     suppressions,
     testing,
 )
+from quality.scenarios import rules as scenarios
 
 
 def build_registry() -> RuleRegistry:
@@ -41,6 +43,8 @@ def build_registry() -> RuleRegistry:
             *architecture.RULES,
             *exceptions.RULES,
             *testing.RULES,
+            *quarantine.RULES,
+            *scenarios.RULES,
             *coverage.RULES,
             *external.RULES,
             *markdown.RULES,

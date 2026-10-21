@@ -5,6 +5,7 @@ The runner writes its own coverage settings, so `[tool.coverage]` and
 new home, cache, and temporary directory inside the run's work area; only the
 pinned toolchains and uv's package cache are shared, so offline tools stay usable.
 Unit suites reach loopback only where the system allows it (decision 0008).
+An unexpected pass of an expected failure fails, and rerun plugins are disabled.
 """
 
 from __future__ import annotations
@@ -22,6 +23,8 @@ RESULTS = "junit.xml"
 COVERAGE = "coverage.json"
 RCFILE = "coveragerc"
 TOOL = "pytest"
+# Plugins that rerun failed tests; a rerun would hide a flaky test (decision 0014).
+RETRIES = ("rerunfailures", "flaky")
 
 
 def coverage_settings(output: Path) -> str:
@@ -34,6 +37,11 @@ def pytest_argv(python: Path, request: SuiteRequest, config: str) -> tuple[str, 
     directory, output = request.directory, request.output
     argv = (str(python), "-m", "pytest", "-c", str(directory / config), f"--rootdir={directory}")
     argv += ("-p", "no:cacheprovider", "-q", f"--junitxml={output / RESULTS}")
+    argv += (
+        "-o",
+        "xfail_strict=true",
+        *(item for name in RETRIES for item in ("-p", f"no:{name}")),
+    )
     if request.suite is Suite.UNIT:
         argv += tuple(f"--cov={directory / root}" for root in request.component.source)
         argv += ("--cov-branch", f"--cov-config={output / RCFILE}")

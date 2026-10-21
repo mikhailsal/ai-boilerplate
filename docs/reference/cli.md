@@ -31,9 +31,9 @@ environment fails with `core.environment`.
 
 | Command | Purpose |
 | --- | --- |
-| `check [--staged \| --rev REV] [--all] [--json]` | Every gate over the affected components, or every active one with `--all`; the pre-commit hook runs `check --staged` |
-| `test [--rev REV] [--suite S] [--component C] [--all] [--json]` | The declared suites; unit suites enforce the coverage floors |
-| `self-test [--level unit\|acceptance] [--rev REV] [--json]` | The suites of the tooling components |
+| `check [--staged \| --rev REV] [--all] [--stage commit\|merge] [--json]` | Every gate over the affected components, or every active one with `--all`, and the suites that prove the scenarios mandatory at the stage ([decision 0014](../decisions/0014-behavioral-scenarios.md)); the pre-commit hook runs `check --staged` at the commit stage |
+| `test [--rev REV] [--suite S] [--component C] [--all] [--json]` | The declared suites, and the scenarios they prove; unit suites enforce the coverage floors |
+| `self-test [--level unit\|e2e\|acceptance] [--rev REV] [--json]` | The suites of the tooling components; `e2e` runs the built-artifact suites |
 | `fix [--json]` | Safe native fixes and formatting in the working tree; nothing is staged |
 | `links [--rev REV] [--timeout S] [--json]` | Probe external documentation links; not part of `check` |
 
@@ -44,7 +44,8 @@ environment fails with `core.environment`.
 | `explain RULE \| --list` | What a rule checks and how to fix it |
 | `inventory [--rev REV] [--json]` | How each candidate file is classified, with discovery findings |
 | `policy validate` | Validate [`quality.toml`](../../quality.toml) |
-| `policy schema` | Print, write, or check the generated [policy schema](policy.schema.json) |
+| `policy schema [--scenarios] [--write \| --check]` | Print the generated [policy schema](policy.schema.json), or the [scenario manifest schema](scenarios.schema.json) with `--scenarios`; write or check both |
+| `scenarios [--rev REV] [--json]` | Validate the scenario manifests without running tests, list their scenarios, and suggest undeclared capabilities |
 
 ## JSON reports
 
@@ -52,7 +53,9 @@ With `--json`, a command prints one JSON document with `schema_version`,
 `command`, `exit_code`, a `summary` of error and warning counts, and the
 `diagnostics`. Each finding carries its rule ID, severity, message, location,
 component, and hint. `check`, `test`, and `self-test` add the tested
-components and their coverage counters; `doctor` adds its check lines.
+components, their coverage counters, and per component the scenarios required,
+proved, suspended, and not required by the run; `scenarios` adds every
+scenario of the manifests; `doctor` adds its check lines.
 
 Commands planned for later phases: `gate` for merge CI (P10), and
 `component add` and `tools update` (P11).

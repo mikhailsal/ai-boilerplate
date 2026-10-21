@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 from quality.adapters.native import ToolFailedError
 from quality.boundedio import ReportError, read_bounded
 from quality.diagnostics import Diagnostic, Severity
 from quality.engine.profiles import ProfileTests
-from quality.policy import Policy
-from quality.rules import coverage, testing
+from quality.policy import Policy, Quarantine
+from quality.rules import coverage, quarantine, testing
 from quality.testing import (
     ResultsFormat,
     Suite,
@@ -41,25 +42,36 @@ def read_evidence(path: Path, request: SuiteRequest) -> bytes:
     return data
 
 
+@dataclass(frozen=True, slots=True)
+class SuiteOutcome:
+    """One suite run: its findings, the run if it is clean, and its results if they are valid."""
+
+    diagnostics: list[Diagnostic]
+    run: SuiteRun | None = None
+    results: SuiteResults | None = None
+
+
 def run_suite(
-    runner: ProfileTests, request: SuiteRequest
-) -> tuple[list[Diagnostic], SuiteRun | None]:
-    """Run one suite and judge its results; return the run only if it is clean."""
+    runner: ProfileTests, request: SuiteRequest, held: Sequence[Quarantine] = ()
+) -> SuiteOutcome:
+    """Run one suite and judge its results; `held` are the suite's current quarantine entries."""
     component = request.component.id
     try:
         run = runner.run(request)
         parse = PARSERS[run.results_format]
         results = parse(read_evidence(run.results, request), "test results")
+        results = results.annotated(run.inverted, run.retried)
     except ToolFailedError as error:
-        return [error.diagnostic], None
+        return SuiteOutcome([error.diagnostic])
     except ReportError as error:
-        return [testing.invalid_evidence(component, request.suite, str(error))], None
-    found = testing.judge(component, request.suite, run.returncode, results)
+        return SuiteOutcome([testing.invalid_evidence(component, request.suite, str(error))])
+    names = frozenset(entry.test for entry in held)
+    found = testing.judge(component, request.suite, run, results, names)
+    found.extend(quarantine.reported(held, results))
     if run.unisolated is not None:
         found.append(testing.unisolated(component, run.unisolated))
-    if any(diagnostic.severity is Severity.ERROR for diagnostic in found):
-        return found, None
-    return found, run
+    clean = not any(diagnostic.severity is Severity.ERROR for diagnostic in found)
+    return SuiteOutcome(found, run if clean else None, results)
 
 
 def unit_coverage(

@@ -7,7 +7,12 @@ one, and overrides what decides the verdict:
 - test files are the suite's roots with Vitest's default test-file pattern;
   in-source tests, the component's excludes, projects, and name filters are
   off, `.only` fails, and a run without tests does not pass;
-- the reporters are the default one and JUnit into the output directory;
+- the reporters are the default one, JUnit into the output directory, and
+  the gate's own reporter, which writes `annotations.json`: the tests marked
+  `test.fails`, which JUnit reports as passing when they fail as expected,
+  the tests that passed only on a retry, and the count of errors raised
+  outside any test. Retries are off, but a test's own `retry` option still
+  applies, so its retries are reported;
 - unit suites measure V8 coverage into LCOV in the output directory.
   `coverage.include` lists the source roots' TypeScript files: Vitest 5 has no
   `coverage.all`, and only included files that no test imports are reported,
@@ -33,7 +38,7 @@ from pathlib import Path, PurePosixPath
 from quality.adapters.native import fail, failure, suite_command
 from quality.adapters.typescript.config import TYPESCRIPT_SUFFIXES
 from quality.adapters.typescript.environment import Node
-from quality.boundedio import JsonValue
+from quality.boundedio import JsonValue, ReportError, load_json
 from quality.process import Command, ProcessError, run
 from quality.testing import Suite, SuiteRequest, SuiteRun
 
@@ -51,6 +56,26 @@ CONFIG_FILES = tuple(
 TEST_FILES = "**/*.{test,spec}.?(c|m)[jt]s?(x)"
 SOURCE_FILES = "**/*.{ts,tsx,mts,cts}"
 DECLARATION_FILES = "**/*.d.{ts,mts,cts}"
+REPORTER = "quality-reporter.mjs"
+ANNOTATIONS = "annotations.json"
+REPORTER_BODY = """\
+import { writeFileSync } from "node:fs";
+
+export default class QualityReporter {
+  onTestRunEnd(modules, errors) {
+    const inverted = [];
+    const retried = [];
+    for (const module of modules) {
+      for (const test of module.children.allTests()) {
+        const name = `${module.relativeModuleId}::${test.fullName}`;
+        if (test.options.fails) inverted.push(name);
+        if ((test.diagnostic()?.retryCount ?? 0) > 0) retried.push(name);
+      }
+    }
+    writeFileSync(output, JSON.stringify({ inverted, retried, unhandled: errors.length }));
+  }
+}
+"""
 WRAPPER_BODY = """\
 export default async (env) => {
   const user = loaded.default;
@@ -101,11 +126,39 @@ def wrapper(request: SuiteRequest) -> str:
         "allowOnly": False,
         "passWithNoTests": False,
         "watch": False,
-        "reporters": ["default", "junit"],
+        "retry": 0,
+        "reporters": ["default", "junit", str(request.output / REPORTER)],
         "outputFile": {"junit": str(request.output / RESULTS)},
         "coverage": coverage_settings(request),
     }
     return f"{load}\nconst settings = {json.dumps(settings, indent=2)};\n{WRAPPER_BODY}"
+
+
+def reporter(request: SuiteRequest) -> str:
+    """Return the reporter module that writes the run's annotations."""
+    output = json.dumps(str(request.output / ANNOTATIONS))
+    return f"const output = {output};\n{REPORTER_BODY}"
+
+
+def _names(value: JsonValue, key: str) -> frozenset[str]:
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        msg = f"{ANNOTATIONS}: '{key}' must be a list of test names"
+        raise ReportError(msg)
+    return frozenset(item for item in value if isinstance(item, str))
+
+
+def read_annotations(path: Path) -> tuple[frozenset[str], frozenset[str], int]:
+    """Read the inverted and retried tests and the unhandled errors the reporter wrote."""
+    value = load_json(path)
+    if not isinstance(value, dict):
+        msg = f"{ANNOTATIONS} must hold a JSON object"
+        raise ReportError(msg)
+    unhandled = value.get("unhandled")
+    if type(unhandled) is not int or unhandled < 0:
+        msg = f"{ANNOTATIONS}: 'unhandled' must be a non-negative integer"
+        raise ReportError(msg)
+    inverted = _names(value.get("inverted"), "inverted")
+    return inverted, _names(value.get("retried"), "retried"), unhandled
 
 
 def expected(path: str) -> bool:
@@ -118,6 +171,7 @@ def run_vitest(node: Node, script: Path, request: SuiteRequest) -> SuiteRun:
     """Run one suite; a run that leaves no results could not run at all."""
     config = request.output / WRAPPER
     config.write_text(wrapper(request), encoding="utf-8")
+    (request.output / REPORTER).write_text(reporter(request), encoding="utf-8")
     home = request.output.parent / f"{request.output.name}-home"
     temporary, cache = home / "tmp", home / ".cache"
     temporary.mkdir(parents=True)
@@ -140,4 +194,13 @@ def run_vitest(node: Node, script: Path, request: SuiteRequest) -> SuiteRun:
         output = completed.stderr_text() or completed.stdout_text()
         fail(TOOL, f"exit status {completed.returncode} without test results: {output}")
     report = request.output / COVERAGE / LCOV if request.suite is Suite.UNIT else None
-    return SuiteRun(completed.returncode, results, report, unisolated=unisolated)
+    inverted, retried, unhandled = read_annotations(request.output / ANNOTATIONS)
+    return SuiteRun(
+        completed.returncode,
+        results,
+        report,
+        unisolated=unisolated,
+        inverted=inverted,
+        retried=retried,
+        unhandled=unhandled,
+    )

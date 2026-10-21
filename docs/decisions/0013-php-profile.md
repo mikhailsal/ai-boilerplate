@@ -210,6 +210,9 @@ Results are read from JUnit XML, in which an incomplete test is skipped:
   this when it refuses to start, and the failure quotes its reason.
 - Zero tests fail with `tests.none`.
 - A missing suite root is `discovery.missing-root`.
+- PHPUnit exits 1 when a test failed and 2 when one raised an error. When
+  only quarantined tests failed, either status is excused
+  ([decision 0014](0014-behavioral-scenarios.md#quarantine)).
 
 Other suites run without coverage and with Xdebug off. Each run gets a new
 home, cache, and temporary directory in the work area. A unit suite reaches

@@ -10,26 +10,18 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from quality.policy import Component
-
-
-class Suite(StrEnum):
-    """A declared test suite; only unit suites feed the coverage thresholds."""
-
-    UNIT = "unit"
-    INTEGRATION = "integration"
-    CONTRACT = "contract"
-    E2E = "e2e"
-    ACCEPTANCE = "acceptance"
+from quality.boundedio import ReportError
+from quality.policy import Component, Suite
 
 
 class Outcome(StrEnum):
-    """The result of one test case."""
+    """The result of one test case; an expected failure ran but proves nothing."""
 
     PASSED = "passed"
     FAILED = "failed"
     ERROR = "error"
     SKIPPED = "skipped"
+    EXPECTED_FAILURE = "expected-failure"
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,9 +34,14 @@ class CaseResult:
 
 @dataclass(frozen=True, slots=True)
 class SuiteResults:
-    """The test cases of one suite run."""
+    """The test cases of one suite run.
+
+    `focused` says that a focus marker, such as Dart's `solo`, made the runner
+    skip every test without one.
+    """
 
     cases: tuple[CaseResult, ...]
+    focused: bool = False
 
     def count(self, *outcomes: Outcome) -> int:
         """Count the cases with any of the outcomes."""
@@ -52,13 +49,34 @@ class SuiteResults:
 
     @property
     def executed(self) -> int:
-        """Cases that ran, whatever their result."""
-        return len(self.cases) - self.count(Outcome.SKIPPED)
+        """Cases that ran to a result of their own: neither skipped nor expected to fail."""
+        return len(self.cases) - self.count(Outcome.SKIPPED, Outcome.EXPECTED_FAILURE)
 
-    @property
-    def failing(self) -> int:
-        """Cases that failed or raised an error."""
-        return self.count(Outcome.FAILED, Outcome.ERROR)
+    def annotated(self, inverted: frozenset[str], retried: frozenset[str]) -> SuiteResults:
+        """Apply what a runner reports beside its results.
+
+        `inverted` cases pass when they fail as expected, such as Vitest's
+        `test.fails`, so their passes are expected failures. `retried` cases
+        passed only on a retry, which proves them flaky, so their passes are
+        failures. Raise ReportError when a name is not a case of the results.
+        """
+        unknown = sorted((inverted | retried) - {case.name for case in self.cases})
+        if unknown:
+            msg = f"annotated tests are not among the results: {', '.join(unknown)}"
+            raise ReportError(msg)
+        cases = tuple(
+            CaseResult(case.name, _annotated(case.name, inverted, retried))
+            if case.outcome is Outcome.PASSED
+            else case
+            for case in self.cases
+        )
+        return SuiteResults(cases, self.focused)
+
+
+def _annotated(name: str, inverted: frozenset[str], retried: frozenset[str]) -> Outcome:
+    if name in retried:
+        return Outcome.FAILED
+    return Outcome.EXPECTED_FAILURE if name in inverted else Outcome.PASSED
 
 
 @dataclass(frozen=True, slots=True)
@@ -111,12 +129,19 @@ class ResultsFormat(StrEnum):
     DART_JSON = "dart-json"
 
 
+FAILURE_STATUS = frozenset({1})
+
+
 @dataclass(frozen=True, slots=True)
 class SuiteRun:
     """What a runner reports back: its exit status and the reports it wrote.
 
     `unisolated` says why a unit suite ran with the network; it is None when
-    the suite reached loopback only, and for other suites.
+    the suite reached loopback only, and for other suites. `inverted` names
+    the cases the runner reports as passing when they fail as expected,
+    `retried` the cases that passed only on a retry, `unhandled` counts errors
+    raised outside any test, and `failure_status` holds the exit statuses with
+    which the runner reports failed tests.
     """
 
     returncode: int
@@ -124,16 +149,12 @@ class SuiteRun:
     coverage: Path | None = None
     results_format: ResultsFormat = ResultsFormat.JUNIT
     unisolated: str | None = None
+    inverted: frozenset[str] = frozenset()
+    retried: frozenset[str] = frozenset()
+    unhandled: int = 0
+    failure_status: frozenset[int] = FAILURE_STATUS
 
 
 def suite_roots(component: Component, suite: Suite) -> tuple[str, ...]:
     """Return the test roots a component declares for a suite, relative to its root."""
-    tests = component.tests
-    roots = {
-        Suite.UNIT: tests.unit,
-        Suite.INTEGRATION: tests.integration,
-        Suite.CONTRACT: tests.contract,
-        Suite.E2E: tests.e2e,
-        Suite.ACCEPTANCE: tests.acceptance,
-    }
-    return tuple(roots[suite])
+    return tuple(component.tests.of(suite))

@@ -186,11 +186,17 @@ def _copy_helper(source: Path, target: Path, names: tuple[str, ...]) -> None:
             shutil.copyfile(source / name, target / name)
 
 
-def create_project(path: Path, *components: ComponentSpec, core: bool = False) -> Project:
+def create_project(
+    path: Path,
+    *components: ComponentSpec,
+    core: bool = False,
+    files: Mapping[str, Mapping[str, str]] | None = None,
+) -> Project:
     """Write and commit a passing project; no hook is installed yet.
 
     With `core`, the project embeds the core under test at `tools/quality`,
     classified as vendor content, and its entry point runs that copy.
+    `files` replaces the generated files of a Python component, by its ID.
     """
     specs = components or (component(),)
     extra = classification_toml("quality", "config", "Entry point of the quality gate.")
@@ -214,11 +220,11 @@ def create_project(path: Path, *components: ComponentSpec, core: bool = False) -
         if spec.profile == "php":
             php_project(repo.path / spec.root)
             continue
-        files = {
+        default = {
             f"src/{spec.id}/__init__.py": "",
             f"src/{spec.id}/core.py": CORE,
             f"tests/test_{spec.id}.py": TESTS.format(name=spec.id),
         }
-        python_project(repo.path / spec.root, files, name=spec.id)
+        python_project(repo.path / spec.root, (files or {}).get(spec.id, default), name=spec.id)
     repo.commit_all("initial project")
     return Project(repo)

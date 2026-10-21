@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import tempfile
 import time
-from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 from quality.diagnostics import Diagnostic, Kind, Rule
@@ -18,11 +19,13 @@ from quality.discovery import Region
 from quality.discovery.classify import under
 from quality.engine.profiles import ProfileTests
 from quality.engine.runs import run_suite, unit_coverage
+from quality.engine.scenarios import load_manifests, reconciled
 from quality.engine.scope import Scope, candidate_scope, checked_policy, prepare_components
 from quality.gitio import Candidate, Repository, materialize
-from quality.policy import Category, Component, Profile, Role
-from quality.rules import coverage, testing
-from quality.testing import Suite, SuiteRequest, suite_roots
+from quality.policy import Category, Component, Profile, Quarantine, Role
+from quality.rules import coverage, quarantine, testing
+from quality.scenarios.reconcile import Ran, ScenarioSummary
+from quality.testing import Suite, SuiteRequest, SuiteResults, suite_roots
 
 UNKNOWN = Rule(
     id="tests.unknown-component",
@@ -65,6 +68,7 @@ class SuiteSettings:
     components: frozenset[str] = frozenset()
     role: Role | None = None
     required: bool = False
+    today: date = field(default_factory=lambda: datetime.now(UTC).date())
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +78,18 @@ class SuiteReport:
     diagnostics: tuple[Diagnostic, ...]
     tested: tuple[str, ...] = ()
     coverage: tuple[coverage.ComponentCoverage, ...] = ()
+    scenarios: tuple[ScenarioSummary, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class SuiteFindings:
+    """What the suites of the prepared components produced, and their results by component."""
+
+    diagnostics: list[Diagnostic] = field(default_factory=list[Diagnostic])
+    coverage: list[coverage.ComponentCoverage] = field(
+        default_factory=list[coverage.ComponentCoverage]
+    )
+    ran: dict[str, Ran] = field(default_factory=dict[str, Ran])
 
 
 def expectation(component: Component, scope: Scope, runner: ProfileTests) -> coverage.Expectation:
@@ -106,38 +122,49 @@ def request(scope: Scope, component: Component, suite: Suite) -> SuiteRequest:
 
 
 def component_suites(
-    component: Component, runner: ProfileTests, scope: Scope, suites: Iterable[Suite]
-) -> tuple[list[Diagnostic], coverage.ComponentCoverage | None]:
+    component: Component,
+    runner: ProfileTests,
+    scope: Scope,
+    suites: Iterable[Suite],
+    held: Sequence[Quarantine] = (),
+) -> tuple[list[Diagnostic], coverage.ComponentCoverage | None, Ran]:
     """Run a component's suites; only its own unit run can satisfy its coverage floors."""
     found: list[Diagnostic] = []
     summary = None
+    ran: dict[Suite, SuiteResults | None] = {}
     for suite in suites:
         if not suite_roots(component, suite):
             if suite is Suite.UNIT:
                 found.append(testing.missing_suite(component.id))
             continue
         current = request(scope, component, suite)
-        diagnostics, run = run_suite(runner, current)
-        found.extend(diagnostics)
-        if suite is Suite.UNIT and run is not None:
+        outcome = run_suite(runner, current, quarantine.quarantined(held, component.id, suite))
+        found.extend(outcome.diagnostics)
+        ran[suite] = outcome.results
+        if suite is Suite.UNIT and outcome.run is not None:
             expected = expectation(component, scope, runner)
-            measured, summary = unit_coverage(runner, current, run, expected, scope.policy)
+            measured, summary = unit_coverage(runner, current, outcome.run, expected, scope.policy)
             found.extend(measured)
-    return found, summary
+    return found, summary, ran
 
 
 def suite_findings(
-    scope: Scope, ready: Iterable[tuple[Component, ProfileTests]], suites: Iterable[Suite]
-) -> tuple[list[Diagnostic], list[coverage.ComponentCoverage]]:
-    """Run the suites of prepared components and collect their coverage summaries."""
-    found: list[Diagnostic] = []
-    summaries: list[coverage.ComponentCoverage] = []
+    scope: Scope,
+    ready: Iterable[tuple[Component, ProfileTests]],
+    plan: Callable[[Component], Iterable[Suite]],
+    held: Sequence[Quarantine] = (),
+) -> SuiteFindings:
+    """Run the suites each prepared component's plan names, and collect what they produced."""
+    findings = SuiteFindings()
     for component, runner in ready:
-        diagnostics, summary = component_suites(component, runner, scope, suites)
-        found.extend(diagnostics)
+        diagnostics, summary, ran = component_suites(
+            component, runner, scope, plan(component), held
+        )
+        findings.diagnostics.extend(diagnostics)
+        findings.ran[component.id] = ran
         if summary is not None:
-            summaries.append(summary)
-    return found, summaries
+            findings.coverage.append(summary)
+    return findings
 
 
 type Selection = tuple[tuple[Component, ...], list[Diagnostic]]
@@ -199,9 +226,14 @@ def _inspect(repo: Repository, candidate: Candidate, settings: SuiteSettings) ->
         if problems:
             return SuiteReport(tuple(problems))
         ready, found = prepare_components(settings.runners, selected, snapshot)
-        diagnostics, summaries = suite_findings(scope, ready, settings.suites)
+        held, expired = quarantine.current(policy.quarantine, settings.today)
+        manifests = load_manifests(repo, candidate.base_tree, scope)
+        findings = suite_findings(scope, ready, lambda _: settings.suites, held)
+        proved, scenarios = reconciled(manifests, findings.ran, None, held)
     tested = tuple(component.id for component, _ in ready)
-    return SuiteReport((*found, *diagnostics), tested, tuple(summaries))
+    static = [d for d in manifests.diagnostics if d.component in tested]
+    diagnostics = (*found, *expired, *static, *findings.diagnostics, *proved)
+    return SuiteReport(diagnostics, tested, tuple(findings.coverage), tuple(scenarios))
 
 
 def run_suites(repo: Repository, candidate: Candidate, settings: SuiteSettings) -> SuiteReport:

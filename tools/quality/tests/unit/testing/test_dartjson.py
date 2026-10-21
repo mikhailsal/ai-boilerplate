@@ -41,7 +41,27 @@ def test_a_real_report_is_parsed() -> None:
         (f"{suite}::errors after passing", ERROR),
         (f"{suite}::waits", PASSED),
     ]
-    assert (results.executed, results.failing) == (6, 3)
+    assert (results.executed, results.count(FAILED, ERROR)) == (6, 3)
+
+
+def test_a_solo_test_makes_the_run_focused() -> None:
+    unfocused = start(2, "other")
+    unfocused["test"] = {
+        "id": 2,
+        "name": "other",
+        "suiteID": 0,
+        "metadata": {"skip": True, "skipReason": 'does not have "solo"'},
+    }
+    data = stream(SUITE, start(1, "solo"), done(1), unfocused, done(2, skipped=True), DONE)
+    results = parse_dart_json(data, "r")
+    assert results.focused
+    assert outcomes(results) == [
+        ("test/a_test.dart::solo", PASSED),
+        ("test/a_test.dart::other", SKIPPED),
+    ]
+    skipped = start(3, "plain")
+    skipped["test"] = {"id": 3, "name": "plain", "suiteID": 0, "metadata": {"skipReason": "later"}}
+    assert not parse_dart_json(stream(SUITE, skipped, done(3, skipped=True), DONE), "r").focused
 
 
 def test_hidden_cases_count_only_when_they_fail() -> None:

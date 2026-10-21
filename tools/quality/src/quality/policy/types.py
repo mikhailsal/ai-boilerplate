@@ -10,6 +10,7 @@ from pydantic import AfterValidator, Field, Strict
 
 _IDENTIFIER = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 _RULE_ID = re.compile(r"^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$")
+_NAME = re.compile(r"^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$")
 _WILDCARDS = frozenset("*?[]")
 
 
@@ -23,6 +24,13 @@ def _check_identifier(value: str) -> str:
 def _check_rule_id(value: str) -> str:
     if not _RULE_ID.fullmatch(value):
         msg = "must be a dotted rule ID such as 'coverage.line'"
+        raise ValueError(msg)
+    return value
+
+
+def _check_name(value: str) -> str:
+    if not _NAME.fullmatch(value):
+        msg = "must be lowercase words joined by '.' or '-', starting with a letter"
         raise ValueError(msg)
     return value
 
@@ -67,6 +75,7 @@ def _check_text(value: str) -> str:
 
 Identifier = Annotated[str, Strict(), AfterValidator(_check_identifier)]
 RuleId = Annotated[str, Strict(), AfterValidator(_check_rule_id)]
+Name = Annotated[str, Strict(), AfterValidator(_check_name)]
 RelPath = Annotated[str, Strict(), AfterValidator(_check_relpath)]
 RootPath = Annotated[str, Strict(), AfterValidator(_check_root)]
 Glob = Annotated[str, Strict(), AfterValidator(_check_glob)]

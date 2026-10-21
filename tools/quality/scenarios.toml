@@ -1,0 +1,41 @@
+# Behavioral scenarios of the quality core (decision 0014). Each one names the
+# test cases whose fresh, passing results prove it.
+schema_version = 1
+component = "quality-core"
+
+[[scenarios]]
+id = "artifact-smoke"
+summary = "A fresh clone of the template starts the pinned core through ./quality and answers."
+capability = "cli"
+level = "e2e"
+stage = "commit"
+requirements = ["cli.smoke"]
+tests = ["tests.e2e.test_artifact::test_the_exported_template_starts_and_answers"]
+
+[[scenarios]]
+id = "template-commands"
+summary = "The exported template validates its policy and scenarios and reports usage errors."
+capability = "cli"
+level = "e2e"
+stage = "commit"
+requirements = ["cli.flows"]
+tests = [
+    "tests.e2e.test_artifact::test_the_exported_template_validates_its_policy",
+    "tests.e2e.test_artifact::test_the_exported_template_lists_its_scenarios",
+    "tests.e2e.test_artifact::test_a_usage_error_exits_with_status_2",
+]
+
+[[scenarios]]
+id = "commit-gate"
+summary = "Real Git hooks accept a clean commit and reject bad staged changes."
+capability = "cli"
+level = "acceptance"
+stage = "merge"
+requirements = ["cli.flows"]
+tests = [
+    "tests.acceptance.test_bootstrap::test_bootstrap_is_idempotent_and_satisfies_doctor",
+    "tests.acceptance.test_commit::test_a_clean_change_is_committed",
+    "tests.acceptance.test_commit::test_static_findings_reject_the_commit*",
+    "tests.acceptance.test_candidate::test_a07_*",
+    "tests.acceptance.test_candidate::test_a14_*",
+]

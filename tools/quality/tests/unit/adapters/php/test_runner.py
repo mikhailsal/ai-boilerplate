@@ -86,6 +86,8 @@ def test_a_unit_run_returns_its_results_and_clover_report(
     assert run.coverage == unit.output / CLOVER
     assert run.results_format is ResultsFormat.JUNIT
     assert run.unisolated is None
+    # PHPUnit exits 1 when a test failed and 2 when one raised an error.
+    assert run.failure_status == frozenset({1, 2})
     ((cwd, *_),) = fake_php.calls()
     assert cwd == str(unit.directory)
     home = unit.output.parent / f"{unit.output.name}-home"

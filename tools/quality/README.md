@@ -2,7 +2,7 @@
 
 The `quality` command-line tool decides whether a candidate change passes.
 Git hooks and CI only call it. This directory holds its typed Python source,
-unit and acceptance tests, the stdlib launcher, and locked development tooling.
+unit, e2e, and acceptance tests, the stdlib launcher, and locked development tooling.
 
 ## Layout
 
@@ -18,20 +18,22 @@ unit and acceptance tests, the stdlib launcher, and locked development tooling.
 | `src/quality/testing` | Suite and result model, JUnit XML and Dart JSON reporter parsers (PHPUnit writes JUnit XML) |
 | `src/quality/coverage` | Coverage model and parsers for coverage.py JSON, LCOV, and PHPUnit's Clover and JSONL reports |
 | `src/quality/adapters` | Native tool adapters: the Python profile (Ruff, Pyright, pytest, uv environments, fixes), the TypeScript profile (Prettier, ESLint, tsc, Vitest, npm environments, fixes), the Dart profile (dart format, dart analyze, package:test, package:coverage, pub environments, fixes), the PHP profile (Composer, PHP CS Fixer, PHPStan, PHPUnit with Xdebug, the system PHP, fixes), Python structure and imports, Markdown lint, gitleaks, HTTP probes |
-| `src/quality/rules` | Common rules: files, configuration, suppressions, docs, links, structure, architecture, exceptions, tests, coverage |
+| `src/quality/rules` | Common rules: files, configuration, suppressions, docs, links, structure, architecture, exceptions, tests, quarantine, coverage |
+| `src/quality/scenarios` | Capability catalog, scenario manifests, static validation, proof from test results, and capability suggestions |
 | `src/quality/toolchain` | Pinned standalone tool manifest and verified installation |
 | `src/quality/hooks` | Text, installation, and status of the managed Git hooks |
 | `src/quality/engine` | Orchestration of `check`, history ranges, external links, test suites, fixes, bootstrap, and doctor |
 | `src/quality/catalog.py` | The registry of every rule the core can report |
-| `src/quality/cli` | Argument parsing and subcommands (`bootstrap`, `check`, `doctor`, `explain`, `fix`, `inventory`, `links`, `policy`, `self-test`, `test`, `tools`) |
-| `src/quality/testkit` | Test builders shared by unit, contract, and acceptance tests, including scratch projects with real hooks |
+| `src/quality/cli` | Argument parsing and subcommands (`bootstrap`, `check`, `doctor`, `explain`, `fix`, `inventory`, `links`, `policy`, `scenarios`, `self-test`, `test`, `tools`) |
+| `src/quality/testkit` | Test builders shared by unit, contract, and acceptance tests, including scratch projects with real hooks and the `greet` and `notes` scenario fixtures |
 | `toolchains.toml` | Versions, URLs, and SHA-256 checksums of standalone tools, Node, the Dart SDK, and Composer; the npm, pub, and Composer packages TypeScript, Dart, and PHP components lock; and the PHP and Xdebug minor versions the system must provide |
 | `helpers/typescript` | The Node helper of the TypeScript profile: types, structure, imports, and ESLint configuration probes; a separate component |
 | `helpers/dart` | The Dart helper of the Dart profile: structure and imports with package:analyzer; a separate component |
 | `helpers/php` | The PHP helper of the PHP profile: structure, imports, and which files only declare, with nikic/php-parser; a separate component |
 | `tests/unit` | Unit tests; they must keep core coverage at the policy minimum |
+| `tests/e2e` | End-to-end tests: the exported template, copied without installed environments, run through `./quality` |
 | `tests/acceptance` | Acceptance tests: real commits and pushes through the managed hooks in scratch repositories |
-| `launcher/` | The `./quality` launcher, a separate component that runs on the system `python3` |
+| `launcher/` | The `./quality` launcher, a separate component that runs on the system `python3`; `launcher/e2e` runs it from a fresh copy |
 
 Packages depend only on lower layers, as described in
 [decision 0003](../../docs/decisions/0003-architecture.md); the layer order is
@@ -43,7 +45,8 @@ coverage engine in
 [decision 0009](../../docs/decisions/0009-python-profile.md), the TypeScript profile
 [decision 0011](../../docs/decisions/0011-typescript-profile.md), the Dart profile
 [decision 0012](../../docs/decisions/0012-dart-profile.md), the PHP profile
-[decision 0013](../../docs/decisions/0013-php-profile.md), and the launcher,
+[decision 0013](../../docs/decisions/0013-php-profile.md), behavioral scenarios
+[decision 0014](../../docs/decisions/0014-behavioral-scenarios.md), and the launcher,
 bootstrap, doctor, and hooks are
 [decision 0010](../../docs/decisions/0010-launcher-bootstrap-and-hooks.md).
 
@@ -123,8 +126,8 @@ XDEBUG_MODE=coverage php -d zend_extension=xdebug vendor/bin/phpunit \
   --branch-coverage --disable-coverage-ignore --coverage-text tests
 ```
 
-After changing a policy model, regenerate the committed schema from the
-repository root:
+After changing a policy or scenario manifest model, regenerate both committed
+schemas from the repository root:
 
 ```sh
 ./quality policy schema --write

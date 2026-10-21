@@ -1,4 +1,4 @@
-"""What the commands that judge a candidate share: the candidate and the coverage lines."""
+"""What the commands that judge a candidate share: the candidate, coverage, and scenarios."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from pathlib import Path
 from quality.cli.inventory_cmd import index_from
 from quality.gitio import Candidate, Repository, revision, staged
 from quality.rules.coverage import ComponentCoverage
+from quality.scenarios.reconcile import ScenarioSummary
 
 
 def candidate_of(args: argparse.Namespace) -> tuple[Repository, Candidate]:
@@ -47,3 +48,28 @@ def coverage_json(summaries: tuple[ComponentCoverage, ...]) -> list[dict[str, ob
             }
         )
     return found
+
+
+def scenarios_text(summaries: tuple[ScenarioSummary, ...]) -> str:
+    """Describe how many scenarios of each reconciled component this run proved."""
+    lines: list[str] = []
+    for summary in summaries:
+        line = f"scenarios of {summary.component}: {summary.passed} of {summary.required} proved"
+        line += f", {summary.suspended} suspended" if summary.suspended else ""
+        line += f", {summary.deferred} not required by this run" if summary.deferred else ""
+        lines.append(line + "\n")
+    return "".join(lines)
+
+
+def scenarios_json(summaries: tuple[ScenarioSummary, ...]) -> list[dict[str, object]]:
+    """Return the scenario counts of each reconciled component."""
+    return [
+        {
+            "component": summary.component,
+            "required": summary.required,
+            "proved": summary.passed,
+            "suspended": summary.suspended,
+            "deferred": summary.deferred,
+        }
+        for summary in summaries
+    ]

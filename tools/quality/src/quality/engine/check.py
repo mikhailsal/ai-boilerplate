@@ -1,13 +1,14 @@
 """`quality check`: every gate over one isolated candidate snapshot.
 
-The common gates cover the whole candidate. Profile gates and unit suites with
-their coverage floors cover the components the change affects, or every active
-component when asked; a component whose profile has no adapter fails.
+The common gates and the static scenario checks cover the whole candidate.
+Profile gates, unit suites with their coverage floors, and the suites of the
+scenarios mandatory at the stage cover the components the change affects, or
+every active component when asked; a component whose profile has no adapter fails.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -25,6 +26,7 @@ from quality.engine.common import (
     tool_findings,
 )
 from quality.engine.profiles import ProfileAdapter
+from quality.engine.scenarios import load_manifests, reconciled, required_at, stage_suites
 from quality.engine.scope import (
     UNAVAILABLE,
     Scope,
@@ -33,11 +35,13 @@ from quality.engine.scope import (
     prepare_components,
     unavailable,
 )
-from quality.engine.suites import suite_findings
+from quality.engine.suites import SuiteFindings, suite_findings
 from quality.gitio import Candidate, Repository, materialize
-from quality.policy import Component, Profile
-from quality.rules import exceptions
+from quality.policy import Component, Profile, Quarantine
+from quality.policy.scenarios import Stage
+from quality.rules import exceptions, quarantine
 from quality.rules.coverage import ComponentCoverage
+from quality.scenarios.reconcile import ScenarioSummary
 from quality.testing import Suite
 
 RULES = (UNAVAILABLE,)
@@ -60,6 +64,7 @@ class Settings:
     today: date
     profiles: Adapters = field(default_factory=_no_adapters)
     everything: bool = False
+    stage: Stage = Stage.COMMIT
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,6 +76,7 @@ class Report:
     excepted: int = 0
     tested: tuple[str, ...] = ()
     coverage: tuple[ComponentCoverage, ...] = ()
+    scenarios: tuple[ScenarioSummary, ...] = ()
 
 
 def _own_rules(profile: Profile, adapter: ProfileAdapter | None) -> frozenset[str]:
@@ -120,18 +126,21 @@ def _static(component: Component, adapter: ProfileAdapter, scope: Scope) -> list
 
 
 def profile_gates(
-    scope: Scope, profiles: Adapters
-) -> tuple[list[Diagnostic], Ready, list[ComponentCoverage]]:
-    """Native gates and unit suites of the selected components."""
+    scope: Scope,
+    profiles: Adapters,
+    plan: Callable[[Component], Iterable[Suite]],
+    held: Sequence[Quarantine] = (),
+) -> tuple[list[Diagnostic], Ready, SuiteFindings]:
+    """Native gates and the suites each selected component's plan names."""
     found = [unavailable(c) for c in scope.active if c.profile not in profiles]
     supported = [c for c in scope.selected if c.profile in profiles]
     ready, problems = prepare_components(profiles, supported, scope.snapshot)
     found.extend(problems)
     for component, adapter in ready:
         found.extend(_static(component, adapter, scope))
-    diagnostics, summaries = suite_findings(scope, ready, (Suite.UNIT,))
-    found.extend(diagnostics)
-    return found, ready, summaries
+    findings = suite_findings(scope, ready, plan, held)
+    found.extend(findings.diagnostics)
+    return found, ready, findings
 
 
 def _inspect(repo: Repository, candidate: Candidate, settings: Settings) -> Report:
@@ -143,18 +152,32 @@ def _inspect(repo: Repository, candidate: Candidate, settings: Settings) -> Repo
         limit = policy.thresholds.blob_bytes
         found = candidate_files(snapshot.root, snapshot.entries, scope.inventory, limit)
         common = common_gates(scope, found, tools=settings.tools, commands=settings.commands)
-        gates = [*scope.inventory.diagnostics, *common]
-        profiled, ready, summaries = profile_gates(scope, settings.profiles)
+        manifests = load_manifests(repo, candidate.base_tree, scope)
+        held, expired = quarantine.current(policy.quarantine, settings.today)
+        gates = [*scope.inventory.diagnostics, *common, *manifests.diagnostics, *expired]
+
+        def plan(component: Component) -> tuple[Suite, ...]:
+            return stage_suites(manifests.subjects.get(component.id), settings.stage)
+
+        profiled, ready, findings = profile_gates(scope, settings.profiles, plan, held)
+        proved, scenarios = reconciled(manifests, findings.ran, required_at(settings.stage), held)
         checked = [component for component, _ in ready]
         applied = exceptions.apply_exceptions(
-            [*gates, *profiled],
+            [*gates, *profiled, *proved],
             policy.exceptions,
             rules=settings.rules,
             ran=ran_rules(scope.active, checked, settings.profiles),
             today=settings.today,
         )
     tested = tuple(component.id for component in checked)
-    return Report(applied.diagnostics, len(found), applied.excepted, tested, tuple(summaries))
+    return Report(
+        applied.diagnostics,
+        len(found),
+        applied.excepted,
+        tested,
+        tuple(findings.coverage),
+        tuple(scenarios),
+    )
 
 
 def check_candidate(repo: Repository, candidate: Candidate, settings: Settings) -> Report:

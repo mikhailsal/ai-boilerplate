@@ -13,6 +13,9 @@ raised after a test completed that way. A test that started but never
 completed is an error too. A report without the final `done` event, a line that
 is not a JSON object, a completion for an unknown or already completed test, or
 an event with missing fields is a ReportError: the run's evidence is invalid.
+
+When a test is marked `solo`, `package:test` skips every other test with the
+reason `does not have "solo"`; such a run is focused.
 """
 
 from __future__ import annotations
@@ -28,6 +31,7 @@ type Event = dict[str, JsonValue]
 
 RESULTS = {"success": Outcome.PASSED, "failure": Outcome.FAILED, "error": Outcome.ERROR}
 PASSING = frozenset({Outcome.PASSED, Outcome.SKIPPED})
+UNFOCUSED = 'does not have "solo"'
 
 
 @dataclass(slots=True)
@@ -54,6 +58,7 @@ class _Stream:
         self.suites: dict[int, str | None] = {}
         self.cases: dict[int, _Case] = {}
         self.done = False
+        self.focused = False
         self.handlers: dict[str, Callable[[Event], None]] = {
             "suite": self._suite,
             "testStart": self._start,
@@ -107,6 +112,9 @@ class _Stream:
             self.fail(f"an invalid or repeated start of test {identifier}")
         path = self.suites[suite]
         self.cases[identifier] = _Case(f"{path}::{name}" if path else name)
+        metadata = test.get("metadata")
+        if isinstance(metadata, dict) and metadata.get("skipReason") == UNFOCUSED:
+            self.focused = True
 
     def _done(self, event: Event) -> None:
         case = self._case(event)
@@ -133,4 +141,4 @@ def parse_dart_json(data: bytes, origin: str) -> SuiteResults:
     if not stream.done:
         stream.fail("the report has no 'done' event; the run did not finish")
     results = (case.result() for case in stream.cases.values())
-    return SuiteResults(tuple(result for result in results if result is not None))
+    return SuiteResults(tuple(result for result in results if result is not None), stream.focused)

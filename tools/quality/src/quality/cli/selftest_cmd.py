@@ -14,7 +14,7 @@ from quality.testing import Suite
 
 NAME = "self-test"
 ACTIONS: frozenset[str] = frozenset()
-LEVELS = {"unit": Suite.UNIT, "acceptance": Suite.ACCEPTANCE}
+LEVELS = {"unit": Suite.UNIT, "e2e": Suite.E2E, "acceptance": Suite.ACCEPTANCE}
 
 
 def register(commands: Subcommands) -> None:
@@ -22,8 +22,9 @@ def register(commands: Subcommands) -> None:
     parser = commands.add_parser(
         NAME,
         help="run the test suites of the quality tooling components",
-        description="Run the unit suites with coverage floors (--level unit, the default) or "
-        "the acceptance suites (--level acceptance) of every active tooling component, over "
+        description="Run the unit suites with coverage floors (--level unit, the default), "
+        "the built-artifact suites (--level e2e), or the acceptance suites (--level "
+        "acceptance) of every active tooling component that declares them, over "
         "the staged candidate or --rev. Acceptance suites drive real Git hooks in scratch "
         "repositories. Exit 0 on pass, 1 on failures, 2 when no tooling component declares "
         "the level, 3 on environment errors.",

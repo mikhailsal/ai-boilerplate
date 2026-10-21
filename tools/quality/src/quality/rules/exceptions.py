@@ -40,8 +40,9 @@ NOT_ALLOWED = Rule(
     title="Rule cannot be excepted",
     requirement="R05",
     explanation=(
-        "Policy, Git, discovery, secret, exception, test, coverage, and tool failure rules "
-        "cannot be excepted; coverage floors change only in quality.toml, for every component."
+        "Policy, Git, discovery, secret, exception, test, coverage, scenario, quarantine, "
+        "and tool failure rules cannot be excepted; coverage floors change only in "
+        "quality.toml, for every component, and a flaky test is quarantined instead."
     ),
     remedy="Remove the exception and fix the cause.",
 )
@@ -55,6 +56,8 @@ FIXED_PREFIXES = (
     "exceptions.",
     "tests.",
     "coverage.",
+    "scenarios.",
+    "quarantine.",
 )
 POLICY_FILE = "quality.toml"
 

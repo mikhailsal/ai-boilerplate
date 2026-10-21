@@ -3,9 +3,13 @@ from pathlib import Path
 import pytest
 
 from quality.process import Completed
+from quality.testing import CaseResult, Outcome
+from quality.testing.junit import parse_junit
 from quality.testkit import scratch
 from quality.testkit.gitrepo import GitCommandError, GitRepo
 from quality.testkit.policies import ComponentSpec, build_policy, classification_toml
+from quality.testkit.reports import junit_xml
+from quality.testkit.scenarios import ScenarioSpec, build_manifest, manifest_toml
 from quality.testkit.scratch import (
     CORE_SOURCE,
     component,
@@ -39,6 +43,28 @@ def test_build_policy_renders_classifications() -> None:
     assert [(c.pattern, c.category.value) for c in policy.classification] == [
         ("vendor/**", "vendor")
     ]
+
+
+def test_build_manifest_rejects_invalid_documents() -> None:
+    with pytest.raises(AssertionError, match="invalid test manifest"):
+        build_manifest(ScenarioSpec(id="Not Valid"))
+
+
+def test_manifests_render_every_optional_table() -> None:
+    text = manifest_toml(
+        ScenarioSpec(enhanced="mutation"),
+        not_applicable={"library.errors": "the fixture raises nothing"},
+        retired={"old": "replaced by public-api"},
+    )
+    assert 'enhanced = "mutation"\n' in text
+    assert '[[not_applicable]]\nrequirement = "library.errors"\n' in text
+    assert '[[retired]]\nid = "old"\nreason = "replaced by public-api"\n' in text
+
+
+def test_fake_junit_reports_parse_back_to_their_outcomes() -> None:
+    cases = [(f"t{i}", outcome) for i, outcome in enumerate(Outcome)]
+    parsed = parse_junit(junit_xml(cases), "junit.xml")
+    assert parsed.cases == tuple(CaseResult(f"tests::{name}", o) for name, o in cases)
 
 
 def test_scratch_projects_run_the_core_under_test(tmp_path: Path) -> None:
