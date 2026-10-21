@@ -7,8 +7,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 
 ## Status
 
-- Current phase: P08
-- Next action: complete the PHP profile
+- Current phase: P09
+- Next action: complete behavioral scenario enforcement
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`
 - A box is checked only after the phase implementation commit exists and its
   checks were run; the phase record holds the SHA and evidence.
@@ -25,7 +25,7 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 | [x] | P05 Complete Python and activate the strict hooks | DONE | [P05](docs/plan/phases/P05.md) |
 | [x] | P06 Complete TypeScript | DONE | [P06](docs/plan/phases/P06.md) |
 | [x] | P07 Complete Dart | DONE | [P07](docs/plan/phases/P07.md) |
-| [ ] | P08 Complete PHP | IN_PROGRESS | P08 |
+| [x] | P08 Complete PHP | DONE | [P08](docs/plan/phases/P08.md) |
 | [ ] | P09 Complete behavioral scenario enforcement | TODO | P09 |
 | [ ] | P10 Implement portable CI and protection preparation | TODO | P10 |
 | [ ] | P11 Prove template reuse and document maintenance | TODO | P11 |
@@ -64,6 +64,7 @@ bypass: no flag, environment variable, or permissive mode was added for it.
 - [0010 Launcher, bootstrap, doctor, and hooks](docs/decisions/0010-launcher-bootstrap-and-hooks.md)
 - [0011 TypeScript profile](docs/decisions/0011-typescript-profile.md)
 - [0012 Dart profile](docs/decisions/0012-dart-profile.md)
+- [0013 PHP profile](docs/decisions/0013-php-profile.md)
 
 ## Resumption
 
