@@ -1,8 +1,9 @@
 # 0005 Coverage measurement paths
 
-Status: accepted (P00). Each path below was exercised on 2026-10-20 with the
-pinned versions in a scratch project (spikes are not tracked; their findings
-are summarized here and become acceptance tests in P05–P08).
+Status: accepted (P00); amended in P07 and P08. Each path below was
+exercised on 2026-10-20 with the pinned versions in a scratch project (spikes
+are not tracked; their findings are summarized here and become acceptance
+tests in P05–P08).
 
 ## Common model
 
@@ -72,23 +73,41 @@ candidate tree and reconciled with the report; a missing file is an error.
 
 ## PHP: PHPUnit 13.4.3 with Xdebug 3.5
 
-- Run: `php -d zend_extension=xdebug -d xdebug.mode=coverage` with
-  `XDEBUG_MODE=coverage`, `phpunit --coverage-clover <fresh path>
-  --log-junit <fresh path> --log-otr <fresh path>` and `branchCoverage="true"`.
-- Report: Clover gives per-file `conditionals`/`coveredconditionals` and
-  per-line statement counts; Cobertura and `--coverage-xml` do not preserve
-  per-file branch counts, so they are not used.
-- Uncovered files are included for lines, but files never loaded during a
-  test have no branch data. The adapter generates, inside the snapshot, a test
-  that loads every source file while coverage is active, so their branch
-  opportunities are counted.
-- A missing driver, PCOV, or Xdebug without coverage mode makes PHPUnit abort
-  without a report; the adapter treats any missing report as an error.
-  A Clover report with branch coverage disabled shows `conditionals="0"`,
-  which is never accepted as measured when the file has branch opportunities.
-- Native semantics: a branch is an Xdebug branch (opcode-level jump target).
-- Skipped and incomplete tests are distinguished with the Open Test Reporting
-  (`--log-otr`) output.
+- Run: the component's PHPUnit with `XDEBUG_MODE=coverage`, Xdebug loaded with
+  `-d zend_extension=xdebug` unless the system loads it, and
+  `--configuration=<generated> --log-junit=<fresh path>
+  --coverage-clover=<fresh path> --coverage-jsonl=<fresh directory>`
+  (amended in P08). The generated configuration filters every `.php` file of
+  the source roots without the test roots and `vendor/`, with
+  `includeUncoveredFiles`, `branchCoverage`, and `disableCodeCoverageIgnore`
+  on.
+- Report: both reports come from php-code-coverage 14.4.1, pinned with
+  PHPUnit. Neither holds both counters exactly.
+  - Clover has per-file `conditionals`/`coveredconditionals`, but writes a
+    method's record in place of the statement record of the line where the
+    method starts, so a one-line method's statement has no record.
+  - The JSONL report has every executable line, but counts branches only for
+    functions with more than one.
+
+  Lines come from JSONL and branches from Clover, and the two are
+  cross-checked. Cobertura and `--coverage-xml` do not preserve per-file
+  branch counts, so they are not used.
+- Uncovered files are included for lines, but a file that is never compiled
+  has no branch data. The generated bootstrap loads every source file that
+  only declares, inside the snapshot, before the tests. A file that runs code
+  when loaded is left to the tests. After the run, a file with functions or
+  methods but no branch is unmeasured and fails.
+- PHPUnit refuses to start when no driver supports branch coverage, as under
+  PCOV, phpdbg, or no driver. It exits 1 with a runner warning and leaves an
+  empty JUnit file, which the adapter treats as a run that could not start.
+  The runtime probe already rejects a PHP without Xdebug
+  ([decision 0013](0013-php-profile.md#runtime)).
+- Native semantics: a branch is an Xdebug basic block, counted when it is
+  entered. An `if` without `else` whose condition is true enters every block,
+  so only a short-circuit operand, a ternary arm, or a `match` arm that is not
+  taken leaves a branch missed while every line is covered.
+- Skipped and incomplete tests are both skipped in the JUnit output, which
+  replaces the Open Test Reporting output planned here.
 
 ## Evidence rules
 

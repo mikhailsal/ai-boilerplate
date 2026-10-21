@@ -15,9 +15,9 @@ unit and acceptance tests, the stdlib launcher, and locked development tooling.
 | `src/quality/discovery` | File types, manifests, classification, ownership, activation, test scope |
 | `src/quality/metrics` | Structure metrics model shared by profile adapters |
 | `src/quality/boundedio.py` | Bounded JSON and XML readers for native tool reports |
-| `src/quality/testing` | Suite and result model, JUnit XML and Dart JSON reporter parsers |
-| `src/quality/coverage` | Coverage model and parsers for coverage.py JSON, LCOV, and Clover |
-| `src/quality/adapters` | Native tool adapters: the Python profile (Ruff, Pyright, pytest, uv environments, fixes), the TypeScript profile (Prettier, ESLint, tsc, Vitest, npm environments, fixes), the Dart profile (dart format, dart analyze, package:test, package:coverage, pub environments, fixes), Python structure and imports, Markdown lint, gitleaks, HTTP probes |
+| `src/quality/testing` | Suite and result model, JUnit XML and Dart JSON reporter parsers (PHPUnit writes JUnit XML) |
+| `src/quality/coverage` | Coverage model and parsers for coverage.py JSON, LCOV, and PHPUnit's Clover and JSONL reports |
+| `src/quality/adapters` | Native tool adapters: the Python profile (Ruff, Pyright, pytest, uv environments, fixes), the TypeScript profile (Prettier, ESLint, tsc, Vitest, npm environments, fixes), the Dart profile (dart format, dart analyze, package:test, package:coverage, pub environments, fixes), the PHP profile (Composer, PHP CS Fixer, PHPStan, PHPUnit with Xdebug, the system PHP, fixes), Python structure and imports, Markdown lint, gitleaks, HTTP probes |
 | `src/quality/rules` | Common rules: files, configuration, suppressions, docs, links, structure, architecture, exceptions, tests, coverage |
 | `src/quality/toolchain` | Pinned standalone tool manifest and verified installation |
 | `src/quality/hooks` | Text, installation, and status of the managed Git hooks |
@@ -25,9 +25,10 @@ unit and acceptance tests, the stdlib launcher, and locked development tooling.
 | `src/quality/catalog.py` | The registry of every rule the core can report |
 | `src/quality/cli` | Argument parsing and subcommands (`bootstrap`, `check`, `doctor`, `explain`, `fix`, `inventory`, `links`, `policy`, `self-test`, `test`, `tools`) |
 | `src/quality/testkit` | Test builders shared by unit, contract, and acceptance tests, including scratch projects with real hooks |
-| `toolchains.toml` | Versions, URLs, and SHA-256 checksums of standalone tools, Node, and the Dart SDK, and the npm and pub packages TypeScript and Dart components lock |
+| `toolchains.toml` | Versions, URLs, and SHA-256 checksums of standalone tools, Node, the Dart SDK, and Composer; the npm, pub, and Composer packages TypeScript, Dart, and PHP components lock; and the PHP and Xdebug minor versions the system must provide |
 | `helpers/typescript` | The Node helper of the TypeScript profile: types, structure, imports, and ESLint configuration probes; a separate component |
 | `helpers/dart` | The Dart helper of the Dart profile: structure and imports with package:analyzer; a separate component |
+| `helpers/php` | The PHP helper of the PHP profile: structure, imports, and which files only declare, with nikic/php-parser; a separate component |
 | `tests/unit` | Unit tests; they must keep core coverage at the policy minimum |
 | `tests/acceptance` | Acceptance tests: real commits and pushes through the managed hooks in scratch repositories |
 | `launcher/` | The `./quality` launcher, a separate component that runs on the system `python3` |
@@ -41,7 +42,8 @@ coverage engine in
 [decision 0008](../../docs/decisions/0008-test-and-coverage-engine.md). The Python profile is
 [decision 0009](../../docs/decisions/0009-python-profile.md), the TypeScript profile
 [decision 0011](../../docs/decisions/0011-typescript-profile.md), the Dart profile
-[decision 0012](../../docs/decisions/0012-dart-profile.md), and the launcher,
+[decision 0012](../../docs/decisions/0012-dart-profile.md), the PHP profile
+[decision 0013](../../docs/decisions/0013-php-profile.md), and the launcher,
 bootstrap, doctor, and hooks are
 [decision 0010](../../docs/decisions/0010-launcher-bootstrap-and-hooks.md).
 
@@ -99,6 +101,26 @@ dart analyze --fatal-infos
 dart test --branch-coverage --coverage=.dart_tool/coverage
 dart run coverage:format_coverage --lcov --in=.dart_tool/coverage \
   --out=.dart_tool/lcov.info --report-on=bin --report-on=lib
+```
+
+The PHP helper runs on the system PHP with Xdebug
+([decision 0013](../../docs/decisions/0013-php-profile.md#runtime)).
+`./quality bootstrap` installs the pinned Composer and caches the packages of
+the helper's `composer.lock` in `~/.cache/quality/composer`. The native
+commands run from `helpers/php` with
+`COMPOSER_CACHE_DIR=~/.cache/quality/composer`; PHP CS Fixer takes one path
+per run when no configuration file is given:
+
+```sh
+COMPOSER_DISABLE_NETWORK=1 php ~/.cache/quality/toolchains/composer-2.10.3/composer \
+  install --no-scripts --no-plugins --no-progress
+for path in bin src tests; do
+  php vendor/bin/php-cs-fixer check --rules=@PER-CS --using-cache=no "$path"
+done
+php -d memory_limit=1G vendor/bin/phpstan analyse --level=max --no-progress bin src tests
+XDEBUG_MODE=coverage php -d zend_extension=xdebug vendor/bin/phpunit \
+  --bootstrap vendor/autoload.php --coverage-filter bin --coverage-filter src \
+  --branch-coverage --disable-coverage-ignore --coverage-text tests
 ```
 
 After changing a policy model, regenerate the committed schema from the

@@ -8,8 +8,11 @@ actionlint); profile runtimes join it with their phases. Since P06 it also
 pins Node.js and, under `[packages.npm]`, the npm packages every TypeScript
 component must lock ([decision 0011](0011-typescript-profile.md)). Since P07
 it pins the Dart SDK and, under `[packages.pub]`, the pub packages every Dart
-component must lock ([decision 0012](0012-dart-profile.md)). This record
-explains the choices.
+component must lock ([decision 0012](0012-dart-profile.md)). Since P08 it
+pins Composer, under `[packages.composer]` the Composer packages every PHP
+component must lock, and under `[runtimes]` the minor versions of PHP and
+Xdebug, which the PHP profile requires but does not install
+([decision 0013](0013-php-profile.md)). This record explains the choices.
 
 ## Shared core
 
@@ -63,12 +66,13 @@ explains the choices.
 | Tool | Version | Notes |
 | --- | --- | --- |
 | PHP | 8.4.x (system) | Distribution or ondrej PPA packages; minor version pinned, see 0002 |
-| Xdebug | 3.5.x (system) | Loaded explicitly for coverage runs only |
-| Composer | 2.10.3 | `composer.phar` with published SHA-256 |
+| Xdebug | 3.5.x (system) | The only accepted coverage driver; in coverage mode for unit runs only |
+| Composer | 2.10.3 | `composer.phar` with published SHA-256, run by the system PHP |
 | PHPUnit | 13.4.3 | Requires PHP >= 8.4.1 |
+| php-code-coverage | 14.4.1 | Writes the Clover and JSONL reports the gate parses, so its version is pinned with PHPUnit's |
 | PHPStan | 2.3.1 | Highest level (`max`) |
 | PHP CS Fixer | 3.95.27 | Single formatter for PHP files |
-| nikic/php-parser | 5.9.0 | Structural metrics helper |
+| nikic/php-parser | 5.9.0 | Structural metrics helper, locked in the helper's own `composer.lock` |
 
 ## Checksums (Linux)
 

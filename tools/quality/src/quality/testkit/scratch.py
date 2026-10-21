@@ -1,8 +1,9 @@
 """Scratch projects driven through real Git hooks and the core under test.
 
-Each project is a new repository with Python, TypeScript, or Dart application components. Its
-`quality` entry point runs this checkout's core with the interpreter running the
-suite, so hooks exercise exactly the code under test. A project can instead
+Each project is a new repository with Python, TypeScript, Dart, or PHP
+application components. Its `quality` entry point runs this checkout's core
+with the interpreter running the suite, so hooks exercise exactly the code
+under test. A project can instead
 embed a copy of that core at `tools/quality`, where its entry point runs the
 copy in the work tree as the launcher would. The pinned toolchains and uv's
 package cache are reached through the caller's cache directory; nothing is
@@ -25,6 +26,7 @@ from quality.engine.provenance import BOOT
 from quality.process import Command, Completed, run
 from quality.testkit.dartproject import dart_project
 from quality.testkit.gitrepo import GitRepo
+from quality.testkit.phpproject import php_project
 from quality.testkit.policies import ComponentSpec, classification_toml, policy_toml
 from quality.testkit.pythonproject import python_project
 from quality.testkit.typescriptproject import typescript_project
@@ -33,10 +35,12 @@ CORE_SOURCE = Path(quality.__file__).resolve().parents[1]
 TYPESCRIPT_HELPER = Path("helpers") / "typescript"
 DART_HELPER = Path("helpers") / "dart"
 DART_HELPER_FILES = ("bin", "lib", "pubspec.yaml", "pubspec.lock")
+PHP_HELPER = Path("helpers") / "php"
+PHP_HELPER_FILES = ("bin", "src", "composer.json", "composer.lock")
 EMBEDDED_CORE = "tools/quality"
 README = "# Scratch project\n\nSee [agent instructions](AGENTS.md).\n"
 AGENTS = "# Agents\n\nRun `quality check` before committing and `quality fix` to format.\n"
-IGNORED = ".venv/\n__pycache__/\nnode_modules/\n.dart_tool/\n"
+IGNORED = ".venv/\n__pycache__/\nnode_modules/\n.dart_tool/\nvendor/\n"
 CORE = """\
 def sign(value: int) -> int:
     if value < 0:
@@ -83,6 +87,11 @@ def typescript(name: str = "web") -> ComponentSpec:
 def dart(name: str = "calc") -> ComponentSpec:
     """Return a Dart application component rooted at `name/`; `name` is its package name."""
     return ComponentSpec(id=name, root=name, profile="dart", source=("lib",), unit=("test",))
+
+
+def php(name: str = "shop") -> ComponentSpec:
+    """Return a PHP application component rooted at `name/`, with sources in `src/`."""
+    return ComponentSpec(id=name, root=name, profile="php", source=("src",), unit=("tests",))
 
 
 def output(result: Completed) -> str:
@@ -149,7 +158,7 @@ def embed_core(path: Path) -> Path:
 
     The helpers' sources and manifests come along when the core has them,
     because the adapters run them beside the package; installed packages
-    (`node_modules`, `.dart_tool`) do not.
+    (`node_modules`, `.dart_tool`, `vendor`) do not.
     """
     ignored = shutil.ignore_patterns("__pycache__")
     shutil.copytree(CORE_SOURCE / "quality", path / "src" / "quality", ignore=ignored)
@@ -160,15 +169,21 @@ def embed_core(path: Path) -> Path:
         modules = shutil.ignore_patterns("node_modules")
         shutil.copytree(helper / "src", path / TYPESCRIPT_HELPER / "src", ignore=modules)
         shutil.copyfile(helper / "package.json", path / TYPESCRIPT_HELPER / "package.json")
-    dart = CORE_SOURCE.parent / DART_HELPER
-    if (dart / "bin").is_dir():
-        (path / DART_HELPER).mkdir(parents=True)
-        for name in DART_HELPER_FILES:
-            if (dart / name).is_dir():
-                shutil.copytree(dart / name, path / DART_HELPER / name, ignore=ignored)
-            else:
-                shutil.copyfile(dart / name, path / DART_HELPER / name)
+    for helper, names in ((DART_HELPER, DART_HELPER_FILES), (PHP_HELPER, PHP_HELPER_FILES)):
+        if (CORE_SOURCE.parent / helper / "bin").is_dir():
+            _copy_helper(CORE_SOURCE.parent / helper, path / helper, names)
     return path / "src"
+
+
+def _copy_helper(source: Path, target: Path, names: tuple[str, ...]) -> None:
+    target.mkdir(parents=True)
+    for name in names:
+        if (source / name).is_dir():
+            shutil.copytree(
+                source / name, target / name, ignore=shutil.ignore_patterns("__pycache__")
+            )
+        else:
+            shutil.copyfile(source / name, target / name)
 
 
 def create_project(path: Path, *components: ComponentSpec, core: bool = False) -> Project:
@@ -195,6 +210,9 @@ def create_project(path: Path, *components: ComponentSpec, core: bool = False) -
             continue
         if spec.profile == "dart":
             dart_project(repo.path / spec.root, name=spec.id)
+            continue
+        if spec.profile == "php":
+            php_project(repo.path / spec.root)
             continue
         files = {
             f"src/{spec.id}/__init__.py": "",

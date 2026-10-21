@@ -4,16 +4,17 @@ from pathlib import Path
 import pytest
 
 from quality.boundedio import ReportError
-from quality.coverage import Counter, CoverageReport, FileCoverage, parse_clover
+from quality.coverage import Counter
+from quality.coverage.clover import CloverFile, clover_files
 
 SAMPLES = Path(__file__).parent / "samples"
 ROOT = Path("/work/snapshot")
 METRICS = '<metrics conditionals="2" coveredconditionals="1" statements="2" coveredstatements="1"/>'
 
 
-def parse(data: str | bytes, *, measured: bool = True) -> CoverageReport:
+def parse(data: str | bytes) -> dict[str, CloverFile]:
     raw = data.encode() if isinstance(data, str) else data
-    return parse_clover(raw, "clover.xml", root=ROOT, cwd=ROOT, branches_measured=measured)
+    return clover_files(raw, "clover.xml", root=ROOT, cwd=ROOT)
 
 
 def clover(*files: str) -> str:
@@ -27,31 +28,29 @@ def file(body: str, name: str = "src/a.php") -> str:
 LINES = '<line num="3" type="stmt" count="2"/><line num="4" type="stmt" count="0"/>'
 
 
-def test_a_sample_in_phpunit_clover_shape_is_normalized() -> None:
-    # Hand-made in the shape of PHPUnit's Clover writer: class metrics, method lines,
-    # files in and outside packages. Real PHPUnit output is tested with the PHP profile.
-    report = parse((SAMPLES / "phpunit-shape.clover.xml").read_bytes())
-    assert report.branches_measured
-    assert dict(report.files) == {
-        "src/Calc.php": FileCoverage(
-            "src/Calc.php", frozenset({9, 10, 15, 16, 18}), frozenset({9, 10, 15}), Counter(3, 4)
+def test_a_real_phpunit_report_keeps_its_records_and_totals() -> None:
+    # Real output of PHPUnit 13.4.3 with Xdebug 3.5.3, relocated to /work/snapshot.
+    # The one-line constructor of Calc.php on line 9 has a method record and no
+    # statement record, but its statement is in the totals.
+    files = parse((SAMPLES / "phpunit.clover.xml").read_bytes())
+    assert files == {
+        "app/src/Calc.php": CloverFile(
+            "app/src/Calc.php", {13: 2, 14: 1, 16: 1}, Counter(4, 4), Counter(6, 7)
         ),
-        "src/helpers.php": FileCoverage(
-            "src/helpers.php", frozenset({5}), frozenset(), Counter(0, 0)
+        "app/src/Script.php": CloverFile(
+            "app/src/Script.php", {9: 0, 12: 0}, Counter(0, 2), Counter(0, 0)
+        ),
+        "app/src/Shape.php": CloverFile("app/src/Shape.php", {}, Counter(0, 0), Counter(0, 0)),
+        "app/src/Unused.php": CloverFile(
+            "app/src/Unused.php", {9: 0}, Counter(0, 1), Counter(0, 1)
         ),
     }
 
 
-def test_the_adapter_states_whether_branches_were_measured() -> None:
-    report = parse(clover(file(LINES + METRICS)), measured=False)
-    assert not report.branches_measured
-    assert report.files["src/a.php"].lines == Counter(1, 2)
-
-
 def test_non_statement_lines_are_ignored() -> None:
     method = '<line num="2" type="method" name="f" count="0"/><line num="9" type="cond" count="1"/>'
-    report = parse(clover(file(method + LINES + METRICS)))
-    assert report.files["src/a.php"].executable == frozenset({3, 4})
+    (found,) = parse(clover(file(method + LINES + METRICS))).values()
+    assert found == CloverFile("src/a.php", {3: 2, 4: 0}, Counter(1, 2), Counter(1, 2))
 
 
 def fails(data: str, message: str) -> None:
@@ -81,12 +80,8 @@ def test_files_need_names_and_appear_once() -> None:
     [
         (LINES, "<file> has no <metrics>"),
         (
-            LINES + METRICS.replace('statements="2"', 'statements="3"'),
-            "statement metrics disagree with the <line> records",
-        ),
-        (
-            LINES + METRICS.replace('coveredstatements="1"', 'coveredstatements="2"'),
-            "statement metrics disagree with the <line> records",
+            LINES + METRICS.replace('coveredstatements="1"', 'coveredstatements="3"'),
+            "more covered statements than statements",
         ),
         (
             LINES + METRICS.replace('coveredconditionals="1"', 'coveredconditionals="3"'),

@@ -1,10 +1,11 @@
-"""The request and response files of the core's helper programs (decisions 0011 and 0012).
+"""The request and response files of the core's helper programs (decisions 0011 to 0013).
 
-The TypeScript and Dart helpers speak the same protocol: a request is a JSON
-file in the work area, and the response is one JSON object on stdout that
+The TypeScript, Dart, and PHP helpers speak the same protocol: a request is a
+JSON file in the work area, and the response is one JSON object on stdout that
 carries the protocol version. The response is data the core checks field by
 field; a missing field or one of an unexpected type is a failure of the named
-helper, never a finding.
+helper, never a finding. A helper that cannot answer may say why in a string
+`failure` field instead, which is a failure of the helper too.
 """
 
 from __future__ import annotations
@@ -44,6 +45,9 @@ def read_response(tool: str, command: str, completed: Completed) -> Entry:
         fail(tool, str(error))
     if not isinstance(response, dict) or response.get("protocol") != PROTOCOL:
         fail(tool, f"{command} answered without protocol {PROTOCOL}")
+    reason = response.get("failure")
+    if isinstance(reason, str):
+        fail(tool, f"{command} failed: {reason}")
     return response
 
 

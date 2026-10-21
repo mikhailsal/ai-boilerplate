@@ -8,13 +8,8 @@ from datetime import UTC, datetime
 
 from quality.catalog import build_registry
 from quality.cli import Subcommands
-from quality.cli.local import (
-    candidate_of,
-    coverage_json,
-    coverage_text,
-    local_profiles,
-    local_tools,
-)
+from quality.cli.local import local_profiles, local_tools
+from quality.cli.verdict import candidate_of, coverage_json, coverage_text
 from quality.diagnostics import Outcome
 from quality.diagnostics.render import outcome_to_json, render_text
 from quality.engine import Report, Settings, check_candidate

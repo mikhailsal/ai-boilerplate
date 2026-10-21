@@ -106,6 +106,16 @@ source = ["bin", "lib"]
 tests = { unit = ["test"] }
 capabilities = ["cli"]
 
+# The PHP helper of the PHP profile (decision 0013), checked by that profile.
+[[components]]
+id = "quality-php-helper"
+role = "helper"
+profile = "php"
+root = "tools/quality/helpers/php"
+source = ["bin", "src"]
+tests = { unit = ["tests"] }
+capabilities = ["cli"]
+
 [[classification]]
 pattern = "quality"
 category = "config"

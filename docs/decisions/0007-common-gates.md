@@ -1,6 +1,6 @@
 # 0007 Common gates
 
-Status: accepted (P03); amended in P06.
+Status: accepted (P03); amended in P06 and P08.
 
 ## Scope and order
 
@@ -15,9 +15,8 @@ then checks every candidate file, not only the changed ones:
 4. documentation rules;
 5. Markdown structure lint (pymarkdown);
 6. secret scan (gitleaks) of the snapshot;
-7. profile gates of each active component. Python, TypeScript, and Dart
-   components get structure metrics and module architecture. PHP reports
-   `profiles.unavailable`, an environment error, until P08 delivers it.
+7. profile gates of each active component. Python, TypeScript, Dart, and
+   PHP components get structure metrics and module architecture.
 
 Exceptions are applied last. Rules that need the network never run here:
 external links have their own command, and dependency audits run in merge CI
@@ -76,7 +75,8 @@ The TypeScript helper implements the same definitions with the TypeScript
 parser ([decision 0011](0011-typescript-profile.md#structure-and-architecture));
 the Dart helper with package:analyzer
 ([decision 0012](0012-dart-profile.md#structure-and-architecture)); the PHP
-helper follows in P08.
+helper with nikic/php-parser
+([decision 0013](0013-php-profile.md#structure-and-architecture)).
 
 ## Module architecture
 

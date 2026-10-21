@@ -105,7 +105,15 @@ def test_the_committed_manifest_pins_gitleaks_with_its_rules() -> None:
     assert all(artifact.member == "gitleaks" for artifact in gitleaks.artifacts.values())
     assert list(gitleaks.extras) == ["gitleaks.toml"]
     assert "/83d9cd684c87d95d656c1458ef04895a7f1cbd8e/" in gitleaks.extras["gitleaks.toml"].url
-    assert set(manifest.tools) == {"uv", "gitleaks", "osv-scanner", "actionlint", "node", "dart"}
+    assert set(manifest.tools) == {
+        "uv",
+        "gitleaks",
+        "osv-scanner",
+        "actionlint",
+        "node",
+        "dart",
+        "composer",
+    }
 
 
 def test_the_committed_manifest_pins_node_as_a_tree_and_the_npm_packages() -> None:
@@ -130,6 +138,25 @@ def test_the_committed_manifest_pins_the_dart_sdk_as_a_zip_tree_and_the_pub_pack
         assert (artifact.packaging, artifact.member) == (Packaging.TREE, "dart-sdk")
         assert artifact.url.endswith(f"/3.13.6/sdk/dartsdk-linux-{suffix}-release.zip")
     assert manifest.packages["pub"] == {"test": "1.33.0", "coverage": "1.16.0", "lints": "6.1.0"}
+
+
+def test_the_committed_manifest_pins_composer_its_packages_and_the_php_runtimes() -> None:
+    manifest = load_manifest()
+    composer = manifest.tools["composer"]
+    assert (composer.version, composer.program) == ("2.10.3", "composer")
+    artifacts = set(composer.artifacts.values())
+    assert len(artifacts) == 1
+    (artifact,) = artifacts
+    assert artifact.packaging is Packaging.BINARY
+    assert artifact.url == "https://getcomposer.org/download/2.10.3/composer.phar"
+    assert manifest.packages["composer"] == {
+        "phpunit/phpunit": "13.4.3",
+        "phpunit/php-code-coverage": "14.4.1",
+        "phpstan/phpstan": "2.3.1",
+        "friendsofphp/php-cs-fixer": "3.95.27",
+    }
+    versions = {name: runtime.version for name, runtime in manifest.runtimes.items()}
+    assert versions == {"php": "8.4", "xdebug": "3.5"}
 
 
 TREE = TOOL.replace(
@@ -177,6 +204,33 @@ def test_pub_package_names_may_contain_underscores() -> None:
     assert manifest.packages == {"pub": {"build_runner": "2.4.0"}}
 
 
+def test_composer_package_names_have_a_vendor() -> None:
+    document = f'{TOOL}\n[packages.composer]\n"phpunit/php-code-coverage" = "14.4.1"\n'
+    manifest = parse_manifest(document.encode())
+    assert manifest.packages == {"composer": {"phpunit/php-code-coverage": "14.4.1"}}
+
+
+def test_runtimes_are_optional_and_name_a_minor_version() -> None:
+    assert parse_manifest(TOOL.encode()).runtimes == {}
+    manifest = parse_manifest(f'{TOOL}\n[runtimes.php]\nversion = "8.4"\n'.encode())
+    assert manifest.runtimes["php"].version == "8.4"
+
+
+@pytest.mark.parametrize(
+    "runtime",
+    [
+        '[runtimes.php]\nversion = "8.4.1"\n',
+        '[runtimes.php]\nversion = "8"\n',
+        "[runtimes.php]\nversion = 8.4\n",
+        '[runtimes.php]\nversion = "8.4"\nurl = "https://e.com"\n',
+        '[runtimes.PHP]\nversion = "8.4"\n',
+    ],
+)
+def test_invalid_runtimes_are_rejected(runtime: str) -> None:
+    with pytest.raises(ManifestError, match="invalid toolchain manifest"):
+        parse_manifest(f"{TOOL}\n{runtime}".encode())
+
+
 @pytest.mark.parametrize(
     "packages",
     [
@@ -184,6 +238,8 @@ def test_pub_package_names_may_contain_underscores() -> None:
         '[packages.npm]\nname = "1.2"\n',
         '[packages.npm]\nName = "1.2.3"\n',
         '[packages.npm]\n"@/name" = "1.2.3"\n',
+        '[packages.composer]\n"vendor//name" = "1.2.3"\n',
+        '[packages.composer]\n"Vendor/name" = "1.2.3"\n',
         '[packages.NPM]\nname = "1.2.3"\n',
     ],
 )

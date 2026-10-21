@@ -114,54 +114,50 @@ def test_the_running_core_is_current_until_a_judging_file_changes(repo: GitRepo)
     assert running_files(root)["toolchains.toml"].startswith("120000 ")
 
 
-def test_the_typescript_helper_sources_and_manifest_judge(repo: GitRepo) -> None:
+# Per helper: the judged files, the source file first and the lockfile last;
+# the tracked files that do not judge; and the directory its installation writes.
+@pytest.mark.parametrize(
+    ("helper", "judged", "unjudged", "installed"),
+    [
+        ("typescript", ("src/main.ts", "package.json"), ("tests/main.test.ts",), "node_modules"),
+        (
+            "dart",
+            ("lib/cli.dart", "bin/main.dart", "pubspec.yaml", "pubspec.lock"),
+            ("test/cli_test.dart", "analysis_options.yaml"),
+            ".dart_tool",
+        ),
+        (
+            "php",
+            ("src/Cli.php", "bin/main.php", "composer.json", "composer.lock"),
+            ("tests/CliTest.php",),
+            "vendor",
+        ),
+    ],
+)
+def test_the_helpers_sources_manifests_and_locks_judge(
+    repo: GitRepo, helper: str, judged: tuple[str, ...], unjudged: tuple[str, ...], installed: str
+) -> None:
     root = write_core(repo)
-    repo.write("tools/quality/helpers/typescript/package.json", '{"type": "module"}\n')
-    repo.write("tools/quality/helpers/typescript/src/main.ts", "run();\n")
-    repo.write("tools/quality/helpers/typescript/tests/main.test.ts", "test();\n")
-    repo.write("tools/quality/helpers/typescript/src/node_modules/x/index.js", "tracked\n")
+    source, lock = judged[0], judged[-1]
+    # A tracked file inside an installation directory of a source tree does not judge.
+    nested = f"{source.partition('/')[0]}/{installed}/index"
+    for name in (*judged, *unjudged, nested):
+        repo.write(f"tools/quality/helpers/{helper}/{name}", f"# {name}\n")
     core = core_of(repo)
     assert {path for path in core.files if path.startswith("helpers/")} == {
-        "helpers/typescript/package.json",
-        "helpers/typescript/src/main.ts",
+        f"helpers/{helper}/{name}" for name in judged
     }
-    helper = root / "helpers" / "typescript"
-    (helper / "node_modules" / "typescript").mkdir(parents=True)
-    (helper / "node_modules" / "typescript" / "package.json").write_text("{}\n")
-    (helper / "src" / "node_modules" / "x" / "index.js").write_text("installed\n")
-    (helper / "tests" / "main.test.ts").write_text("edited();\n")
+    files = root / "helpers" / helper
+    (files / installed / "package").mkdir(parents=True)
+    (files / installed / "package" / "index").write_text("installed\n")
+    for name in (*unjudged, nested):
+        (files / name).write_text("# edited\n")
     assert provenance.provenance(core, root) is Provenance.CURRENT
-    (helper / "src" / "main.ts").write_text("edited();\n")
+    (files / source).write_text("# edited\n")
     assert provenance.provenance(core, root) is Provenance.STALE
-    (helper / "src" / "main.ts").write_text("run();\n")
-    (helper / "package.json").write_text("{}\n")
-    assert provenance.provenance(core, root) is Provenance.STALE
-
-
-def test_the_dart_helper_sources_manifest_and_lock_judge(repo: GitRepo) -> None:
-    root = write_core(repo)
-    for name in ("pubspec.yaml", "pubspec.lock", "bin/main.dart", "lib/cli.dart"):
-        repo.write(f"tools/quality/helpers/dart/{name}", f"# {name}\n")
-    repo.write("tools/quality/helpers/dart/test/cli_test.dart", "void main() {}\n")
-    repo.write("tools/quality/helpers/dart/analysis_options.yaml", "include: x\n")
-    core = core_of(repo)
-    assert {path for path in core.files if path.startswith("helpers/")} == {
-        "helpers/dart/pubspec.yaml",
-        "helpers/dart/pubspec.lock",
-        "helpers/dart/bin/main.dart",
-        "helpers/dart/lib/cli.dart",
-    }
-    helper = root / "helpers" / "dart"
-    (helper / ".dart_tool" / "pub").mkdir(parents=True)
-    (helper / ".dart_tool" / "package_config.json").write_text("{}\n")
-    (helper / "lib" / ".dart_tool").mkdir()
-    (helper / "lib" / ".dart_tool" / "state").write_text("generated\n")
-    (helper / "test" / "cli_test.dart").write_text("void main() { edited(); }\n")
+    (files / source).write_text(f"# {source}\n")
     assert provenance.provenance(core, root) is Provenance.CURRENT
-    (helper / "lib" / "cli.dart").write_text("// edited\n")
-    assert provenance.provenance(core, root) is Provenance.STALE
-    (helper / "lib" / "cli.dart").write_text("# lib/cli.dart\n")
-    (helper / "pubspec.lock").write_text("# changed\n")
+    (files / lock).write_text("# changed\n")
     assert provenance.provenance(core, root) is Provenance.STALE
 
 

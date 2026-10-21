@@ -5,6 +5,7 @@ from __future__ import annotations
 from quality import discovery, engine, gitio, hooks, toolchain
 from quality.adapters import markdown, native, secrets
 from quality.adapters.dart import profile as dart
+from quality.adapters.php import profile as php
 from quality.adapters.python import profile
 from quality.adapters.typescript import profile as typescript
 from quality.diagnostics import RuleRegistry
@@ -50,6 +51,7 @@ def build_registry() -> RuleRegistry:
             *profile.RULES,
             *typescript.RULES,
             *dart.RULES,
+            *php.RULES,
             *hooks.RULES,
         ]
     )

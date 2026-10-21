@@ -1,6 +1,6 @@
 # 0010 Launcher, bootstrap, doctor, and hooks
 
-Status: accepted (P05); amended in P06.
+Status: accepted (P05); amended in P06, P07, and P08.
 
 ## Launcher
 
@@ -53,6 +53,13 @@ The core's `bootstrap` command, after the launcher step:
      throwaway copy of its manifests and those of its workspace members, and
      compiles the structure helper
      ([decision 0012](0012-dart-profile.md#environments));
+   - a PHP component: installs the pinned Composer, probes the system PHP and
+     Xdebug against the manifest's `[runtimes]`, runs `composer install
+     --no-scripts --no-plugins` once per lockfile with network access in a
+     throwaway copy of `composer.json` and `composer.lock` (plus the
+     manifests of path packages inside the repository), and installs the
+     structure helper's locked packages
+     ([decision 0013](0013-php-profile.md#environments));
 3. installs the managed `pre-commit` hook, and the `pre-push` hook with
    `--pre-push`.
 
@@ -90,7 +97,9 @@ to `<name>.local`, or to unset `core.hooksPath`, and run bootstrap again.
 - every component of the staged candidate passes its configuration check and
   installs offline (`uv sync --offline` for Python, `npm ci --offline` with
   the installed Node for TypeScript, `dart pub get --offline` with the
-  installed SDK for Dart; Node and Dart are located, never downloaded);
+  installed SDK for Dart, `composer install` with the network disabled and
+  the system PHP and Xdebug probed for PHP; Node, Dart, and Composer are
+  located, never downloaded);
 - the `pre-commit` hook is current: missing or outdated is `hooks.missing`,
   a foreign file is `hooks.conflict`. The optional `pre-push` hook is listed;
   only an outdated one warns.

@@ -1,6 +1,6 @@
 # 0002 Installation strategy
 
-Status: accepted (P00); amended in P03, P05, and P06.
+Status: accepted (P00); amended in P03, P05, P06, and P08.
 
 Commands that are not implemented yet are named in plain text with the phase
 that delivers them; `quality check` fails documentation that presents a
@@ -18,9 +18,14 @@ missing command as runnable.
   `quality tools install` for the standalone tools) and while updating pins
   (P11).
 - For the PHP profile only: PHP 8.4 CLI with the `dom`, `mbstring`, `xml`,
-  `xmlwriter`, and `tokenizer` extensions, plus Xdebug 3.5 installed but not
+  `xmlwriter`, and `tokenizer` extensions, the `zip` extension or the `unzip`
+  command for Composer's archives, plus Xdebug 3.5 installed but not
   necessarily enabled (Debian/Ubuntu: `php8.4-cli php8.4-xml php8.4-mbstring
-  php8.4-xdebug`, from the distribution or the ondrej PPA).
+  php8.4-zip php8.4-xdebug`, from the distribution or the ondrej PPA). The
+  gate loads Xdebug itself when the system does not; PCOV and phpdbg cannot
+  replace it. The core's own acceptance suite also needs PCOV
+  (`php8.4-pcov`) to prove that a machine with only PCOV cannot pass
+  ([decision 0013](0013-php-profile.md#runtime)).
 
 ## Managed downloads
 
@@ -38,14 +43,17 @@ standalone tools:
 - Dart profile active: the Dart SDK, installed by `quality bootstrap` only
   when a Dart component exists, or explicitly with `quality tools install
   dart` (since P07);
-- PHP profile active: `composer.phar`;
+- PHP profile active: `composer.phar`, installed by `quality bootstrap` only
+  when a PHP component exists, or explicitly with `quality tools install
+  composer` (since P08);
 - merge CI and maintainers: osv-scanner and actionlint.
 
 The PHP runtime is the one toolchain not downloaded: portable PHP builds with
 Xdebug are not a maintained upstream artifact. Its minor version and the
-Xdebug minor version are pinned and verified by `quality doctor` (with the PHP
-profile, P08). This is the honest gap: patch versions of PHP and Xdebug follow
-the system packages.
+Xdebug minor version are pinned under `[runtimes]` in
+`tools/quality/toolchains.toml` and verified by `quality bootstrap`,
+`quality doctor`, and every check that runs a PHP tool. This is the honest
+gap: patch versions of PHP and Xdebug follow the system packages.
 
 ## Project dependencies
 
@@ -56,7 +64,10 @@ the system packages.
 - Dart components: `dart pub get --enforce-lockfile` from `pubspec.lock`,
   with the shared pub cache `$XDG_CACHE_HOME/quality/pub`
   ([decision 0012](0012-dart-profile.md#environments)).
-- PHP components: `composer install` from `composer.lock`.
+- PHP components: `composer install --no-scripts --no-plugins` from
+  `composer.lock`, with the shared Composer cache
+  `$XDG_CACHE_HOME/quality/composer`
+  ([decision 0013](0013-php-profile.md#environments)).
 
 Bootstrap fills the package caches. Ordinary checks run the same commands in
 offline mode (`--offline`, `COMPOSER_DISABLE_NETWORK=1`), so a check never

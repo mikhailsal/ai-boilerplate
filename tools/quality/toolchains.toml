@@ -107,6 +107,22 @@ sha256 = "73753a2e009505a2ba0d0c0bd449e248001a01984c805a3fcc19671dbb9616b1"
 packaging = "tree"
 member = "dart-sdk"
 
+# Composer installs a PHP component's locked packages. It is a PHP archive that
+# the system PHP runs, the same file on every architecture (decision 0013).
+[tools.composer]
+version = "2.10.3"
+binary = "composer"
+
+[tools.composer.artifacts.x86_64]
+url = "https://getcomposer.org/download/2.10.3/composer.phar"
+sha256 = "7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6"
+packaging = "binary"
+
+[tools.composer.artifacts.aarch64]
+url = "https://getcomposer.org/download/2.10.3/composer.phar"
+sha256 = "7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6"
+packaging = "binary"
+
 # Exact versions a TypeScript component must lock in its package-lock.json;
 # npm installs them from that lockfile (decision 0011).
 [packages.npm]
@@ -123,3 +139,19 @@ member = "dart-sdk"
 "test" = "1.33.0"
 "coverage" = "1.16.0"
 "lints" = "6.1.0"
+
+# Exact versions a PHP component must lock in its composer.lock (decision 0013);
+# php-code-coverage writes the coverage reports that the gate parses.
+[packages.composer]
+"phpunit/phpunit" = "13.4.3"
+"phpunit/php-code-coverage" = "14.4.1"
+"phpstan/phpstan" = "2.3.1"
+"friendsofphp/php-cs-fixer" = "3.95.27"
+
+# System programs the PHP profile runs but does not install: PHP itself and the
+# Xdebug extension that measures branches, at these minor versions (decision 0013).
+[runtimes.php]
+version = "8.4"
+
+[runtimes.xdebug]
+version = "3.5"

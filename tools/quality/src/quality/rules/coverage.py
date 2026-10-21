@@ -74,8 +74,12 @@ BRANCH_UNMEASURED = Rule(
     id="coverage.branch-unmeasured",
     title="The coverage report has no branch measurement",
     requirement="R06",
-    explanation="Branch coverage is mandatory; a report without branch data cannot pass.",
-    remedy="Enable branch collection in the profile's coverage tool.",
+    explanation=(
+        "Branch coverage is mandatory: neither a report without branch data nor a source file "
+        "whose branches the tool did not measure can pass. Xdebug measures a PHP file only "
+        "once it is loaded, and the gate loads only files that just declare (decision 0013)."
+    ),
+    remedy="Enable branch collection; a PHP file that runs code when loaded needs a test.",
     kind=Kind.ENVIRONMENT,
 )
 NOT_APPLICABLE = Rule(
@@ -157,20 +161,15 @@ def _changed(files: list[FileCoverage], changed: Mapping[str, frozenset[int]]) -
     return total(counters)
 
 
-def _uncovered_changes(
-    files: list[FileCoverage], changed: Mapping[str, frozenset[int]]
-) -> list[str]:
-    found: list[str] = []
-    for file in files:
-        missed = (changed.get(file.path, frozenset()) & file.executable) - file.covered
-        found.extend(f"{file.path}:{line}" for line in sorted(missed))
-    return found
-
-
 def _changed_finding(
     files: list[FileCoverage], expectation: Expectation, counter: Counter, minimum: int
 ) -> Diagnostic:
-    missed = _uncovered_changes(files, expectation.changed)
+    changed = expectation.changed
+    missed = [
+        f"{file.path}:{line}"
+        for file in files
+        for line in sorted((changed.get(file.path, frozenset()) & file.executable) - file.covered)
+    ]
     shown = ", ".join(missed[:SHOWN_LINES])
     more = f" and {len(missed) - SHOWN_LINES} more" if len(missed) > SHOWN_LINES else ""
     message = (
@@ -191,6 +190,14 @@ def _accounting(expectation: Expectation, report: CoverageReport) -> Iterator[Di
         roots = ", ".join(f"'{root}'" for root in expectation.missing_roots)
         message = f"'{component}' has no expected source files; missing source roots: {roots}"
         yield NO_SOURCE.diagnostic(message, component=component)
+
+
+def _unmeasured(expectation: Expectation, files: list[FileCoverage]) -> Iterator[Diagnostic]:
+    for file in (f for f in files if not f.branches_measured):
+        message = f"the coverage tool did not measure the branches of '{file.path}'"
+        yield BRANCH_UNMEASURED.diagnostic(
+            message, location=Location(file.path), component=expectation.component
+        )
 
 
 def _new_files(expectation: Expectation, files: list[FileCoverage]) -> Iterator[Diagnostic]:
@@ -233,7 +240,7 @@ def evaluate(
         branch,
         _changed(files, expectation.changed),
     )
-    found = list(_accounting(expectation, report))
+    found = [*_accounting(expectation, report), *_unmeasured(expectation, files)]
     if expectation.sources or not expectation.missing_roots:
         found.extend(_floors(summary, minima))
     if summary.changed.applicable and not summary.changed.meets(minima.changed_lines):

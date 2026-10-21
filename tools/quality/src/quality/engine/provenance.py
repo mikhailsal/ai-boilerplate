@@ -3,13 +3,14 @@
 The launcher runs the core from the working tree. Before a verdict command
 decides anything, the core compares the files that decide verdicts, its package,
 its toolchain manifest, the sources and manifest of the TypeScript helper it
-runs on Node, and the sources, manifest, and lockfile of the Dart helper it
-compiles, with the candidate's. When they differ, the candidate's core is
-materialized and runs the same command as a child process, so unstaged edits to
-the validator do not change the verdict. The helpers' installed `node_modules`
-and `.dart_tool` do not judge: the TypeScript helper imports TypeScript and
-ESLint from the checked component, and the Dart helper is compiled from its
-judged files and locked packages. The comparison itself runs from the working
+runs on Node, and the sources, manifests, and lockfiles of the Dart helper it
+compiles and the PHP helper it installs, with the candidate's. When they
+differ, the candidate's core is materialized and runs the same command as a
+child process, so unstaged edits to the validator do not change the verdict.
+The helpers' installed `node_modules`, `.dart_tool`, and `vendor` do not judge:
+the TypeScript helper imports TypeScript and ESLint from the checked
+component, and the Dart and PHP helpers are built from their judged files and
+locked packages. The comparison itself runs from the working
 tree; CI runs the committed core and is the boundary for edits to this step.
 """
 
@@ -37,14 +38,18 @@ HELPER = "helpers/typescript"
 HELPER_SOURCE = f"{HELPER}/src"
 HELPER_MANIFEST = f"{HELPER}/package.json"
 DART_HELPER = "helpers/dart"
+PHP_HELPER = "helpers/php"
 CACHE = "__pycache__"
 NODE_MODULES = "node_modules"
 DART_TOOL = ".dart_tool"
+VENDOR = "vendor"
 MANIFESTS = (
     MANIFEST,
     HELPER_MANIFEST,
     f"{DART_HELPER}/pubspec.yaml",
     f"{DART_HELPER}/pubspec.lock",
+    f"{PHP_HELPER}/composer.json",
+    f"{PHP_HELPER}/composer.lock",
 )
 # The source trees that judge, each with the directory name a walk skips.
 TREES = (
@@ -52,6 +57,8 @@ TREES = (
     (HELPER_SOURCE, NODE_MODULES),
     (f"{DART_HELPER}/bin", DART_TOOL),
     (f"{DART_HELPER}/lib", DART_TOOL),
+    (f"{PHP_HELPER}/bin", VENDOR),
+    (f"{PHP_HELPER}/src", VENDOR),
 )
 CHILD_TIMEOUT = 6 * 3600.0
 # The launcher runs the core with the same statement; it puts the source root first.

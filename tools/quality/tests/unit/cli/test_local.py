@@ -1,4 +1,3 @@
-import argparse
 import sys
 from pathlib import Path
 
@@ -13,10 +12,7 @@ from quality.adapters.typescript.profile import TypeScriptProfile
 from quality.adapters.typescript.provision import TypeScriptSetup
 from quality.cli import local
 from quality.cli.local import (
-    candidate_of,
     core_tool,
-    coverage_json,
-    coverage_text,
     local_fixers,
     local_profiles,
     local_setups,
@@ -29,9 +25,7 @@ from quality.cli.local import (
     pinned,
     worktree_files,
 )
-from quality.coverage import Counter
 from quality.policy import Profile
-from quality.rules.coverage import ComponentCoverage
 from quality.testkit.gitrepo import GitRepo
 from quality.toolchain import (
     ManifestError,
@@ -42,11 +36,6 @@ from quality.toolchain import (
     python_root,
 )
 from quality.toolchain.install import MISSING
-
-SUMMARIES = (
-    ComponentCoverage("a", Counter(3, 4), Counter(1, 2), Counter(0, 0)),
-    ComponentCoverage("b", Counter(1, 1), None, Counter(1, 1)),
-)
 
 
 def missing(call: object) -> str:
@@ -119,7 +108,7 @@ def test_core_tools_live_beside_the_core_interpreter(
 
 def test_the_python_profile_uses_the_installed_tools() -> None:
     profiles = local_profiles()
-    assert list(profiles) == [Profile.PYTHON, Profile.TYPESCRIPT, Profile.DART]
+    assert list(profiles) == [Profile.PYTHON, Profile.TYPESCRIPT, Profile.DART, Profile.PHP]
     python = profiles[Profile.PYTHON]
     assert isinstance(python, PythonProfile)
     assert (python.ruff, python.pyright) == (core_tool("ruff"), core_tool("pyright"))
@@ -178,54 +167,3 @@ def test_the_fixer_lists_the_working_tree(project: GitRepo) -> None:
     project.write("new.txt", "x\n")
     (project.path / "dir").mkdir()
     assert worktree_files(project.path) == [".gitignore", "a.txt", "new.txt"]
-
-
-def test_a_revision_is_the_candidate_when_named(project: GitRepo) -> None:
-    project.write("a.txt", "staged\n")
-    project.git("add", "a.txt")
-    repo, candidate = candidate_of(argparse.Namespace(rev="HEAD"))
-    assert repo.worktree == project.path.resolve()
-    assert candidate.tree == project.git("rev-parse", "HEAD^{tree}").strip()
-
-
-def test_the_index_a_hook_selected_is_the_candidate(
-    project: GitRepo, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    project.write("b.txt", "second\n")
-    alternate = project.path / ".git" / "alternate-index"
-    project.git("read-tree", "HEAD", GIT_INDEX_FILE=str(alternate))
-    project.git("add", "b.txt", GIT_INDEX_FILE=str(alternate))
-    expected = project.git("write-tree", GIT_INDEX_FILE=str(alternate)).strip()
-    _, default = candidate_of(argparse.Namespace(rev=None))
-    assert default.tree == project.git("rev-parse", "HEAD^{tree}").strip()
-    monkeypatch.setenv("GIT_INDEX_FILE", ".git/alternate-index")
-    _, candidate = candidate_of(argparse.Namespace(rev=None))
-    assert candidate.tree == expected
-
-
-def test_coverage_is_described_per_component() -> None:
-    assert coverage_text(SUMMARIES) == (
-        "unit coverage of a: line 75.00% (3/4), branch 50.00% (1/2), "
-        "changed lines not applicable (0/0)\n"
-        "unit coverage of b: line 100.00% (1/1), branch not measured, "
-        "changed lines 100.00% (1/1)\n"
-    )
-    assert coverage_text(()) == ""
-
-
-def test_coverage_is_reported_as_json_counters() -> None:
-    assert coverage_json(SUMMARIES) == [
-        {
-            "component": "a",
-            "line": {"covered": 3, "total": 4},
-            "branch": {"covered": 1, "total": 2},
-            "changed": {"covered": 0, "total": 0},
-        },
-        {
-            "component": "b",
-            "line": {"covered": 1, "total": 1},
-            "branch": None,
-            "changed": {"covered": 1, "total": 1},
-        },
-    ]
-    assert coverage_json(()) == []

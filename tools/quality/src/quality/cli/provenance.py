@@ -15,7 +15,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 import quality
-from quality.cli.local import candidate_of
+from quality.cli.verdict import candidate_of
 from quality.diagnostics import Diagnostic, Outcome
 from quality.diagnostics.render import outcome_to_json, render_text
 from quality.engine.provenance import (

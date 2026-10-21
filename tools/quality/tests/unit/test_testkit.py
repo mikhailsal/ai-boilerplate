@@ -115,6 +115,31 @@ def test_the_dart_helper_is_embedded_without_its_tests_and_packages(
     ]
 
 
+def test_the_php_helper_is_embedded_without_its_tests_and_packages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "core" / "src"
+    (source / "quality").mkdir(parents=True)
+    for name in ("toolchains.toml", "uv.lock"):
+        (source.parent / name).write_text("")
+    helper = source.parent / "helpers" / "php"
+    for name in ("bin/main.php", "src/Cli.php", "tests/CliTest.php", "vendor/autoload.php"):
+        (helper / name).parent.mkdir(parents=True, exist_ok=True)
+        (helper / name).write_text("<?php\n")
+    for name in ("composer.json", "composer.lock"):
+        (helper / name).write_text("{}\n")
+    monkeypatch.setattr(scratch, "CORE_SOURCE", source)
+    embed_core(tmp_path / "copy")
+    copied = tmp_path / "copy" / "helpers" / "php"
+    assert sorted(path.relative_to(copied).as_posix() for path in copied.rglob("*.*")) == [
+        "bin/main.php",
+        "composer.json",
+        "composer.lock",
+        "src/Cli.php",
+    ]
+    assert not (tmp_path / "copy" / "helpers" / "dart").exists()
+
+
 def test_scratch_commits_stage_the_named_paths_or_everything(tmp_path: Path) -> None:
     project = create_project(tmp_path / "project")
     first = project.head()

@@ -136,6 +136,17 @@ def test_a_report_without_branch_data_cannot_pass() -> None:
     assert found[0].kind is Kind.ENVIRONMENT
 
 
+def test_a_source_file_whose_branches_were_not_measured_cannot_pass() -> None:
+    loaded = measured(SOURCE, 4, 4, Counter(2, 2))
+    never = FileCoverage(OTHER, frozenset({3}), frozenset(), branches_measured=False)
+    ignored = FileCoverage("src/other.py", frozenset({3}), frozenset(), branches_measured=False)
+    summary, found = judged(expect(SOURCE, OTHER), report(loaded, never, ignored))
+    assert summary.branch == Counter(2, 2)
+    assert rules_of(found) == ["coverage.branch-unmeasured"]
+    assert found[0].message == (f"the coverage tool did not measure the branches of '{OTHER}'")
+    assert (found[0].location, found[0].kind) == (Location(OTHER), Kind.ENVIRONMENT)
+
+
 def test_measured_code_without_branches_is_not_applicable() -> None:
     _, found = judged(expect(SOURCE), report(measured(SOURCE, 4, 4)))
     assert [d.message for d in found] == ["branch coverage of 'app' is not applicable (0/0)"]

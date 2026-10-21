@@ -52,12 +52,18 @@ def total(counters: Iterable[Counter]) -> Counter:
 
 @dataclass(frozen=True, slots=True)
 class FileCoverage:
-    """One source file: its executable lines, the covered subset, and its branch counts."""
+    """One source file: its executable lines, the covered subset, and its branch counts.
+
+    `branches_measured` is false when the tool measured the file's lines but not
+    its branches although it has some, such as a PHP file that Xdebug never
+    loaded: its branch counter is then unknown, not zero.
+    """
 
     path: str
     executable: frozenset[int]
     covered: frozenset[int]
     branches: Counter = EMPTY
+    branches_measured: bool = True
 
     def __post_init__(self) -> None:
         if not self.covered <= self.executable:

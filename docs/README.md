@@ -16,6 +16,7 @@
 | [0010](decisions/0010-launcher-bootstrap-and-hooks.md) | Launcher, bootstrap, doctor, and managed hooks |
 | [0011](decisions/0011-typescript-profile.md) | TypeScript profile: Prettier, ESLint, tsc, Vitest |
 | [0012](decisions/0012-dart-profile.md) | Dart profile: dart format, dart analyze, package:test, package:coverage |
+| [0013](decisions/0013-php-profile.md) | PHP profile: Composer, PHP CS Fixer, PHPStan, PHPUnit with Xdebug |
 
 ## Reference
 

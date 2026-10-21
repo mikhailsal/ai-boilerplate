@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from quality.testkit.scratch import Project, create_project, dart, output, typescript
+from quality.testkit.scratch import Project, create_project, dart, output, php, typescript
 
 
 @pytest.fixture
@@ -32,6 +32,15 @@ def web(tmp_path: Path) -> Project:
 def calc(tmp_path: Path) -> Project:
     """Return a bootstrapped project with one Dart component, `calc`."""
     created = create_project(tmp_path / "project", dart("calc"))
+    result = created.quality("bootstrap")
+    assert result.returncode == 0, output(result)
+    return created
+
+
+@pytest.fixture
+def shop(tmp_path: Path) -> Project:
+    """Return a bootstrapped project with one PHP component, `shop`."""
+    created = create_project(tmp_path / "project", php("shop"))
     result = created.quality("bootstrap")
     assert result.returncode == 0, output(result)
     return created

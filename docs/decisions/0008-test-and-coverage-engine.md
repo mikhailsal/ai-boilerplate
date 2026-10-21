@@ -1,6 +1,6 @@
 # 0008 Test and coverage engine
 
-Status: accepted (P04).
+Status: accepted (P04); amended in P08.
 
 ## Scope
 
@@ -11,8 +11,9 @@ operations: which source files it must account for, how to run one suite, and
 how to parse its native coverage report. The Python runner
 ([decision 0009](0009-python-profile.md)) and `quality test` arrived in P05,
 the TypeScript runner ([decision 0011](0011-typescript-profile.md)) in P06,
-and the Dart runner ([decision 0012](0012-dart-profile.md)) in P07; PHP
-follows in P08. Native measurement semantics are described in
+the Dart runner ([decision 0012](0012-dart-profile.md)) in P07, and the PHP
+runner ([decision 0013](0013-php-profile.md)) in P08. Native measurement
+semantics are described in
 [decision 0005](0005-coverage-measurement.md).
 
 ## Which components run
@@ -122,7 +123,8 @@ fails. A report without branch measurement fails with
 | --- | --- | --- |
 | coverage.py JSON, format 3 | Python | Per-file summaries and totals against the listed lines and arcs |
 | LCOV | Vitest, Dart `coverage`, coverage.py | `LF`, `LH`, `BRF`, `BRH` when present; repeated `SF` blocks merge |
-| Clover XML | PHPUnit | File statement metrics against the `stmt` lines |
+| Clover XML | PHPUnit (branches only) | Covered statements and branches within their totals; every `stmt` record an executable JSONL line in the same state |
+| php-code-coverage JSONL | PHPUnit (lines) | Per-file totals against the lines, `meta.json` totals, and Clover's statement totals; every file once and present in Clover |
 | JUnit XML | pytest, Vitest, PHPUnit | Declared tests, failures, errors, skipped on every suite |
 | JSON reporter events | `dart test` | A final `done` event; every finished test was started once and finishes once |
 

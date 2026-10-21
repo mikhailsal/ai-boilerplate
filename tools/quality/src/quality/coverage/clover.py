@@ -1,17 +1,38 @@
-"""Clover XML reports, as written by PHPUnit with Xdebug branch coverage."""
+"""Clover XML reports, as written by PHPUnit with Xdebug branch coverage.
+
+Each `<file>` has `<line type="stmt">` records with execution counts and
+`<metrics>` with its statement and branch (`conditionals`) totals. PHPUnit
+writes a method's record instead of a statement record when both fall on the
+same line, so the statement of a one-line method is counted in the totals but
+has no record of its own. The lines therefore come from PHPUnit's JSONL report
+and only the branches from Clover (`phpunit.py`); the records that Clover has
+are checked against JSONL there.
+"""
 
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from xml.etree.ElementTree import Element
 
 from quality.boundedio import ReportError, parse_xml
-from quality.coverage.model import Counter, CoverageReport, FileCoverage
+from quality.coverage.model import Counter
 from quality.coverage.paths import repository_path
 
 NUMBER = re.compile(r"[0-9]+")
+
+
+@dataclass(frozen=True, slots=True)
+class CloverFile:
+    """One `<file>`: its statement records by line with their counts, and its totals."""
+
+    path: str
+    statements: Mapping[int, int]
+    lines: Counter
+    branches: Counter
 
 
 def _attribute(element: Element, name: str, where: str) -> int:
@@ -22,53 +43,48 @@ def _attribute(element: Element, name: str, where: str) -> int:
     return int(value)
 
 
-def _statements(element: Element, where: str) -> tuple[frozenset[int], frozenset[int]]:
-    executable: set[int] = set()
-    covered: set[int] = set()
+def _statements(element: Element, where: str) -> dict[int, int]:
+    statements: dict[int, int] = {}
     for line in element.findall("line"):
         if line.get("type") != "stmt":
             continue
         number = _attribute(line, "num", where)
-        if number == 0 or number in executable:
+        if number == 0 or number in statements:
             msg = f"{where}: statement line {number} is invalid or repeated"
             raise ReportError(msg)
-        executable.add(number)
-        if _attribute(line, "count", where):
-            covered.add(number)
-    return frozenset(executable), frozenset(covered)
+        statements[number] = _attribute(line, "count", where)
+    return statements
 
 
-def _file(path: str, element: Element, where: str) -> FileCoverage:
-    executable, covered = _statements(element, where)
+def _counter(metrics: Element, covered: str, total: str, what: str, where: str) -> Counter:
+    taken, possible = _attribute(metrics, covered, where), _attribute(metrics, total, where)
+    if taken > possible:
+        msg = f"{where}: more covered {what} than {what}"
+        raise ReportError(msg)
+    return Counter(taken, possible)
+
+
+def _file(path: str, element: Element, where: str) -> CloverFile:
     metrics = element.find("metrics")
     if metrics is None:
         msg = f"{where}: <file> has no <metrics>"
         raise ReportError(msg)
-    declared = (
-        _attribute(metrics, "coveredstatements", where),
-        _attribute(metrics, "statements", where),
+    return CloverFile(
+        path,
+        MappingProxyType(_statements(element, where)),
+        _counter(metrics, "coveredstatements", "statements", "statements", where),
+        _counter(metrics, "coveredconditionals", "conditionals", "conditionals", where),
     )
-    if declared != (len(covered), len(executable)):
-        msg = f"{where}: statement metrics disagree with the <line> records"
-        raise ReportError(msg)
-    taken = _attribute(metrics, "coveredconditionals", where)
-    possible = _attribute(metrics, "conditionals", where)
-    if taken > possible:
-        msg = f"{where}: more covered conditionals than conditionals"
-        raise ReportError(msg)
-    return FileCoverage(path, executable, covered, Counter(taken, possible))
 
 
-def parse_clover(
-    data: bytes, origin: str, *, root: Path, cwd: Path, branches_measured: bool
-) -> CoverageReport:
-    """Parse and cross-check a Clover report; branch counts are per-file conditionals."""
+def clover_files(data: bytes, origin: str, *, root: Path, cwd: Path) -> dict[str, CloverFile]:
+    """Parse a Clover report into its files, keyed by repository path."""
     document = parse_xml(data, origin)
     project = document.find("project") if document.tag == "coverage" else None
     if project is None:
         msg = f"{origin}: not a Clover report (<coverage><project>)"
         raise ReportError(msg)
-    files: dict[str, FileCoverage] = {}
+    files: dict[str, CloverFile] = {}
     for element in project.iter("file"):
         name = element.get("name")
         if not name:
@@ -79,4 +95,4 @@ def parse_clover(
             msg = f"{origin}: {path} is reported twice"
             raise ReportError(msg)
         files[path] = _file(path, element, f"{origin} [{path}]")
-    return CoverageReport(MappingProxyType(files), branches_measured)
+    return files

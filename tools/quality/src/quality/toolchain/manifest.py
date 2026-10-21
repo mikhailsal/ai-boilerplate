@@ -2,7 +2,9 @@
 
 Standalone tools are downloaded and verified by the core. Package pins are the
 exact versions a profile requires in a component's own lockfile; the package
-manager installs them from that lockfile (decision 0011 for npm).
+manager installs them from that lockfile (decision 0011 for npm). Runtimes are
+system programs the core does not install, such as PHP and its Xdebug
+extension, with the minor version a profile requires (decision 0013).
 """
 
 from __future__ import annotations
@@ -30,11 +32,13 @@ type Name = Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9-]*$")]
 type Member = Annotated[
     str, StringConstraints(pattern=r"^[\w.+-]*[\w+-][\w.+-]*(?:/[\w.+-]*[\w+-][\w.+-]*)*$")
 ]
-# npm package names, optionally scoped: lowercase, no leading dot or underscore.
+# Package names of npm, optionally scoped, of pub, and of Composer (`vendor/name`):
+# lowercase, no leading dot or underscore.
 type PackageName = Annotated[
-    str, StringConstraints(pattern=r"^(?:@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$")
+    str, StringConstraints(pattern=r"^(?:@?[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$")
 ]
 type ExactVersion = Annotated[str, StringConstraints(pattern=r"^\d+\.\d+\.\d+$")]
+type MinorVersion = Annotated[str, StringConstraints(pattern=r"^\d+\.\d+$")]
 
 
 class Packaging(StrEnum):
@@ -108,6 +112,12 @@ class Tool(Strict):
         return self.executable or self.binary
 
 
+class Runtime(Strict):
+    """A system program the core does not install, and the minor version it must have."""
+
+    version: MinorVersion
+
+
 class Manifest(Strict):
     """The complete toolchain manifest."""
 
@@ -116,6 +126,7 @@ class Manifest(Strict):
     packages: dict[Name, dict[PackageName, ExactVersion]] = Field(
         default_factory=dict[Name, dict[PackageName, ExactVersion]]
     )
+    runtimes: dict[Name, Runtime] = Field(default_factory=dict[Name, Runtime])
 
 
 class ManifestError(Exception):

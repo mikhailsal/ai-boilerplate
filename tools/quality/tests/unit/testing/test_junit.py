@@ -47,17 +47,20 @@ def test_a_real_vitest_report_is_parsed() -> None:
     ]
 
 
-def test_a_phpunit_shaped_report_with_nested_suites_is_parsed() -> None:
-    results = sample("phpunit-shape.xml")
+def test_a_real_phpunit_report_with_nested_suites_is_parsed() -> None:
+    # Real output of PHPUnit 13.4.3; it reports an incomplete test as skipped.
+    results = sample("phpunit.xml")
     group = "App.Tests.MathTest"
     assert outcomes(results) == [
         (f"{group}::testAdds", PASSED),
         (f"{group}::testFails", FAILED),
         (f"{group}::testErrors", ERROR),
         (f"{group}::testSkipped", SKIPPED),
+        (f"{group}::testIncomplete", SKIPPED),
         (f"{group}::testData with data set #0", PASSED),
-        (f"{group}::testData with data set #1", PASSED),
+        (f'{group}::testData with data set "two"', PASSED),
     ]
+    assert (results.executed, results.failing) == (5, 2)
 
 
 def test_a_single_testsuite_root_is_accepted() -> None:
