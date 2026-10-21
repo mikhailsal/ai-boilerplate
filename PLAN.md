@@ -1,0 +1,77 @@
+# Implementation plan
+
+This plan tracks the construction of the universal quality boilerplate. The
+original assignment is external user input and is not part of the template.
+Requirement IDs `R01`–`R10` and adversarial checks `A01`–`A16` come from that
+assignment and are restated in the [traceability matrix](docs/plan/traceability.md).
+
+## Status
+
+- Current phase: none; P00–P12 are complete
+- Next action: the owner applies and confirms the hosting protection, as the
+  [handoff](docs/plan/handoff.md) describes
+- Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`
+- A box is checked only after the phase implementation commit exists and its
+  checks were run; the phase record holds the SHA and evidence.
+
+## Phases
+
+| Done | Phase | Status | Record |
+| --- | --- | --- | --- |
+| [x] | P00 Inspect and establish the implementation contract | DONE | [P00](docs/plan/phases/P00.md) |
+| [x] | P01 Build and test the minimal core | DONE | [P01](docs/plan/phases/P01.md) |
+| [x] | P02 Implement discovery and candidate snapshots | DONE | [P02](docs/plan/phases/P02.md) |
+| [x] | P03 Implement common policy and documentation gates | DONE | [P03](docs/plan/phases/P03.md) |
+| [x] | P04 Implement the test and coverage engine | DONE | [P04](docs/plan/phases/P04.md) |
+| [x] | P05 Complete Python and activate the strict hooks | DONE | [P05](docs/plan/phases/P05.md) |
+| [x] | P06 Complete TypeScript | DONE | [P06](docs/plan/phases/P06.md) |
+| [x] | P07 Complete Dart | DONE | [P07](docs/plan/phases/P07.md) |
+| [x] | P08 Complete PHP | DONE | [P08](docs/plan/phases/P08.md) |
+| [x] | P09 Complete behavioral scenario enforcement | DONE | [P09](docs/plan/phases/P09.md) |
+| [x] | P10 Implement portable CI and protection preparation | DONE | [P10](docs/plan/phases/P10.md) |
+| [x] | P11 Prove template reuse and document maintenance | DONE | [P11](docs/plan/phases/P11.md) |
+| [x] | P12 Final verification and handoff | DONE | [P12](docs/plan/phases/P12.md) |
+
+Hosted deployment status is tracked separately from implementation status in
+the P10 and P12 records.
+
+## Execution protocol
+
+1. Read the phase prerequisites and acceptance criteria.
+2. Implement a coherent change with meaningful tests and documentation.
+3. Run the required checks, inspect results, and fix failures.
+4. Create the implementation commit.
+5. Mark the phase `[x]` and record the implementation SHA, checks, results,
+   and limitations in the phase record.
+6. Commit that progress update separately; it references the implementation
+   commit, never its own SHA.
+
+Until the repository gate existed (P00–P04), new code was validated with
+pinned native commands. Since P05 every commit of this repository passes the
+gate through the installed hooks. That construction order is not a shipped
+bypass: no flag, environment variable, or permissive mode was added for it.
+
+## Decisions
+
+- [0001 Toolchain pins](docs/decisions/0001-toolchain-pins.md)
+- [0002 Installation strategy](docs/decisions/0002-installation-strategy.md)
+- [0003 Architecture and configuration layout](docs/decisions/0003-architecture.md)
+- [0004 Candidate snapshots and revision semantics](docs/decisions/0004-candidate-snapshots.md)
+- [0005 Coverage measurement paths](docs/decisions/0005-coverage-measurement.md)
+- [0006 Discovery and classification](docs/decisions/0006-discovery-and-classification.md)
+- [0007 Common gates](docs/decisions/0007-common-gates.md)
+- [0008 Test and coverage engine](docs/decisions/0008-test-and-coverage-engine.md)
+- [0009 Python profile](docs/decisions/0009-python-profile.md)
+- [0010 Launcher, bootstrap, doctor, and hooks](docs/decisions/0010-launcher-bootstrap-and-hooks.md)
+- [0011 TypeScript profile](docs/decisions/0011-typescript-profile.md)
+- [0012 Dart profile](docs/decisions/0012-dart-profile.md)
+- [0013 PHP profile](docs/decisions/0013-php-profile.md)
+- [0014 Behavioral scenarios](docs/decisions/0014-behavioral-scenarios.md)
+- [0015 CI wrappers and merge gates](docs/decisions/0015-ci-wrappers-and-merge-gates.md)
+- [0016 Template lifecycle](docs/decisions/0016-template-lifecycle.md)
+
+## Resumption
+
+On resumption: inspect `git status` and `git log`, read this file and the last
+phase record, verify that the recorded implementation SHA exists, and continue
+from the first incomplete prerequisite.
