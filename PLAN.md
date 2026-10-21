@@ -7,8 +7,9 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 
 ## Status
 
-- Current phase: P12
-- Next action: final verification and handoff
+- Current phase: none; P00–P12 are complete
+- Next action: the owner applies and confirms the hosting protection, as the
+  [handoff](docs/plan/handoff.md) describes
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`
 - A box is checked only after the phase implementation commit exists and its
   checks were run; the phase record holds the SHA and evidence.
@@ -29,7 +30,7 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 | [x] | P09 Complete behavioral scenario enforcement | DONE | [P09](docs/plan/phases/P09.md) |
 | [x] | P10 Implement portable CI and protection preparation | DONE | [P10](docs/plan/phases/P10.md) |
 | [x] | P11 Prove template reuse and document maintenance | DONE | [P11](docs/plan/phases/P11.md) |
-| [ ] | P12 Final verification and handoff | TODO | P12 |
+| [x] | P12 Final verification and handoff | DONE | [P12](docs/plan/phases/P12.md) |
 
 Hosted deployment status is tracked separately from implementation status in
 the P10 and P12 records.

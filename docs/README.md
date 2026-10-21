@@ -57,5 +57,7 @@
 - [Implementation plan](../PLAN.md) with one record per phase.
 - [Requirement traceability](plan/traceability.md) and the
   [adversarial checklist](plan/adversarial.md).
+- [Implementation handoff](plan/handoff.md): final status, versions,
+  verification, hosting, and known limitations.
 
 <!-- maintainer-only:end -->
