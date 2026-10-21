@@ -7,8 +7,8 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 
 ## Status
 
-- Current phase: P09
-- Next action: complete behavioral scenario enforcement
+- Current phase: P10
+- Next action: implement portable CI and protection preparation
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `DONE`
 - A box is checked only after the phase implementation commit exists and its
   checks were run; the phase record holds the SHA and evidence.
@@ -26,7 +26,7 @@ assignment and are restated in the [traceability matrix](docs/plan/traceability.
 | [x] | P06 Complete TypeScript | DONE | [P06](docs/plan/phases/P06.md) |
 | [x] | P07 Complete Dart | DONE | [P07](docs/plan/phases/P07.md) |
 | [x] | P08 Complete PHP | DONE | [P08](docs/plan/phases/P08.md) |
-| [ ] | P09 Complete behavioral scenario enforcement | TODO | P09 |
+| [x] | P09 Complete behavioral scenario enforcement | DONE | [P09](docs/plan/phases/P09.md) |
 | [ ] | P10 Implement portable CI and protection preparation | TODO | P10 |
 | [ ] | P11 Prove template reuse and document maintenance | TODO | P11 |
 | [ ] | P12 Final verification and handoff | TODO | P12 |
@@ -65,6 +65,7 @@ bypass: no flag, environment variable, or permissive mode was added for it.
 - [0011 TypeScript profile](docs/decisions/0011-typescript-profile.md)
 - [0012 Dart profile](docs/decisions/0012-dart-profile.md)
 - [0013 PHP profile](docs/decisions/0013-php-profile.md)
+- [0014 Behavioral scenarios](docs/decisions/0014-behavioral-scenarios.md)
 
 ## Resumption
 
