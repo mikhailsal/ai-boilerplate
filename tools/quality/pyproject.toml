@@ -18,6 +18,7 @@ dev = [
     "coverage==7.16.2",
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
+    "pytest-xdist==3.8.0",
     "types-defusedxml==0.7.0.20260504",
     "types-pyyaml==6.0.12.20260906",
 ]
@@ -69,7 +70,12 @@ reportUnnecessaryTypeIgnoreComment = "error"
 [tool.pytest.ini_options]
 testpaths = ["tests/unit"]
 pythonpath = ["src"]
-addopts = ["-p", "no:cacheprovider", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+# One pytest-xdist worker per CPU. No `xdist_group` marks: grouping renames the
+# tests in the JUnit report, and the scenario manifests name them.
+addopts = [
+    "-p", "no:cacheprovider", "--strict-markers", "--strict-config", "--import-mode=importlib",
+    "-n", "auto",
+]
 xfail_strict = true
 
 [tool.coverage.run]

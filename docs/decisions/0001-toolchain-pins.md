@@ -43,6 +43,7 @@ record explains the choices.
 | pytest | 9.1.1 | Unit and integration runner, JUnit XML |
 | coverage.py | 7.16.2 | `--branch`, JSON report format 3 with per-arc data |
 | pytest-cov | 7.1.0 | Thin integration with coverage.py |
+| pytest-xdist | 3.8.0 | Runs the core's own suites on one worker per CPU (added in P11) |
 
 ## TypeScript profile
 

@@ -89,6 +89,11 @@ are locked in `pyproject.toml` and `uv.lock`
 PYTHONPATH=src .venv/bin/python -m pytest tests/unit --cov=src --cov-branch
 ```
 
+pytest runs the core's suites on one pytest-xdist worker per CPU, as set in
+`pyproject.toml`; add `-n 0` to run them in one process, for example under a
+debugger. Any worker may run any test, so each test sets up its own state;
+a module fixture may run once per worker.
+
 <!-- maintainer-only:begin -->
 
 In the template's own repository, `./quality self-test --level acceptance`

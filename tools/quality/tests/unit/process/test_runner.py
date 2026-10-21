@@ -38,8 +38,12 @@ def sh(
 
 
 def wait_gone(pid: int) -> bool:
-    """Wait until a process no longer exists or is an unreaped zombie."""
-    deadline = time.monotonic() + 5
+    """Wait until a process no longer exists or is an unreaped zombie.
+
+    A killed process can take seconds to exit on a loaded machine. The children
+    sleep far longer than this bound, so one that was never killed cannot pass.
+    """
+    deadline = time.monotonic() + 60
     while time.monotonic() < deadline:
         try:
             stat = Path(f"/proc/{pid}/stat").read_text()
@@ -138,8 +142,8 @@ def test_invalid_commands_are_rejected(
 
 
 def test_timeout_kills_the_whole_process_group(tmp_path: Path) -> None:
-    command = sh("sleep 30 & echo $! > child.pid; wait", tmp_path, timeout=0.5)
-    with pytest.raises(ProcessTimeoutError, match=r"timed out after 0\.5s"):
+    command = sh("sleep 600 & echo $! > child.pid; wait", tmp_path, timeout=2)
+    with pytest.raises(ProcessTimeoutError, match=r"timed out after 2s"):
         run(command)
     assert wait_gone(int((tmp_path / "child.pid").read_text()))
 
@@ -148,7 +152,7 @@ def test_timeout_escalates_to_sigkill(tmp_path: Path, monkeypatch: pytest.Monkey
     monkeypatch.setattr(runner, "TERMINATE_GRACE_SECONDS", 0.2)
     script = "trap '' TERM; echo $$ > leader.pid; while :; do sleep 0.05; done"
     with pytest.raises(ProcessTimeoutError):
-        run(sh(script, tmp_path, timeout=0.5))
+        run(sh(script, tmp_path, timeout=2))
     assert wait_gone(int((tmp_path / "leader.pid").read_text()))
 
 
@@ -179,7 +183,7 @@ def test_terminate_tolerates_an_already_reaped_group(tmp_path: Path) -> None:
 
 
 def test_reap_kills_what_outlives_a_normal_exit(tmp_path: Path) -> None:
-    command = dataclasses.replace(sh("sleep 30 & echo $!", tmp_path), reap=True)
+    command = dataclasses.replace(sh("sleep 600 & echo $!", tmp_path), reap=True)
     assert wait_gone(int(run(command).stdout_text()))
 
 

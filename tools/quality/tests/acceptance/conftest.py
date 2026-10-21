@@ -5,6 +5,14 @@ import pytest
 from quality.testkit import greetfixture, notesfixture
 from quality.testkit.scratch import Project, create_project, dart, output, php, typescript
 
+# Each of these runs several whole gates, so they go to the workers first
+# instead of finishing last; the sort is stable, so every worker agrees.
+LONGEST = "test_template.py"
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    items.sort(key=lambda item: item.path.name != LONGEST)
+
 
 @pytest.fixture
 def project(tmp_path: Path) -> Project:

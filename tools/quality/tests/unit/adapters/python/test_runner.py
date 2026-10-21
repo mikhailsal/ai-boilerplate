@@ -142,6 +142,28 @@ def test_a_unit_run_writes_results_and_coverage(tmp_path: Path) -> None:
     assert (unit.output / "coveragerc").read_text() == coverage_settings(unit.output)
 
 
+def test_the_coverage_of_parallel_workers_is_combined(tmp_path: Path) -> None:
+    unit = request(tmp_path)
+    negative = "from app.core import sign\n\n\ndef test_negative() -> None:\n"
+    positive = "from app.core import sign\n\n\ndef test_positive() -> None:\n"
+    files = {
+        "src/app/core.py": CORE,
+        "tests/test_negative.py": negative + "    assert sign(-2) == -1\n",
+        "tests/test_positive.py": positive + "    assert sign(3) == 1\n",
+    }
+    python_project(unit.directory, files)
+    settings = unit.directory / "pyproject.toml"
+    # Each file runs on its own worker, so only the combined data covers both branches.
+    workers = 'addopts = ["-n", "2", "--dist", "loadfile"]\n'
+    settings.write_text(settings.read_text() + workers)
+    done = run_pytest(Path(sys.executable), unit, "pyproject.toml")
+    assert done.returncode == 0
+    assert done.results.read_text().count("<testcase ") == 2
+    report = json.loads(done.coverage.read_bytes() if done.coverage else b"")
+    summary = report["files"]["src/app/core.py"]["summary"]
+    assert (summary["missing_lines"], summary["missing_branches"]) == (0, 0)
+
+
 def test_a_failing_suite_reports_its_status_without_coverage(tmp_path: Path) -> None:
     integration = request(tmp_path, Suite.INTEGRATION, ("integration",))
     python_project(integration.directory, {"integration/test_fails.py": FAILING})

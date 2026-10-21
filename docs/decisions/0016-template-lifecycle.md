@@ -105,9 +105,12 @@ stage fails these tests before any project sees it
   installs only the toolchains of the profiles it uses.
 - Every change to `quality.toml` affects every component, so adding a
   component also runs the core's own suites; that costs minutes, not a
-  bypass. The lifecycle acceptance test runs three such nested gates, about
-  25 minutes on a workstation, so a Python suite may run for two hours
-  before it times out.
+  bypass. Three tests of the lifecycle acceptance test each run such a
+  nested gate, up to nine minutes on a workstation; they are independent, so
+  they run on parallel workers
+  ([decision 0009](0009-python-profile.md#suites)). A Python suite may run
+  for two hours before it times out, so that a machine with few CPUs still
+  finishes.
 - Updating a project from a newer template is a reviewed three-way apply of
   the difference between two exports, not an automatic merge.
 - The decision records stay in the export as the design history; they

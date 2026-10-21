@@ -1,6 +1,6 @@
 # 0009 Python profile
 
-Status: accepted (P05).
+Status: accepted (P05); amended in P11.
 
 ## Scope
 
@@ -72,6 +72,15 @@ of an expected failure fails, and disables the rerun plugins
 and a coverage configuration written by the runner (branches on, data file in
 the output directory). The JSON coverage report is read under the rules of
 decision 0008.
+
+The component's own pytest settings still apply, so a component whose
+lockfile locks pytest-xdist may run its suites on parallel workers;
+pytest-cov combines the workers' coverage before the report is written. The
+core runs its own suites on one worker per CPU: most of their time goes to
+the Git commands, tools, and nested gates they start, which one test at a
+time leaves mostly idle. A worker may run any test, so no test depends on
+another, and none carries an `xdist_group` mark, which would rename it in
+the JUnit report that scenarios are matched against.
 
 Each run gets a new home, cache, and temporary directory in the work area.
 Only the pinned toolchains and uv's package cache are linked in, so tests

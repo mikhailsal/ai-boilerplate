@@ -1,12 +1,12 @@
 """R10, P11, and A16: a project's life from the template export to four languages.
 
-A copy of the candidate is the template clone. The project it exports is
-bootstrapped twice and makes its first commit with a cache that holds only
-the core's Python tooling, so a Python project never needs the toolchains of
-the dormant helpers. With the shared caches, a change to a dormant helper
-runs that helper's checks, and the project then adds a TypeScript, a Dart, a
-PHP, and a second Python component in one commit through the hook. Each step
-depends on the one before it, so the steps are chained module fixtures.
+A copy of the candidate is the template clone, and each test exports its own
+project from it, so the tests run independently. With a cache that holds only
+the core's Python tooling, an export bootstraps twice and makes its first
+commit with a Python component, so a Python project never needs the
+toolchains of the dormant helpers. With the shared caches, a change to a
+dormant helper runs that helper's checks, and a project adds a component of
+every profile in one commit through the hook.
 
 The clone copies every file of the tree the test runs in, which is the
 candidate's snapshot under `./quality self-test`; run natively, untracked
@@ -15,7 +15,7 @@ files of a working tree would become part of the template.
 
 import os
 import shutil
-from dataclasses import dataclass
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -42,14 +42,6 @@ HELPER_COMMENT = "// Names of functions and of the scopes that qualify them."
 PURE = "Pure calculations without a boundary."
 
 
-@dataclass(frozen=True, slots=True)
-class Step:
-    """A project after one step of its life, with what the step printed."""
-
-    project: Project
-    results: dict[str, Completed]
-
-
 def python_component(project: Project, root: str, name: str) -> None:
     files = {
         f"src/{name}/__init__.py": "",
@@ -63,6 +55,12 @@ def add(project: Project, root: str) -> Completed:
     added = project.quality("component", "add", root, "--no-boundary-reason", PURE)
     assert added.returncode == 0, output(added)
     return added
+
+
+def bootstrap(project: Project) -> Completed:
+    result = project.quality("bootstrap")
+    assert result.returncode == 0, output(result)
+    return result
 
 
 def link_or_copy(source: str, target: str) -> None:
@@ -104,110 +102,99 @@ def clone(tmp_path_factory: pytest.TempPathFactory) -> Project:
     return Project(repo)
 
 
-@pytest.fixture(scope="module")
-def bootstrapped(clone: Project, tmp_path_factory: pytest.TempPathFactory) -> Step:
-    target = clone.path.parent / "project"
+def export(clone: Project, target: Path, caches: Mapping[str, str] | None = None) -> Project:
+    """Export a project from the clone; `caches` replaces the shared caches."""
     exported = clone.quality("template", "export", str(target))
     assert exported.returncode == 0, output(exported)
-    caches = python_only_cache(tmp_path_factory.mktemp("python-only"))
-    project = Project(GitRepo(target, clone.repo.home), caches)
-    first = project.quality("bootstrap")
-    assert first.returncode == 0, output(first)
+    return Project(GitRepo(target, clone.repo.home), caches)
+
+
+def local_hook(project: Project) -> Path:
+    """Install the user's own `pre-commit.local` hook, which marks that it ran."""
     local = project.hook("pre-commit.local")
     local.write_text(LOCAL_HOOK)
     local.chmod(0o755)
+    return local
+
+
+def test_the_export_bootstraps_twice_with_only_the_python_tooling(
+    clone: Project, tmp_path: Path
+) -> None:
+    caches = python_only_cache(tmp_path / "caches")
+    project = export(clone, tmp_path / "project", caches)
+    first = bootstrap(project)
+    local = local_hook(project)
     project.write("README.md", "# Edited by the user\n")
     hook = project.hook("pre-commit").read_bytes()
-    second = project.quality("bootstrap")
-    assert second.returncode == 0, output(second)
+    second = bootstrap(project)
     assert project.hook("pre-commit").read_bytes() == hook
     assert local.read_text() == LOCAL_HOOK
     assert (project.path / "README.md").read_text() == "# Edited by the user\n"
-    project.repo.git("checkout", "--", "README.md")
-    return Step(project, {"export": exported, "first": first, "second": second})
+    for result in (first, second):
+        text = output(result)
+        for helper in HELPERS:
+            assert f"quality-{helper}-helper: dormant, so its {helper} tools wait" in text, text
+    cache = Path(caches["XDG_CACHE_HOME"]) / "quality" / "toolchains"
+    manifest = load_manifest()
+    expected = sorted(f"{name}-{manifest.tools[name].version}" for name in CORE_TOOLS)
+    assert sorted(entry.name for entry in cache.iterdir()) == expected
+    assert not (project.repo.home / ".local").exists()
 
 
-@pytest.fixture(scope="module")
-def started(bootstrapped: Step) -> Step:
-    project = bootstrapped.project
+def test_the_first_commit_adds_a_python_component_through_the_hook(
+    clone: Project, tmp_path: Path
+) -> None:
+    project = export(clone, tmp_path / "project", python_only_cache(tmp_path / "caches"))
+    bootstrap(project)
+    local_hook(project)
     python_component(project, "libs/pricing", "pricing")
-    added = add(project, "libs/pricing")
+    add(project, "libs/pricing")
     project.repo.git("add", "quality.toml", "libs/pricing")
-    setup = project.quality("bootstrap")
-    assert setup.returncode == 0, output(setup)
+    bootstrap(project)
     commit = project.commit("Add the pricing library", "quality.toml", "libs/pricing")
-    assert commit.returncode == 0, output(commit)
-    return Step(project, {"add": added, "bootstrap": setup, "commit": commit})
+    text = output(commit)
+    assert commit.returncode == 0, text
+    assert "unit coverage of pricing: line 100.00%" in text, text
+    assert "unit coverage of quality-core" in text
+    assert "-helper" not in text
+    assert (project.path / ".git" / "local-ran").exists()
+    log = project.repo.git("log", "--format=%s")
+    assert log == "Add the pricing library\nStart from the quality template\n"
 
 
-@pytest.fixture(scope="module")
-def helper_changed(started: Step) -> Step:
-    project = Project(started.project.repo)
+def test_changing_a_dormant_helper_runs_its_own_checks(clone: Project, tmp_path: Path) -> None:
+    project = export(clone, tmp_path / "project")
+    bootstrap(project)
     source = project.path / HELPER_SOURCE
     original = source.read_text(encoding="utf-8")
     source.write_text(original.replace(HELPER_COMMENT, f"// The n{HELPER_COMMENT[4:]}", 1))
     project.repo.git("add", HELPER_SOURCE)
-    setup = project.quality("bootstrap")
-    checked = project.quality("check")
-    project.repo.git("restore", "--staged", "--worktree", HELPER_SOURCE)
-    return Step(project, {"bootstrap": setup, "check": checked})
-
-
-@pytest.fixture(scope="module")
-def grown(helper_changed: Step) -> Step:
-    project = helper_changed.project
-    typescript_project(project.path / "apps/web", name="web")
-    dart_project(project.path / "apps/calc", name="calc")
-    php_project(project.path / "apps/shop")
-    python_component(project, "libs/tax", "tax")
-    for root in ("apps/web", "apps/calc", "apps/shop", "libs/tax"):
-        add(project, root)
-    project.repo.git("add", "quality.toml", "apps", "libs/tax")
-    setup = project.quality("bootstrap")
-    assert setup.returncode == 0, output(setup)
-    commit = project.commit("Add a component of every profile", "quality.toml", "apps", "libs")
-    return Step(project, {"bootstrap": setup, "commit": commit})
-
-
-def test_the_export_bootstraps_twice_with_only_the_python_tooling(bootstrapped: Step) -> None:
-    for name in ("first", "second"):
-        text = output(bootstrapped.results[name])
-        for helper in HELPERS:
-            assert f"quality-{helper}-helper: dormant, so its {helper} tools wait" in text, text
-    cache = Path(bootstrapped.project.environ()["XDG_CACHE_HOME"]) / "quality" / "toolchains"
-    manifest = load_manifest()
-    expected = sorted(f"{name}-{manifest.tools[name].version}" for name in CORE_TOOLS)
-    assert sorted(entry.name for entry in cache.iterdir()) == expected
-    assert not (bootstrapped.project.repo.home / ".local").exists()
-
-
-def test_the_first_commit_adds_a_python_component_through_the_hook(started: Step) -> None:
-    text = output(started.results["commit"])
-    assert "unit coverage of pricing: line 100.00%" in text, text
-    assert "unit coverage of quality-core" in text
-    assert "-helper" not in text
-    assert (started.project.path / ".git" / "local-ran").exists()
-    log = started.project.repo.git("log", "--format=%s")
-    assert log == "Add the pricing library\nStart from the quality template\n"
-
-
-def test_changing_a_dormant_helper_runs_its_own_checks(helper_changed: Step) -> None:
-    setup = output(helper_changed.results["bootstrap"])
-    assert helper_changed.results["bootstrap"].returncode == 0, setup
+    setup = output(bootstrap(project))
     assert "quality-typescript-helper: dormant" not in setup
     assert "quality-dart-helper: dormant, so its dart tools wait" in setup
-    checked = helper_changed.results["check"]
+    checked = project.quality("check")
     assert checked.returncode == 0, output(checked)
     assert "unit coverage of quality-typescript-helper" in output(checked)
     assert "unit coverage of quality-dart-helper" not in output(checked)
 
 
-def test_a16_a_clean_four_language_project_passes_the_hook(grown: Step) -> None:
-    commit = grown.results["commit"]
+def test_a16_a_clean_four_language_project_passes_the_hook(clone: Project, tmp_path: Path) -> None:
+    project = export(clone, tmp_path / "project")
+    bootstrap(project)
+    python_component(project, "libs/pricing", "pricing")
+    python_component(project, "libs/tax", "tax")
+    typescript_project(project.path / "apps/web", name="web")
+    dart_project(project.path / "apps/calc", name="calc")
+    php_project(project.path / "apps/shop")
+    for root in ("libs/pricing", "libs/tax", "apps/web", "apps/calc", "apps/shop"):
+        add(project, root)
+    project.repo.git("add", "quality.toml", "apps", "libs")
+    setup = output(bootstrap(project))
+    assert "dormant" not in setup
+    commit = project.commit("Add a component of every profile", "quality.toml", "apps", "libs")
     text = output(commit)
     assert commit.returncode == 0, text
     for component in ("pricing", "tax", "web", "calc", "shop"):
         assert f"unit coverage of {component}: line 100.00%" in text, component
     for helper in HELPERS:
         assert f"unit coverage of quality-{helper}-helper" in text, helper
-    assert "dormant" not in output(grown.results["bootstrap"])
