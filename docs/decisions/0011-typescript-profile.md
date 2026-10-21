@@ -125,7 +125,7 @@ copied one. It never stages anything.
 - Tests and configuration files are code: `vitest.config.*` and
   `eslint.config.*` run in the check. They can weaken only what the gate does
   not override, and they are reviewed with the change.
-- Unit tests are not isolated from the network, as for Python
+- Unit tests reach loopback only, as for Python
   ([decision 0009](0009-python-profile.md#residual-risks)).
 - Coverage is measured by V8 and remapped to the original sources; branch
   semantics follow V8, not the compiler's control flow.

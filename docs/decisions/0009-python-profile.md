@@ -84,9 +84,10 @@ remain afterwards are reported exactly as the check reports them.
 
 ## Residual risks
 
-- Unit tests run with the user's permissions and are not isolated from the
-  network; proxies in the allowlist pass through. Isolation is a review and
-  CI concern until a sandbox is added.
+- Unit tests run with the user's permissions. They reach loopback only
+  ([decision 0008](0008-test-and-coverage-engine.md#network-isolation)) unless
+  the system forbids unprivileged user namespaces; the check then warns with
+  `tests.network`, and isolation is a review and CI concern.
 - A test can import from the component environment anything its lockfile
   locks; the lockfile itself is reviewed code.
 - Pyright's strict mode is the floor. Rules beyond strict mode are the

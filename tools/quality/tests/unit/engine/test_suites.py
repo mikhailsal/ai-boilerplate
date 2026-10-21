@@ -83,9 +83,8 @@ def test_a_failed_run_is_not_rescued_by_perfect_coverage(project: GitRepo) -> No
     tests = runner(Script(cases, files=FULL))
     report = run(project, tests)
     assert rules_of(report) == ["tests.failed"]
-    assert report.diagnostics[0].message == (
-        "the unit suite of 'app': 1 of 2 tests failed; runner exit status 0"
-    )
+    message = "1 of 2 tests failed; runner exit status 0; failed: tests::test_bad"
+    assert report.diagnostics[0].message == f"the unit suite of 'app': {message}"
     assert (tests.parsed, report.coverage) == ([], ())
 
 
@@ -108,6 +107,14 @@ def test_a_unit_run_without_executed_tests_fails(
     tests = runner(Script(cases, files=FULL))
     assert rules_of(run(project, tests)) == expected
     assert tests.parsed == []
+
+
+def test_a_unit_suite_with_the_network_warns_and_still_counts(project: GitRepo) -> None:
+    report = run(project, runner(hook=lambda _, done: replace(done, unisolated="denied")))
+    found = only(report, "tests.network")
+    assert found.severity is Severity.WARNING
+    assert found.message == "the unit suite of 'app' ran with the network: denied"
+    assert len(report.coverage) == 1
 
 
 def test_skipped_tests_warn_and_coverage_is_still_evaluated(project: GitRepo) -> None:

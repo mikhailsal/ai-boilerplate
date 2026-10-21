@@ -2,9 +2,20 @@ from pathlib import Path
 
 import pytest
 
-from quality.adapters.native import EXCERPT, ToolFailedError, fail, failure, run_tool
+from quality.adapters import native
+from quality.adapters.native import (
+    EXCERPT,
+    ToolFailedError,
+    fail,
+    failure,
+    run_tool,
+    suite_command,
+)
 from quality.diagnostics import Kind, Severity
-from quality.process import Command, sanitized
+from quality.policy import Component
+from quality.process import Command, isolation, sanitized
+from quality.testing import Suite, SuiteRequest
+from quality.testkit.policies import ComponentSpec, build_policy
 
 
 def sh(script: str, cwd: Path, *, timeout: float = 10) -> Command:
@@ -60,3 +71,20 @@ def test_empty_output_names_the_tool() -> None:
 def test_fail_raises_the_failure() -> None:
     with pytest.raises(ToolFailedError, match=r"^demo: broken$"):
         fail("demo", "broken")
+
+
+def suite_request(suite: Suite) -> SuiteRequest:
+    component: Component = build_policy(ComponentSpec()).components[0]
+    return SuiteRequest(component, suite, ("tests",), Path("/s"), Path("/o"), 0.0, Path("/w"))
+
+
+@pytest.mark.parametrize(("reason", "isolated"), [(None, True), ("no namespaces", False)])
+def test_only_unit_suites_are_contained(
+    monkeypatch: pytest.MonkeyPatch, reason: str | None, isolated: bool
+) -> None:
+    monkeypatch.setattr(native, "contained", isolation.contained)
+    monkeypatch.setattr(isolation, "unavailable", lambda: reason)
+    argv = ("pytest", "-q")
+    expected = isolation.isolated(argv) if isolated else argv
+    assert suite_command(suite_request(Suite.UNIT), argv) == (expected, reason)
+    assert suite_command(suite_request(Suite.INTEGRATION), argv) == (argv, None)

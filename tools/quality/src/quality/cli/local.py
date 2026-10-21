@@ -8,6 +8,12 @@ import sys
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
+from quality.adapters.dart import environment as dart_environment
+from quality.adapters.dart.fixer import DartFixer
+from quality.adapters.dart.helper import HELPER as DART_HELPER
+from quality.adapters.dart.helper import Helper
+from quality.adapters.dart.profile import DartProfile
+from quality.adapters.dart.provision import DartSetup
 from quality.adapters.native import ToolFailedError
 from quality.adapters.python.environment import Environments, Uv
 from quality.adapters.python.fixer import PythonFixer
@@ -39,6 +45,7 @@ from quality.toolchain.install import MISSING
 # Ruff and Pyright are pinned by the core's own lockfile and installed beside its interpreter.
 CORE_TOOLS = ("ruff", "pyright")
 NODE = "node"
+DART = "dart"
 
 
 def pinned(name: str) -> Tool:
@@ -88,21 +95,49 @@ def npm_cache() -> Path:
     return cache_root().parent / "npm"
 
 
-def node_step(step: Callable[[str, Tool, Path], Path]) -> Callable[[], Path]:
-    """Defer locating or installing the pinned Node until a TypeScript component needs it."""
+def tool_step(name: str, step: Callable[[str, Tool, Path], Path]) -> Callable[[], Path]:
+    """Defer locating or installing a pinned tool until a component of its profile needs it."""
 
     def run() -> Path:
         try:
-            return step(NODE, pinned(NODE), cache_root())
+            return step(name, pinned(name), cache_root())
         except ToolchainError as error:
             raise ToolFailedError(error.diagnostic) from error
 
     return run
 
 
+def node_step(step: Callable[[str, Tool, Path], Path]) -> Callable[[], Path]:
+    """Defer locating or installing the pinned Node until a TypeScript component needs it."""
+    return tool_step(NODE, step)
+
+
 def node_environments() -> node_environment.Environments:
     """Return the TypeScript environments, which locate the installed Node on first use."""
     return node_environment.Environments(node_step(locate), npm_cache())
+
+
+def pub_pins() -> Mapping[str, str]:
+    """Return the pub packages the Dart profile pins."""
+    try:
+        return load_manifest().packages.get("pub", {})
+    except ManifestError as error:
+        raise ToolchainError(MISSING.diagnostic(f"toolchain manifest: {error}")) from error
+
+
+def pub_cache() -> Path:
+    """Return the shared pub cache beside the toolchain cache."""
+    return cache_root().parent / "pub"
+
+
+def dart_helper() -> Helper:
+    """Return the Dart helper, compiled into its own directory beside the toolchain cache."""
+    return Helper(DART_HELPER, cache_root().parent / "dart-helper")
+
+
+def dart_environments() -> dart_environment.Environments:
+    """Return the Dart environments, which locate the installed SDK on first use."""
+    return dart_environment.Environments(tool_step(DART, locate), pub_cache())
 
 
 def worktree_files(root: Path) -> list[str]:
@@ -115,19 +150,32 @@ def local_profiles() -> Mapping[Profile, ProfileAdapter]:
     ruff, pyright = (core_tool(name) for name in CORE_TOOLS)
     python = PythonProfile(ruff=ruff, pyright=pyright, environments=Environments(local_uv()))
     typescript = TypeScriptProfile(node_environments(), npm_pins())
-    return {Profile.PYTHON: python, Profile.TYPESCRIPT: typescript}
+    dart = DartProfile(dart_environments(), pub_pins(), dart_helper())
+    return {Profile.PYTHON: python, Profile.TYPESCRIPT: typescript, Profile.DART: dart}
 
 
 def local_setups() -> Mapping[Profile, ProfileSetup]:
     """Return what bootstrap and doctor use to provision and probe each profile."""
     typescript = TypeScriptSetup(node_step(locate), node_step(install), npm_cache(), npm_pins())
-    return {Profile.PYTHON: PythonSetup(local_uv()), Profile.TYPESCRIPT: typescript}
+    dart = DartSetup(
+        tool_step(DART, locate), tool_step(DART, install), pub_cache(), pub_pins(), dart_helper()
+    )
+    return {
+        Profile.PYTHON: PythonSetup(local_uv()),
+        Profile.TYPESCRIPT: typescript,
+        Profile.DART: dart,
+    }
 
 
 def local_fixers() -> Mapping[Profile, ProfileFixer]:
     """Return the fixers of this build with their installed tools."""
     typescript = TypeScriptFixer(node_environments(), npm_pins(), worktree_files)
-    return {Profile.PYTHON: PythonFixer(core_tool("ruff")), Profile.TYPESCRIPT: typescript}
+    dart = DartFixer(dart_environments(), pub_pins(), worktree_files)
+    return {
+        Profile.PYTHON: PythonFixer(core_tool("ruff")),
+        Profile.TYPESCRIPT: typescript,
+        Profile.DART: dart,
+    }
 
 
 def candidate_of(args: argparse.Namespace) -> tuple[Repository, Candidate]:

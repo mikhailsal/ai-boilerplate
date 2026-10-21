@@ -15,9 +15,9 @@ then checks every candidate file, not only the changed ones:
 4. documentation rules;
 5. Markdown structure lint (pymarkdown);
 6. secret scan (gitleaks) of the snapshot;
-7. profile gates of each active component. Python components get structure
-   metrics and module architecture. Other profiles report
-   `profiles.unavailable`, an environment error, until P06–P08 deliver them.
+7. profile gates of each active component. Python, TypeScript, and Dart
+   components get structure metrics and module architecture. PHP reports
+   `profiles.unavailable`, an environment error, until P08 delivers it.
 
 Exceptions are applied last. Rules that need the network never run here:
 external links have their own command, and dependency audits run in merge CI
@@ -74,7 +74,9 @@ which uses only the standard `ast` and `tokenize` modules.
 
 The TypeScript helper implements the same definitions with the TypeScript
 parser ([decision 0011](0011-typescript-profile.md#structure-and-architecture));
-the Dart and PHP helpers follow in P07 and P08.
+the Dart helper with package:analyzer
+([decision 0012](0012-dart-profile.md#structure-and-architecture)); the PHP
+helper follows in P08.
 
 ## Module architecture
 

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from quality.process.isolation import unavailable
 from quality.testkit.scratch import CORE, Project, component, create_project, output, rules_of
 
 SOURCE = "app/src/app/core.py"
@@ -25,6 +26,25 @@ def test_level() -> None:
     assert level(20) == 11
     assert level(-1) == 0
 """
+# Loopback answers inside the unit suite's namespace; any other address is
+# unreachable (errno 101) rather than merely slow.
+NETWORK_TEST = """\
+import socket
+
+
+def test_loopback_answers() -> None:
+    with socket.create_server(("127.0.0.1", 0)) as server:
+        socket.create_connection(server.getsockname(), timeout=5).close()
+
+
+def test_other_addresses_are_unreachable() -> None:
+    try:
+        socket.create_connection(("192.0.2.1", 9), timeout=5)
+    except OSError as error:
+        assert error.errno == 101
+    else:
+        raise AssertionError("connected to 192.0.2.1")
+"""
 # Five lines nothing runs, committed without the hook: an existing shortfall.
 LEGACY = "\n\ndef legacy(value: int) -> int:\n    a = value\n    b = a\n    c = b\n    return c\n"
 
@@ -42,6 +62,18 @@ def test_a_failing_unit_test_rejects_the_commit(hooked: Project) -> None:
     result = hooked.commit("break a test")
     assert result.returncode != 0
     assert rules_of(result) == {"tests.failed"}, output(result)
+
+
+def test_unit_tests_reach_loopback_and_nothing_else(hooked: Project) -> None:
+    hooked.write("app/tests/test_network.py", NETWORK_TEST)
+    result = hooked.commit("test the network")
+    reason = unavailable()
+    if reason is None:
+        assert result.returncode == 0, output(result)
+    else:
+        assert result.returncode != 0
+        assert "tests.network" in rules_of(result), output(result)
+        assert reason in output(result)
 
 
 def test_the_line_floor_applies_to_unchanged_code(hooked: Project) -> None:

@@ -1,3 +1,6 @@
+import dataclasses
+import os
+import signal
 import subprocess
 import time
 from pathlib import Path
@@ -173,3 +176,16 @@ def test_terminate_tolerates_an_already_reaped_group(tmp_path: Path) -> None:
     process.wait()
     runner.terminate(process)
     assert process.returncode == 0
+
+
+def test_reap_kills_what_outlives_a_normal_exit(tmp_path: Path) -> None:
+    command = dataclasses.replace(sh("sleep 30 & echo $!", tmp_path), reap=True)
+    assert wait_gone(int(run(command).stdout_text()))
+
+
+def test_without_reap_a_background_child_survives(tmp_path: Path) -> None:
+    child = int(run(sh("sleep 30 & echo $!", tmp_path)).stdout_text())
+    try:
+        assert Path(f"/proc/{child}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z"
+    finally:
+        os.kill(child, signal.SIGKILL)

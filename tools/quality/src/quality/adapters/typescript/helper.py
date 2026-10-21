@@ -13,27 +13,47 @@ type.
 
 from __future__ import annotations
 
-import json
-import posixpath
-import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
-from typing import cast
+from pathlib import Path
 
+from quality.adapters import helperio
+from quality.adapters.helperio import PROTOCOL, Entry, Fields, repository_path
 from quality.adapters.native import fail, run_tool
 from quality.adapters.typescript.environment import Node
-from quality.boundedio import JsonValue, ReportError, parse_json
+from quality.boundedio import JsonValue
 from quality.process import Command
 
 # src/quality/adapters/typescript/helper.py -> tools/quality
 CORE = Path(__file__).resolve().parents[4]
 HELPER = CORE / "helpers" / "typescript" / "src" / "main.ts"
-PROTOCOL = 1
 TIMEOUT = 1800.0
 TOOL = "typescript helper"
+FIELDS = Fields(TOOL)
+entries = FIELDS.entries
+text = FIELDS.text
+texts = FIELDS.texts
+integer = FIELDS.integer
+optional_integer = FIELDS.optional_integer
+optional_text = FIELDS.optional_text
+flag = FIELDS.flag
+optional_entry = FIELDS.optional_entry
 
-type Entry = Mapping[str, JsonValue]
+__all__ = [
+    "PROTOCOL",
+    "Entry",
+    "Program",
+    "entries",
+    "flag",
+    "integer",
+    "optional_entry",
+    "optional_integer",
+    "optional_text",
+    "repository_path",
+    "run_helper",
+    "text",
+    "texts",
+]
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,89 +70,8 @@ def run_helper(
     """Run one helper command and return its checked response."""
     if not program.path.is_file():
         fail(TOOL, f"the helper is missing at {program.path}")
-    requests = work / "typescript-requests"
-    requests.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        "w", encoding="utf-8", dir=requests, prefix=f"{command}-", suffix=".json", delete=False
-    ) as handle:
-        json.dump({"protocol": PROTOCOL, **request}, handle)
-    argv = (str(program.node.executable), str(program.path), command, handle.name)
+    handle = helperio.write_request(work / "typescript-requests", command, request)
+    argv = (str(program.node.executable), str(program.path), command, str(handle))
     env = program.node.environ(work / "typescript-home" / "helper")
     completed = run_tool(Command(argv, cwd=cwd, timeout=TIMEOUT, env=env), name=TOOL, accepted={0})
-    try:
-        response = parse_json(completed.stdout, f"{TOOL} {command} output")
-    except ReportError as error:
-        fail(TOOL, str(error))
-    if not isinstance(response, dict) or response.get("protocol") != PROTOCOL:
-        fail(TOOL, f"{command} answered without protocol {PROTOCOL}")
-    return response
-
-
-def repository_path(snapshot: Path, name: str) -> str | None:
-    """Return the repository path of an absolute file name, or None outside the snapshot."""
-    path = PurePosixPath(posixpath.normpath(name))
-    for root in (snapshot, snapshot.resolve()):
-        base = PurePosixPath(root.as_posix())
-        if path.is_absolute() and path.is_relative_to(base) and path != base:
-            return path.relative_to(base).as_posix()
-    return None
-
-
-def entries(value: Entry, key: str) -> list[Entry]:
-    """Return a list of objects, or fail."""
-    found = value.get(key)
-    if not isinstance(found, list) or not all(isinstance(item, dict) for item in found):
-        fail(TOOL, f"'{key}' is not a list of objects")
-    return cast(list[Entry], found)
-
-
-def text(value: Entry, key: str) -> str:
-    """Return a string field, or fail."""
-    found = value.get(key)
-    if not isinstance(found, str):
-        fail(TOOL, f"'{key}' is not a string")
-    return found
-
-
-def texts(value: Entry, key: str) -> list[str]:
-    """Return a list of strings, or fail."""
-    found = value.get(key)
-    if not isinstance(found, list) or not all(isinstance(item, str) for item in found):
-        fail(TOOL, f"'{key}' is not a list of strings")
-    return cast(list[str], found)
-
-
-def integer(value: Entry, key: str) -> int:
-    """Return a non-negative integer field, or fail."""
-    found = value.get(key)
-    if not isinstance(found, int) or isinstance(found, bool) or found < 0:
-        fail(TOOL, f"'{key}' is not a non-negative integer")
-    return found
-
-
-def optional_integer(value: Entry, key: str) -> int | None:
-    """Return a positive integer field or None, or fail."""
-    if value.get(key) is None:
-        return None
-    return integer(value, key) or None
-
-
-def optional_text(value: Entry, key: str) -> str | None:
-    """Return a string field or None, or fail."""
-    return None if value.get(key) is None else text(value, key)
-
-
-def flag(value: Entry, key: str) -> bool:
-    """Return a boolean field, or fail."""
-    found = value.get(key)
-    if not isinstance(found, bool):
-        fail(TOOL, f"'{key}' is not a boolean")
-    return found
-
-
-def optional_entry(value: Entry, key: str) -> Entry | None:
-    """Return an object field or None, or fail."""
-    found = value.get(key)
-    if found is not None and not isinstance(found, dict):
-        fail(TOOL, f"'{key}' is not an object")
-    return found
+    return helperio.read_response(TOOL, command, completed)

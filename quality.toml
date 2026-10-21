@@ -96,6 +96,16 @@ source = ["src"]
 tests = { unit = ["tests"] }
 capabilities = ["cli"]
 
+# The Dart helper of the Dart profile (decision 0012), checked by that profile.
+[[components]]
+id = "quality-dart-helper"
+role = "helper"
+profile = "dart"
+root = "tools/quality/helpers/dart"
+source = ["bin", "lib"]
+tests = { unit = ["test"] }
+capabilities = ["cli"]
+
 [[classification]]
 pattern = "quality"
 category = "config"

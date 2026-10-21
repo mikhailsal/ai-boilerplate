@@ -21,7 +21,8 @@ one, and overrides what decides the verdict:
 
 A run without test files exits 1 but still writes a JUnit report without
 cases, which the engine reports as `tests.none`, not as a tool failure. Tests
-get a new home, cache, and temporary directory, as for Python.
+get a new home, cache, and temporary directory, and unit suites reach loopback
+only, as for Python.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from __future__ import annotations
 import json
 from pathlib import Path, PurePosixPath
 
-from quality.adapters.native import fail, failure
+from quality.adapters.native import fail, failure, suite_command
 from quality.adapters.typescript.config import TYPESCRIPT_SUFFIXES
 from quality.adapters.typescript.environment import Node
 from quality.boundedio import JsonValue
@@ -123,8 +124,9 @@ def run_vitest(node: Node, script: Path, request: SuiteRequest) -> SuiteRun:
     cache.mkdir()
     extra = {"TMPDIR": str(temporary), "XDG_CACHE_HOME": str(cache), "CI": "1"}
     argv = (str(node.executable), str(script), "run", "--config", str(config))
+    argv, unisolated = suite_command(request, (*argv, "--root", str(request.directory)))
     command = Command(
-        (*argv, "--root", str(request.directory)),
+        argv,
         cwd=request.directory,
         timeout=SUITE_TIMEOUT,
         env=node.environ(home, extra),
@@ -138,4 +140,4 @@ def run_vitest(node: Node, script: Path, request: SuiteRequest) -> SuiteRun:
         output = completed.stderr_text() or completed.stdout_text()
         fail(TOOL, f"exit status {completed.returncode} without test results: {output}")
     report = request.output / COVERAGE / LCOV if request.suite is Suite.UNIT else None
-    return SuiteRun(completed.returncode, results, report)
+    return SuiteRun(completed.returncode, results, report, unisolated=unisolated)

@@ -5,8 +5,12 @@ names, so nothing else in the archive reaches the disk. A tree tool, such as
 Node with its bundled npm, is unpacked whole, but only after every member and
 every link target is checked to stay below the archive's top directory, and
 with the `data` filter, which also rejects devices and special permission
-bits. Any violation is a ManifestError, which the installer reports as a failed
-installation.
+bits. A tree may also be a zip archive, such as the Dart SDK, recognized by
+its content: zip has no extraction filter, so every entry is checked the same
+way, links are refused outright, and each regular file is written by this
+module with mode 0o755 when its Unix mode has any execute bit and 0o644
+otherwise. Any violation is a ManifestError, which the installer reports as a
+failed installation.
 """
 
 from __future__ import annotations
@@ -14,6 +18,7 @@ from __future__ import annotations
 import os
 import posixpath
 import shutil
+import stat
 import tarfile
 import zipfile
 from pathlib import Path
@@ -69,17 +74,49 @@ def check_tree(members: list[tarfile.TarInfo], top: str) -> None:
             raise ManifestError(msg)
 
 
+def check_zip(members: list[zipfile.ZipInfo], top: str) -> None:
+    """Require every zip entry to stay below the top directory and none to be a link."""
+    for info in members:
+        name = info.filename.rstrip("/")
+        if name != top and not inside(top, name):
+            msg = f"archive member {info.filename} is outside {top}/"
+            raise ManifestError(msg)
+        if stat.S_ISLNK(info.external_attr >> 16):
+            msg = f"archive link {info.filename} is not supported in a zip archive"
+            raise ManifestError(msg)
+
+
+def unzip_tree(archive: Path, top: str, unpacked: Path) -> None:
+    """Write the checked entries of a zip archive below `unpacked`, never over an existing file."""
+    with zipfile.ZipFile(archive) as bundle:
+        members = bundle.infolist()
+        check_zip(members, top)
+        for info in members:
+            path = unpacked.joinpath(*posixpath.normpath(info.filename).split("/"))
+            if info.is_dir():
+                path.mkdir(parents=True, exist_ok=True)
+                continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with bundle.open(info) as stream, path.open("xb") as out:
+                shutil.copyfileobj(stream, out)
+            path.chmod(0o755 if (info.external_attr >> 16) & 0o111 else 0o644)
+
+
 def unpack_tree(artifact: Artifact, archive: Path, target: Path) -> None:
     """Extract the whole archive below its top directory and move that directory to `target`.
 
-    The `data` filter also rejects devices and drops setuid and group-write bits.
+    For tar, the `data` filter also rejects devices and drops setuid and
+    group-write bits.
     """
     top = artifact.member or ""
     unpacked = target.parent / "tree"
-    with tarfile.open(archive, mode="r:*") as tar:
-        members = tar.getmembers()
-        check_tree(members, top)
-        tar.extractall(unpacked, members=members, filter="data")
+    if zipfile.is_zipfile(archive):
+        unzip_tree(archive, top, unpacked)
+    else:
+        with tarfile.open(archive, mode="r:*") as tar:
+            members = tar.getmembers()
+            check_tree(members, top)
+            tar.extractall(unpacked, members=members, filter="data")
     if not (unpacked / top).is_dir():
         msg = f"archive has no top directory {top}/"
         raise ManifestError(msg)

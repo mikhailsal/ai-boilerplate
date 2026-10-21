@@ -6,7 +6,9 @@ Since P03 the machine-readable source of truth for downloaded standalone tools
 is `tools/quality/toolchains.toml` (uv, gitleaks and its rule set, osv-scanner,
 actionlint); profile runtimes join it with their phases. Since P06 it also
 pins Node.js and, under `[packages.npm]`, the npm packages every TypeScript
-component must lock ([decision 0011](0011-typescript-profile.md)). This record
+component must lock ([decision 0011](0011-typescript-profile.md)). Since P07
+it pins the Dart SDK and, under `[packages.pub]`, the pub packages every Dart
+component must lock ([decision 0012](0012-dart-profile.md)). This record
 explains the choices.
 
 ## Shared core
@@ -52,9 +54,9 @@ explains the choices.
 | --- | --- | --- |
 | Dart SDK | 3.13.6 stable | Official archive with `.sha256sum` |
 | package:test | 1.33.0 | JSON file reporter |
-| package:coverage | 1.16.0 | Branch coverage through VM flags |
+| package:coverage | 1.16.0 | Formats the VM's raw branch coverage as LCOV |
 | package:lints | 6.1.0 | Official recommended set |
-| package:analyzer | 14.5.0 | Structural metrics helper |
+| package:analyzer | 14.5.0 | Structural metrics helper, locked in the helper's own `pubspec.lock` |
 
 ## PHP profile
 

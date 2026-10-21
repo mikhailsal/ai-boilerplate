@@ -16,6 +16,20 @@ from quality.testkit.reports import FileSpec, coverage_json, junit_xml
 
 type Cases = tuple[tuple[str, Outcome], ...]
 type Hook = Callable[[SuiteRequest, SuiteRun], SuiteRun]
+type Containment = Callable[[tuple[str, ...]], tuple[tuple[str, ...], str | None]]
+
+
+def direct(reason: str | None = None) -> Containment:
+    """Return a stand-in for network containment that starts suites as they are.
+
+    `reason` is what the stand-in says about the missing isolation; None claims
+    the suite was isolated.
+    """
+
+    def start(argv: tuple[str, ...]) -> tuple[tuple[str, ...], str | None]:
+        return argv, reason
+
+    return start
 
 
 @dataclass(frozen=True, slots=True)

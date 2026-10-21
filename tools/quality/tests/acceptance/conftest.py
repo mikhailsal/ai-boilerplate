@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from quality.testkit.scratch import Project, create_project, output, typescript
+from quality.testkit.scratch import Project, create_project, dart, output, typescript
 
 
 @pytest.fixture
@@ -23,6 +23,15 @@ def hooked(project: Project) -> Project:
 def web(tmp_path: Path) -> Project:
     """Return a bootstrapped project with one TypeScript component, `web`."""
     created = create_project(tmp_path / "project", typescript("web"))
+    result = created.quality("bootstrap")
+    assert result.returncode == 0, output(result)
+    return created
+
+
+@pytest.fixture
+def calc(tmp_path: Path) -> Project:
+    """Return a bootstrapped project with one Dart component, `calc`."""
+    created = create_project(tmp_path / "project", dart("calc"))
     result = created.quality("bootstrap")
     assert result.returncode == 0, output(result)
     return created

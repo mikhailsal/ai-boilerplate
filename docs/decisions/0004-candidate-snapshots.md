@@ -52,7 +52,9 @@ with the candidate's `tools/quality`:
   toolchain manifest `toolchains.toml`, and the TypeScript helper's
   `helpers/typescript/src/**` and `package.json` (since P06; its
   `node_modules` is not compared, because the helper imports TypeScript and
-  ESLint from the checked component). They are compared by mode and blob ID,
+  ESLint from the checked component), and the Dart helper's `bin/**`,
+  `lib/**`, `pubspec.yaml`, and `pubspec.lock` (since P07; not its
+  `.dart_tool` or its tests). They are compared by mode and blob ID,
   the same way Git identifies them. A candidate without a core package (any
   repository that does not vendor the core) is not compared.
 - The candidate's `tools/quality/uv.lock` must equal the lockfile the core

@@ -9,6 +9,8 @@ from collections.abc import Callable, Mapping
 from pathlib import Path, PurePosixPath
 from typing import cast
 
+import yaml
+
 from quality.boundedio import ReportError, read_bounded
 
 CONFIG_LIMIT = 4 * 1024 * 1024
@@ -39,6 +41,64 @@ def load_json_object(path: Path) -> Table:
         raise ReportError(msg) from error
     if not isinstance(value, dict):
         msg = f"{path.name} does not hold a JSON object"
+        raise ReportError(msg)
+    return cast(Table, value)
+
+
+def _repeated_in(node: yaml.Node) -> str | None:
+    """Return a key that a mapping node repeats, if it is a mapping and repeats one."""
+    if not isinstance(node, yaml.MappingNode):
+        return None
+    keys = [key.value for key, _ in node.value if isinstance(key, yaml.ScalarNode)]
+    return next((str(key) for index, key in enumerate(keys) if key in keys[:index]), None)
+
+
+def _children(node: yaml.Node) -> list[yaml.Node]:
+    if isinstance(node, yaml.MappingNode):
+        return [item for pair in node.value for item in pair]
+    if isinstance(node, yaml.SequenceNode):
+        return list(node.value)
+    return []
+
+
+def _repeated_key(root: yaml.Node | None) -> str | None:
+    """Return a key that some mapping of the document repeats; Dart's YAML parser refuses those.
+
+    Aliases make the document a graph, possibly a cyclic one, so each node is visited once.
+    """
+    pending = [root] if root is not None else []
+    seen: set[int] = set()
+    while pending:
+        node = pending.pop()
+        if id(node) in seen:
+            continue
+        seen.add(id(node))
+        repeated = _repeated_in(node)
+        if repeated is not None:
+            return repeated
+        pending.extend(_children(node))
+    return None
+
+
+def load_yaml_mapping(path: Path) -> Table:
+    """Read a bounded YAML file holding one mapping, with no mapping that repeats a key."""
+    data = read_bounded(path, CONFIG_LIMIT)
+    try:
+        text = data.decode("utf-8")
+        loader = yaml.SafeLoader(text)
+        try:
+            repeated = _repeated_key(loader.get_single_node())
+        finally:
+            loader.dispose()
+        value: object = yaml.safe_load(text)
+    except (UnicodeDecodeError, yaml.YAMLError, RecursionError) as error:
+        msg = f"{path.name} is not valid YAML: {error}"
+        raise ReportError(msg) from error
+    if repeated is not None:
+        msg = f"{path.name} repeats the key '{repeated}'"
+        raise ReportError(msg)
+    if not isinstance(value, dict):
+        msg = f"{path.name} does not hold a YAML mapping"
         raise ReportError(msg)
     return cast(Table, value)
 

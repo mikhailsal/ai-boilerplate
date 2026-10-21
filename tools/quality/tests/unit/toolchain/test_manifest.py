@@ -105,7 +105,7 @@ def test_the_committed_manifest_pins_gitleaks_with_its_rules() -> None:
     assert all(artifact.member == "gitleaks" for artifact in gitleaks.artifacts.values())
     assert list(gitleaks.extras) == ["gitleaks.toml"]
     assert "/83d9cd684c87d95d656c1458ef04895a7f1cbd8e/" in gitleaks.extras["gitleaks.toml"].url
-    assert set(manifest.tools) == {"uv", "gitleaks", "osv-scanner", "actionlint", "node"}
+    assert set(manifest.tools) == {"uv", "gitleaks", "osv-scanner", "actionlint", "node", "dart"}
 
 
 def test_the_committed_manifest_pins_node_as_a_tree_and_the_npm_packages() -> None:
@@ -119,6 +119,17 @@ def test_the_committed_manifest_pins_node_as_a_tree_and_the_npm_packages() -> No
         assert artifact.url.endswith(f"/v24.22.0/node-v24.22.0-linux-{suffix}.tar.xz")
     assert manifest.packages["npm"]["typescript"] == "6.0.3"
     assert manifest.packages["npm"]["@vitest/coverage-v8"] == "5.0.5"
+
+
+def test_the_committed_manifest_pins_the_dart_sdk_as_a_zip_tree_and_the_pub_packages() -> None:
+    manifest = load_manifest()
+    dart = manifest.tools["dart"]
+    assert (dart.version, dart.program) == ("3.13.6", "bin/dart")
+    for architecture, suffix in ((Architecture.X86_64, "x64"), (Architecture.AARCH64, "arm64")):
+        artifact = dart.artifacts[architecture]
+        assert (artifact.packaging, artifact.member) == (Packaging.TREE, "dart-sdk")
+        assert artifact.url.endswith(f"/3.13.6/sdk/dartsdk-linux-{suffix}-release.zip")
+    assert manifest.packages["pub"] == {"test": "1.33.0", "coverage": "1.16.0", "lints": "6.1.0"}
 
 
 TREE = TOOL.replace(
@@ -159,6 +170,11 @@ def test_package_pins_are_optional_and_exact(packages: str) -> None:
     manifest = parse_manifest(f"{TOOL}\n{packages}".encode())
     expected = {"npm": {"@scope/name": "1.2.3", "plain": "0.0.1"}} if packages else {}
     assert manifest.packages == expected
+
+
+def test_pub_package_names_may_contain_underscores() -> None:
+    manifest = parse_manifest(f'{TOOL}\n[packages.pub]\nbuild_runner = "2.4.0"\n'.encode())
+    assert manifest.packages == {"pub": {"build_runner": "2.4.0"}}
 
 
 @pytest.mark.parametrize(

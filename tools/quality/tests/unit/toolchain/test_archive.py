@@ -2,7 +2,9 @@ import hashlib
 import io
 import os
 import platform
+import stat
 import tarfile
+import zipfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import IO, Literal
@@ -151,3 +153,66 @@ def test_unsafe_or_incomplete_trees_are_refused(
 def test_a_tree_executable_defaults_to_the_binary_name(tmp_path: Path) -> None:
     with pytest.raises(ManifestError, match="archive has no executable demo"):
         placed(tmp_path, tree_bytes(data={"top/demo-not": BINARY}), executable=None)
+
+
+def zip_bytes(entries: Mapping[str, tuple[int, bytes]]) -> bytes:
+    """Build a zip archive whose entries carry the given Unix modes (file type included)."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as bundle:
+        for name, (mode, content) in entries.items():
+            info = zipfile.ZipInfo(name)
+            info.external_attr = mode << 16
+            bundle.writestr(info, content)
+    return buffer.getvalue()
+
+
+EXECUTABLE = stat.S_IFREG | 0o750
+PLAIN = stat.S_IFREG | 0o664
+ZIP_FILES = {
+    "top/": (stat.S_IFDIR | 0o755, b""),
+    "top/bin/demo": (EXECUTABLE, BINARY),
+    "top/lib/": (stat.S_IFDIR | 0o700, b""),
+    "top/lib/tool.js": (PLAIN, b"tool"),
+}
+
+
+def test_a_zip_tree_is_extracted_with_normalized_modes(tmp_path: Path) -> None:
+    final = placed(tmp_path, zip_bytes(ZIP_FILES))
+    assert (final / "bin" / "demo").stat().st_mode & 0o7777 == 0o755
+    assert (final / "lib" / "tool.js").stat().st_mode & 0o7777 == 0o644
+    assert (final / "lib" / "tool.js").read_bytes() == b"tool"
+    assert not (final.parent / "tree" / "top").exists()
+
+
+@pytest.mark.parametrize(
+    ("extra", "fragment"),
+    [
+        ({"other/file": (PLAIN, b"x")}, "other/file is outside top/"),
+        ({"top/../escape": (PLAIN, b"x")}, "top/../escape is outside top/"),
+        ({"/top/abs": (PLAIN, b"x")}, "/top/abs is outside top/"),
+        ({"": (PLAIN, b"x")}, " is outside top/"),
+        ({"top/bin/link": (stat.S_IFLNK | 0o777, b"../lib/tool.js")}, "top/bin/link is not"),
+    ],
+    ids=["wrong-top-directory", "dot-dot-member", "absolute-member", "empty-name", "symlink"],
+)
+def test_unsafe_zip_trees_are_refused(
+    tmp_path: Path, extra: Mapping[str, tuple[int, bytes]], fragment: str
+) -> None:
+    with pytest.raises(ManifestError, match="archive") as raised:
+        placed(tmp_path, zip_bytes({**ZIP_FILES, **extra}))
+    assert fragment in str(raised.value)
+    assert not (tmp_path / "staging" / "tree").exists()
+
+
+def test_a_zip_tree_needs_its_top_directory(tmp_path: Path) -> None:
+    with pytest.raises(ManifestError, match="archive has no top directory top/"):
+        placed(tmp_path, zip_bytes({"top": (PLAIN, b"not a directory")}))
+
+
+def test_a_zip_entry_never_overwrites_another(tmp_path: Path) -> None:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as bundle, pytest.warns(UserWarning, match="Duplicate"):
+        bundle.writestr("top/bin/demo", BINARY)
+        bundle.writestr("top/bin/demo", b"replaced")
+    with pytest.raises(FileExistsError):
+        placed(tmp_path, buffer.getvalue())

@@ -45,7 +45,33 @@ EVIDENCE = Rule(
     remedy="Check the profile's test runner and configuration, then rerun the check.",
     kind=Kind.ENVIRONMENT,
 )
-RULES = (FAILED, NONE, SKIPPED, EVIDENCE)
+NETWORK = Rule(
+    id="tests.network",
+    title="A unit suite ran with network access",
+    requirement="R06",
+    explanation=(
+        "Unit suites run in a network namespace with loopback only, so a test cannot "
+        "reach a real service or the internet. This system does not let an unprivileged "
+        "user create that namespace, so the suite ran with the network."
+    ),
+    remedy=(
+        "Allow unprivileged user namespaces (on Ubuntu, set the sysctl "
+        "kernel.apparmor_restrict_unprivileged_userns to 0), or review that the unit "
+        "tests use no network."
+    ),
+    severity=Severity.WARNING,
+)
+RULES = (FAILED, NONE, SKIPPED, EVIDENCE, NETWORK)
+# A failing suite names at most this many of its failing cases.
+NAMED = 5
+
+
+def _failures(results: SuiteResults) -> str:
+    names = [case.name for case in results.cases if case.outcome in (Outcome.FAILED, Outcome.ERROR)]
+    if not names:
+        return ""
+    more = len(names) - NAMED
+    return "; failed: " + ", ".join(names[:NAMED]) + (f", and {more} more" if more > 0 else "")
 
 
 def judge(component: str, suite: Suite, returncode: int, results: SuiteResults) -> list[Diagnostic]:
@@ -58,7 +84,7 @@ def judge(component: str, suite: Suite, returncode: int, results: SuiteResults) 
     elif results.failing or returncode != 0:
         message = (
             f"{where}: {results.failing} of {results.executed} tests failed; "
-            f"runner exit status {returncode}"
+            f"runner exit status {returncode}{_failures(results)}"
         )
         found.append(FAILED.diagnostic(message, component=component))
     if skipped := results.count(Outcome.SKIPPED):
@@ -78,3 +104,9 @@ def invalid_evidence(component: str, suite: Suite, problem: str) -> Diagnostic:
     return EVIDENCE.diagnostic(
         f"the {suite} suite of '{component}': {problem}", component=component
     )
+
+
+def unisolated(component: str, reason: str) -> Diagnostic:
+    """Report a unit suite that ran without network isolation."""
+    message = f"the unit suite of '{component}' ran with the network: {reason}"
+    return NETWORK.diagnostic(message, component=component)

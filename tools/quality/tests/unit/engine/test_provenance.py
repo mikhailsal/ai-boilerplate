@@ -138,6 +138,33 @@ def test_the_typescript_helper_sources_and_manifest_judge(repo: GitRepo) -> None
     assert provenance.provenance(core, root) is Provenance.STALE
 
 
+def test_the_dart_helper_sources_manifest_and_lock_judge(repo: GitRepo) -> None:
+    root = write_core(repo)
+    for name in ("pubspec.yaml", "pubspec.lock", "bin/main.dart", "lib/cli.dart"):
+        repo.write(f"tools/quality/helpers/dart/{name}", f"# {name}\n")
+    repo.write("tools/quality/helpers/dart/test/cli_test.dart", "void main() {}\n")
+    repo.write("tools/quality/helpers/dart/analysis_options.yaml", "include: x\n")
+    core = core_of(repo)
+    assert {path for path in core.files if path.startswith("helpers/")} == {
+        "helpers/dart/pubspec.yaml",
+        "helpers/dart/pubspec.lock",
+        "helpers/dart/bin/main.dart",
+        "helpers/dart/lib/cli.dart",
+    }
+    helper = root / "helpers" / "dart"
+    (helper / ".dart_tool" / "pub").mkdir(parents=True)
+    (helper / ".dart_tool" / "package_config.json").write_text("{}\n")
+    (helper / "lib" / ".dart_tool").mkdir()
+    (helper / "lib" / ".dart_tool" / "state").write_text("generated\n")
+    (helper / "test" / "cli_test.dart").write_text("void main() { edited(); }\n")
+    assert provenance.provenance(core, root) is Provenance.CURRENT
+    (helper / "lib" / "cli.dart").write_text("// edited\n")
+    assert provenance.provenance(core, root) is Provenance.STALE
+    (helper / "lib" / "cli.dart").write_text("# lib/cli.dart\n")
+    (helper / "pubspec.lock").write_text("# changed\n")
+    assert provenance.provenance(core, root) is Provenance.STALE
+
+
 def test_running_files_mark_special_files(tmp_path: Path) -> None:
     package = tmp_path / "src" / "quality"
     package.mkdir(parents=True)

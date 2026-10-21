@@ -16,12 +16,13 @@ because the fixer receives only the source and test files of the inventory.
 
 from __future__ import annotations
 
-import shutil
 import tempfile
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
+from quality.adapters import copies
+from quality.adapters.copies import copy_back
 from quality.adapters.native import run_tool
 from quality.adapters.target import Target
 from quality.adapters.typescript import eslint, prettier
@@ -51,22 +52,7 @@ def config_scripts(component: Component, listed: Iterable[str]) -> tuple[str, ..
 
 def copy_tree(root: Path, target: Path, paths: Iterable[str]) -> None:
     """Copy the regular files among `paths` from `root` to `target`, without `node_modules`."""
-    for path in paths:
-        source = root / path
-        if NODE_MODULES in PurePosixPath(path).parts or source.is_symlink() or not source.is_file():
-            continue
-        copy = target / path
-        copy.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, copy)
-
-
-def copy_back(copy: Path, root: Path, before: Mapping[str, bytes]) -> None:
-    """Write each fixed file to the working tree unless it changed there meanwhile."""
-    for path, original in before.items():
-        fixed = (copy / path).read_bytes()
-        current = root / path
-        if fixed != original and current.read_bytes() == original:
-            current.write_bytes(fixed)
+    copies.copy_tree(root, target, paths, skipped=NODE_MODULES)
 
 
 @dataclass(slots=True)

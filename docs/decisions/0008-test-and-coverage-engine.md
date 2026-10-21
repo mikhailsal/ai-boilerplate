@@ -9,9 +9,11 @@ and enforces the unit coverage floors of [`quality.toml`](../../quality.toml)
 separately for each component. Profiles plug in a runner with three
 operations: which source files it must account for, how to run one suite, and
 how to parse its native coverage report. The Python runner
-([decision 0009](0009-python-profile.md)) and `quality test` arrived in P05;
-the other profiles follow in P06–P08. Native measurement semantics are
-described in [decision 0005](0005-coverage-measurement.md).
+([decision 0009](0009-python-profile.md)) and `quality test` arrived in P05,
+the TypeScript runner ([decision 0011](0011-typescript-profile.md)) in P06,
+and the Dart runner ([decision 0012](0012-dart-profile.md)) in P07; PHP
+follows in P08. Native measurement semantics are described in
+[decision 0005](0005-coverage-measurement.md).
 
 ## Which components run
 
@@ -47,8 +49,9 @@ coverage report. The engine accepts a report only if it is:
 - internally consistent: declared counts and totals must match the records.
 
 A run passes only if the runner exits with status 0, at least one test
-executed, and no test failed or raised an error. Skipped tests warn and do not
-count as executed. Coverage is parsed only after a clean unit run, so a failed
+executed, and no test failed or raised an error; `tests.failed` names the
+first five failing tests. Skipped tests warn and do not count as executed.
+Coverage is parsed only after a clean unit run, so a failed
 runner that still wrote a perfect report fails. Integration, contract,
 end-to-end, and acceptance suites never feed the unit floors; their coverage
 is not read at all.
@@ -56,6 +59,21 @@ is not read at all.
 A component without unit test roots fails with `tests.none`. A runner that
 cannot start reports `tools.failed`, and a profile without a runner reports
 `profiles.unavailable`. Untrustworthy evidence reports `tests.evidence`.
+
+## Network isolation
+
+Unit suites run in a new user and network namespace whose only interface is
+loopback (since P07). A stub on the core interpreter enters the namespace,
+maps the caller's own user and group, brings loopback up, and replaces itself
+with the runner, so timeouts and process-group cleanup are unchanged and no
+privilege is gained. Loopback stays usable for instrumentation, such as the
+Dart VM service; every other address is unreachable, so a unit test cannot
+depend on a real service or the internet. Other suites keep the network.
+
+Some systems forbid unprivileged user namespaces, for example Ubuntu's
+AppArmor restriction (`kernel.apparmor_restrict_unprivileged_userns`). The
+core probes once per run; when isolation is unavailable, unit suites run
+without it and the check reports a `tests.network` warning with the reason.
 
 ## Expected sources
 
@@ -106,6 +124,7 @@ fails. A report without branch measurement fails with
 | LCOV | Vitest, Dart `coverage`, coverage.py | `LF`, `LH`, `BRF`, `BRH` when present; repeated `SF` blocks merge |
 | Clover XML | PHPUnit | File statement metrics against the `stmt` lines |
 | JUnit XML | pytest, Vitest, PHPUnit | Declared tests, failures, errors, skipped on every suite |
+| JSON reporter events | `dart test` | A final `done` event; every finished test was started once and finishes once |
 
 File names in reports are resolved against the directory where the tool ran
 and must lie inside the snapshot. LCOV cannot say whether branch collection
@@ -121,7 +140,8 @@ forbids coverage from decreasing; regression reports are part of P10.
 
 ## Residual risks
 
-- Tests execute candidate code with the user's permissions. A malicious test
+- Tests execute candidate code with the user's permissions; the network
+  namespace limits only the network. A malicious test
   run can write a forged report into its own output directory, and the engine
   cannot tell it from a real one. Code review of test and runner
   configuration and the independent CI run are the mitigation.

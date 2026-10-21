@@ -91,6 +91,30 @@ def test_a_core_without_the_typescript_helper_embeds_without_it(
     assert not (tmp_path / "copy" / "helpers").exists()
 
 
+def test_the_dart_helper_is_embedded_without_its_tests_and_packages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = tmp_path / "core" / "src"
+    (source / "quality").mkdir(parents=True)
+    for name in ("toolchains.toml", "uv.lock"):
+        (source.parent / name).write_text("")
+    helper = source.parent / "helpers" / "dart"
+    for name in ("bin/main.dart", "lib/cli.dart", "test/cli_test.dart", ".dart_tool/x"):
+        (helper / name).parent.mkdir(parents=True, exist_ok=True)
+        (helper / name).write_text("void main() {}\n")
+    for name in ("pubspec.yaml", "pubspec.lock", "analysis_options.yaml"):
+        (helper / name).write_text("name: quality_dart_helper\n")
+    monkeypatch.setattr(scratch, "CORE_SOURCE", source)
+    embed_core(tmp_path / "copy")
+    copied = tmp_path / "copy" / "helpers" / "dart"
+    assert sorted(path.relative_to(copied).as_posix() for path in copied.rglob("*.*")) == [
+        "bin/main.dart",
+        "lib/cli.dart",
+        "pubspec.lock",
+        "pubspec.yaml",
+    ]
+
+
 def test_scratch_commits_stage_the_named_paths_or_everything(tmp_path: Path) -> None:
     project = create_project(tmp_path / "project")
     first = project.head()

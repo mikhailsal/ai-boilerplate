@@ -4,12 +4,14 @@ from quality.diagnostics import Diagnostic, Kind, Severity
 from quality.rules.testing import (
     EVIDENCE,
     FAILED,
+    NETWORK,
     NONE,
     RULES,
     SKIPPED,
     invalid_evidence,
     judge,
     missing_suite,
+    unisolated,
 )
 from quality.testing import CaseResult, Outcome, Suite, SuiteResults
 
@@ -56,15 +58,21 @@ def test_an_empty_run_reports_the_runner_status() -> None:
 
 
 @pytest.mark.parametrize(
-    ("outcomes", "failing"),
-    [((Outcome.FAILED, PASSED), 1), ((Outcome.ERROR, Outcome.FAILED, PASSED), 2)],
+    ("outcomes", "named"),
+    [
+        ((Outcome.FAILED, PASSED), "t0"),
+        ((PASSED, Outcome.ERROR, Outcome.FAILED), "t1, t2"),
+        ((Outcome.FAILED,) * 7, "t0, t1, t2, t3, t4, and 2 more"),
+    ],
 )
-def test_failing_cases_fail_the_suite(outcomes: tuple[Outcome, ...], failing: int) -> None:
+def test_failing_cases_fail_the_suite_and_are_named(
+    outcomes: tuple[Outcome, ...], named: str
+) -> None:
     found = judge("app", Suite.INTEGRATION, 1, results(*outcomes))
-    executed = len(outcomes)
+    failing = sum(outcome is not PASSED for outcome in outcomes)
     message = (
-        f"the integration suite of 'app': {failing} of {executed} tests failed; "
-        "runner exit status 1"
+        f"the integration suite of 'app': {failing} of {len(outcomes)} tests failed; "
+        f"runner exit status 1; failed: {named}"
     )
     assert summary(found) == [(FAILED.id, Severity.ERROR, message)]
 
@@ -119,6 +127,7 @@ def test_the_rules_are_registered_with_their_requirement() -> None:
         "tests.none",
         "tests.skipped",
         "tests.evidence",
+        "tests.network",
     ]
     assert {rule.requirement for rule in RULES} == {"R06"}
     assert [rule.kind for rule in RULES] == [
@@ -126,4 +135,14 @@ def test_the_rules_are_registered_with_their_requirement() -> None:
         Kind.VIOLATION,
         Kind.VIOLATION,
         Kind.ENVIRONMENT,
+        Kind.VIOLATION,
     ]
+
+
+def test_a_suite_without_network_isolation_warns() -> None:
+    found = unisolated("lib", "network isolation is unavailable: [Errno 1] denied")
+    assert (found.rule, found.severity, found.component) == (NETWORK.id, Severity.WARNING, "lib")
+    assert found.message == (
+        "the unit suite of 'lib' ran with the network: "
+        "network isolation is unavailable: [Errno 1] denied"
+    )

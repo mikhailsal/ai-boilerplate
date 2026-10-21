@@ -8,6 +8,7 @@ from quality.adapters.settings import (
     label,
     load_json_object,
     load_toml,
+    load_yaml_mapping,
     strings,
     table,
 )
@@ -56,6 +57,30 @@ def test_unusable_json_is_reported(tmp_path: Path, text: str, message: str) -> N
     path.write_text(text)
     with pytest.raises(ReportError, match=f"^a.json {message}"):
         load_json_object(path)
+
+
+def test_yaml_mappings_are_parsed(tmp_path: Path) -> None:
+    path = tmp_path / "a.yaml"
+    path.write_text("base: &base {x: 1}\nuse: *base\nmore: [*base, *base]\n")
+    assert load_yaml_mapping(path) == {"base": {"x": 1}, "use": {"x": 1}, "more": [{"x": 1}] * 2}
+
+
+@pytest.mark.parametrize(
+    ("data", "message"),
+    [
+        (b"{not yaml", "is not valid YAML: "),
+        (b"a: '\xff'\n", "is not valid YAML: "),
+        (b"a: 1\na: 2\n", "repeats the key 'a'"),
+        (b"x:\n  - {k: 1, j: 2, k: 3}\n", "repeats the key 'k'"),
+        (b"- a\n", "does not hold a YAML mapping"),
+        (b"", "does not hold a YAML mapping"),
+    ],
+)
+def test_unusable_yaml_is_reported(tmp_path: Path, data: bytes, message: str) -> None:
+    path = tmp_path / "a.yaml"
+    path.write_bytes(data)
+    with pytest.raises(ReportError, match=rf"^a\.yaml {message}"):
+        load_yaml_mapping(path)
 
 
 def test_nested_tables() -> None:

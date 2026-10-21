@@ -16,6 +16,7 @@ from quality.policy import Component
 from quality.testing import Suite, SuiteRequest
 from quality.testkit.policies import ComponentSpec, build_policy
 from quality.testkit.pythonproject import python_project
+from quality.testkit.suites import direct
 
 CORE = "def sign(value: int) -> int:\n    if value < 0:\n        return -1\n    return 1\n"
 PASSING = "from app.core import sign\n\n\ndef test_sign() -> None:\n    assert sign(-2) == -1\n"
@@ -159,3 +160,13 @@ def test_an_interpreter_that_cannot_start_fails(tmp_path: Path) -> None:
     message = runner_failure(tmp_path / "missing-python", tmp_path)
     assert message.startswith("pytest: ")
     assert "missing-python" in message
+
+
+def test_a_unit_run_says_why_it_had_the_network(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(native, "contained", direct("no namespaces"))
+    unit = request(tmp_path)
+    unit.directory.mkdir(parents=True)
+    python = script(tmp_path / "python", f"touch {unit.output / 'junit.xml'}")
+    assert run_pytest(python, unit, "pyproject.toml").unisolated == "no namespaces"

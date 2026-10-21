@@ -48,6 +48,11 @@ The core's `bootstrap` command, after the launcher step:
      credentials ([decision 0011](0011-typescript-profile.md#environments)).
      Each lock directory is installed once, even when several components
      share it;
+   - a Dart component: installs the pinned Dart SDK, runs `dart pub get
+     --enforce-lockfile` once per lock directory with network access in a
+     throwaway copy of its manifests and those of its workspace members, and
+     compiles the structure helper
+     ([decision 0012](0012-dart-profile.md#environments));
 3. installs the managed `pre-commit` hook, and the `pre-push` hook with
    `--pre-push`.
 
@@ -84,7 +89,8 @@ to `<name>.local`, or to unset `core.hooksPath`, and run bootstrap again.
 - the core interpreter, uv, gitleaks, Ruff, and Pyright are installed;
 - every component of the staged candidate passes its configuration check and
   installs offline (`uv sync --offline` for Python, `npm ci --offline` with
-  the installed Node for TypeScript; Node is located, never downloaded);
+  the installed Node for TypeScript, `dart pub get --offline` with the
+  installed SDK for Dart; Node and Dart are located, never downloaded);
 - the `pre-commit` hook is current: missing or outdated is `hooks.missing`,
   a foreign file is `hooks.conflict`. The optional `pre-push` hook is listed;
   only an outdated one warns.

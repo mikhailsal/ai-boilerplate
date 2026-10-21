@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from quality.adapters import native
 from quality.adapters.native import ToolFailedError
 from quality.adapters.typescript.environment import Node
 from quality.adapters.typescript.runner import (
@@ -14,6 +15,7 @@ from quality.adapters.typescript.runner import (
 )
 from quality.testing import Suite, SuiteRequest
 from quality.testkit.nodefakes import script, typescript_component
+from quality.testkit.suites import direct
 
 # The fake Vitest records its call and writes JUnit results beside the wrapper it was given.
 VITEST = """\
@@ -123,3 +125,13 @@ def test_a_node_that_cannot_start_fails_the_run(tmp_path: Path) -> None:
     node = Node(tmp_path / "missing" / "node", tmp_path / "cache")
     with pytest.raises(ToolFailedError, match=r"vitest: .*executable not found"):
         run_vitest(node, tmp_path / "vitest.sh", request(tmp_path))
+
+
+def test_a_unit_run_says_why_it_had_the_network(
+    node: Node, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(native, "contained", direct("no namespaces"))
+    vitest = script(tmp_path / "vitest.sh", VITEST)
+    assert run_vitest(node, vitest, request(tmp_path)).unisolated == "no namespaces"
+    integration = request(tmp_path / "other", Suite.INTEGRATION)
+    assert run_vitest(node, vitest, integration).unisolated is None

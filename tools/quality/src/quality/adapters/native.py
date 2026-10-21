@@ -7,6 +7,8 @@ from typing import NoReturn
 
 from quality.diagnostics import Diagnostic, Kind, Rule
 from quality.process import Command, Completed, ProcessError, run
+from quality.process.isolation import contained
+from quality.testing import Suite, SuiteRequest
 
 FAILED = Rule(
     id="tools.failed",
@@ -55,3 +57,15 @@ def run_tool(command: Command, *, name: str, accepted: Collection[int]) -> Compl
         output = completed.stderr_text() or completed.stdout_text()
         raise failure(name, f"exit status {completed.returncode}: {output}")
     return completed
+
+
+def suite_command(
+    request: SuiteRequest, argv: tuple[str, ...]
+) -> tuple[tuple[str, ...], str | None]:
+    """Return a suite's command, a unit suite reaching loopback only when this machine allows it.
+
+    The second item says why a unit suite runs with the network (R06.9).
+    """
+    if request.suite is not Suite.UNIT:
+        return argv, None
+    return contained(argv)

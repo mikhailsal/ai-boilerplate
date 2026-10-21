@@ -44,7 +44,13 @@ def _empty_env() -> Mapping[str, str]:
 
 @dataclass(frozen=True, slots=True)
 class Command:
-    """A fully specified command; nothing is inherited implicitly."""
+    """A fully specified command; nothing is inherited implicitly.
+
+    The command runs in its own session, whose process group is killed on a
+    timeout. With `reap`, whatever is left of that group is also killed after a
+    normal exit, for tools such as `dart test` whose helper processes may
+    outlive the command.
+    """
 
     argv: tuple[str, ...]
     cwd: Path
@@ -52,6 +58,7 @@ class Command:
     env: Mapping[str, str] = field(default_factory=_empty_env)
     stdin: bytes | None = None
     output_limit: int = DEFAULT_OUTPUT_LIMIT
+    reap: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,6 +167,8 @@ def run(command: Command) -> Completed:
         except BaseException:
             terminate(process)
             raise
+        if command.reap:
+            _signal_group(process, signal.SIGKILL)
         stdout, stdout_truncated = _read_bounded(out, command.output_limit)
         stderr, stderr_truncated = _read_bounded(err, command.output_limit)
     return Completed(

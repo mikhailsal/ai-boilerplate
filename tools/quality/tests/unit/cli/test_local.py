@@ -119,7 +119,7 @@ def test_core_tools_live_beside_the_core_interpreter(
 
 def test_the_python_profile_uses_the_installed_tools() -> None:
     profiles = local_profiles()
-    assert list(profiles) == [Profile.PYTHON, Profile.TYPESCRIPT]
+    assert list(profiles) == [Profile.PYTHON, Profile.TYPESCRIPT, Profile.DART]
     python = profiles[Profile.PYTHON]
     assert isinstance(python, PythonProfile)
     assert (python.ruff, python.pyright) == (core_tool("ruff"), core_tool("pyright"))

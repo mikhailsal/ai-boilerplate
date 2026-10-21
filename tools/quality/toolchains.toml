@@ -90,6 +90,23 @@ sha256 = "fef00bb4d36e1c50104a9775a10359beee98f162b4104dd12472c75065c6a143"
 packaging = "tree"
 member = "node-v24.22.0-linux-arm64"
 
+[tools.dart]
+version = "3.13.6"
+binary = "dart"
+executable = "bin/dart"
+
+[tools.dart.artifacts.x86_64]
+url = "https://storage.googleapis.com/dart-archive/channels/stable/release/3.13.6/sdk/dartsdk-linux-x64-release.zip"
+sha256 = "f80780c01ade17b789cf4dc2425d662f63bdd40eceda53b36c0d46af650de41b"
+packaging = "tree"
+member = "dart-sdk"
+
+[tools.dart.artifacts.aarch64]
+url = "https://storage.googleapis.com/dart-archive/channels/stable/release/3.13.6/sdk/dartsdk-linux-arm64-release.zip"
+sha256 = "73753a2e009505a2ba0d0c0bd449e248001a01984c805a3fcc19671dbb9616b1"
+packaging = "tree"
+member = "dart-sdk"
+
 # Exact versions a TypeScript component must lock in its package-lock.json;
 # npm installs them from that lockfile (decision 0011).
 [packages.npm]
@@ -100,3 +117,9 @@ member = "node-v24.22.0-linux-arm64"
 "prettier" = "3.9.10"
 "vitest" = "5.0.5"
 "@vitest/coverage-v8" = "5.0.5"
+
+# Exact versions a Dart component must lock in its pubspec.lock (decision 0012).
+[packages.pub]
+"test" = "1.33.0"
+"coverage" = "1.16.0"
+"lints" = "6.1.0"

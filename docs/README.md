@@ -15,6 +15,7 @@
 | [0009](decisions/0009-python-profile.md) | Python profile: Ruff, Pyright, pytest, coverage.py |
 | [0010](decisions/0010-launcher-bootstrap-and-hooks.md) | Launcher, bootstrap, doctor, and managed hooks |
 | [0011](decisions/0011-typescript-profile.md) | TypeScript profile: Prettier, ESLint, tsc, Vitest |
+| [0012](decisions/0012-dart-profile.md) | Dart profile: dart format, dart analyze, package:test, package:coverage |
 
 ## Reference
 

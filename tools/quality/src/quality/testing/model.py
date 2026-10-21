@@ -104,13 +104,26 @@ class StaticRequest:
         return self.snapshot / self.component.root
 
 
+class ResultsFormat(StrEnum):
+    """The format of a runner's results file, which decides the parser the engine uses."""
+
+    JUNIT = "junit"
+    DART_JSON = "dart-json"
+
+
 @dataclass(frozen=True, slots=True)
 class SuiteRun:
-    """What a runner reports back: its exit status and the reports it wrote."""
+    """What a runner reports back: its exit status and the reports it wrote.
+
+    `unisolated` says why a unit suite ran with the network; it is None when
+    the suite reached loopback only, and for other suites.
+    """
 
     returncode: int
     results: Path
     coverage: Path | None = None
+    results_format: ResultsFormat = ResultsFormat.JUNIT
+    unisolated: str | None = None
 
 
 def suite_roots(component: Component, suite: Suite) -> tuple[str, ...]:

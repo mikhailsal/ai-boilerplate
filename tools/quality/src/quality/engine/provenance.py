@@ -2,13 +2,15 @@
 
 The launcher runs the core from the working tree. Before a verdict command
 decides anything, the core compares the files that decide verdicts, its package,
-its toolchain manifest, and the sources and manifest of the TypeScript helper it
-runs on Node, with the candidate's. When they differ, the candidate's core is
+its toolchain manifest, the sources and manifest of the TypeScript helper it
+runs on Node, and the sources, manifest, and lockfile of the Dart helper it
+compiles, with the candidate's. When they differ, the candidate's core is
 materialized and runs the same command as a child process, so unstaged edits to
-the validator do not change the verdict. The helper's installed `node_modules`
-does not judge: the helper imports TypeScript and ESLint from the checked
-component. The comparison itself runs from the working tree; CI runs the
-committed core and is the boundary for edits to this step.
+the validator do not change the verdict. The helpers' installed `node_modules`
+and `.dart_tool` do not judge: the TypeScript helper imports TypeScript and
+ESLint from the checked component, and the Dart helper is compiled from its
+judged files and locked packages. The comparison itself runs from the working
+tree; CI runs the committed core and is the boundary for edits to this step.
 """
 
 from __future__ import annotations
@@ -34,8 +36,23 @@ LOCK = "uv.lock"
 HELPER = "helpers/typescript"
 HELPER_SOURCE = f"{HELPER}/src"
 HELPER_MANIFEST = f"{HELPER}/package.json"
+DART_HELPER = "helpers/dart"
 CACHE = "__pycache__"
 NODE_MODULES = "node_modules"
+DART_TOOL = ".dart_tool"
+MANIFESTS = (
+    MANIFEST,
+    HELPER_MANIFEST,
+    f"{DART_HELPER}/pubspec.yaml",
+    f"{DART_HELPER}/pubspec.lock",
+)
+# The source trees that judge, each with the directory name a walk skips.
+TREES = (
+    (PACKAGE, CACHE),
+    (HELPER_SOURCE, NODE_MODULES),
+    (f"{DART_HELPER}/bin", DART_TOOL),
+    (f"{DART_HELPER}/lib", DART_TOOL),
+)
 CHILD_TIMEOUT = 6 * 3600.0
 # The launcher runs the core with the same statement; it puts the source root first.
 BOOT = (
@@ -90,9 +107,8 @@ class CandidateCore:
 def _judges(path: str) -> bool:
     """Whether a core file decides verdicts: the package and helper sources, and manifests."""
     parts = path.split("/")
-    in_package = path.startswith(f"{PACKAGE}/") and CACHE not in parts
-    in_helper = path.startswith(f"{HELPER_SOURCE}/") and NODE_MODULES not in parts
-    return in_package or in_helper or path in {MANIFEST, HELPER_MANIFEST}
+    in_tree = any(path.startswith(f"{tree}/") and skipped not in parts for tree, skipped in TREES)
+    return in_tree or path in MANIFESTS
 
 
 def candidate_core(repo: Repository, tree: str) -> CandidateCore | None:
@@ -129,11 +145,11 @@ def _identity(path: Path, algorithm: str) -> str:
 def running_files(root: Path, algorithm: str = "sha1") -> dict[str, str]:
     """Identify the files of a core directory that judge, as their tree entries would."""
     found: dict[str, str] = {}
-    for name in (MANIFEST, HELPER_MANIFEST):
+    for name in MANIFESTS:
         manifest = root / name
         if manifest.is_symlink() or manifest.exists():
             found[name] = _identity(manifest, algorithm)
-    for tree, skipped in ((PACKAGE, CACHE), (HELPER_SOURCE, NODE_MODULES)):
+    for tree, skipped in TREES:
         for directory, directories, files in (root / tree).walk():
             directories[:] = [name for name in directories if name != skipped]
             for name in files:

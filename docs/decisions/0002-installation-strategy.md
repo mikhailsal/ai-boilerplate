@@ -35,7 +35,9 @@ standalone tools:
 - TypeScript profile active: Node.js (npm is bundled), installed by
   `quality bootstrap` only when a TypeScript component exists, or explicitly
   with `quality tools install node` (since P06);
-- Dart profile active: the Dart SDK;
+- Dart profile active: the Dart SDK, installed by `quality bootstrap` only
+  when a Dart component exists, or explicitly with `quality tools install
+  dart` (since P07);
 - PHP profile active: `composer.phar`;
 - merge CI and maintainers: osv-scanner and actionlint.
 
@@ -51,7 +53,9 @@ the system packages.
 - TypeScript components: `npm ci --ignore-scripts` from `package-lock.json`,
   with the shared npm cache `$XDG_CACHE_HOME/quality/npm`
   ([decision 0011](0011-typescript-profile.md#environments)).
-- Dart components: `dart pub get --enforce-lockfile` from `pubspec.lock`.
+- Dart components: `dart pub get --enforce-lockfile` from `pubspec.lock`,
+  with the shared pub cache `$XDG_CACHE_HOME/quality/pub`
+  ([decision 0012](0012-dart-profile.md#environments)).
 - PHP components: `composer install` from `composer.lock`.
 
 Bootstrap fills the package caches. Ordinary checks run the same commands in

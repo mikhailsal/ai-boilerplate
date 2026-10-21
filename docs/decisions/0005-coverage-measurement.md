@@ -40,22 +40,32 @@ candidate tree and reconciled with the report; a missing file is an error.
   (`&&`, `||`, `??`), `switch`, `default-arg`.
 - Zero test files exit 1; the adapter treats it as `tests.none`.
 
-## Dart: `dart test --coverage-path --branch-coverage` (SDK 3.13.6)
+## Dart: package:test and package:coverage (SDK 3.13.6)
 
-- Run per package: `dart test --branch-coverage --coverage-path=<fresh lcov>
-  --coverage-package='^<name>$' --file-reporter json:<fresh path>`.
+- Run per package: `dart test --platform vm --branch-coverage
+  --coverage=<fresh directory> --file-reporter json:<fresh path>`, then the
+  component's locked package:coverage: `dart run coverage:format_coverage
+  --lcov --in=<directory> --out=<fresh lcov> --report-on=<each source root>`
+  without `--check-ignore` (amended in P07: `--coverage-path` reports only
+  `package:` libraries, so scripts in `bin/` were never measured).
 - Report: LCOV with `DA` and `BRDA` but no `BRF`/`BRH`; the parser derives
   totals from the `BRDA` records.
 - Unimported libraries do not appear. The adapter generates, inside the
-  snapshot only, a test that imports every non-`part` library under `lib/`, so
-  the VM force-compiles them and reports zero hits (verified).
-- Native semantics: a branch is a VM basic-block entry (then/else blocks,
-  switch cases, loop bodies, catch blocks) aggregated per line. `&&`, `??`,
-  and conditional expressions are not instrumented; an `if` without `else`
-  has no implicit-else opportunity. This limitation is declared, not hidden.
+  snapshot only (under `.dart_tool/quality`), a test that imports every
+  non-`part` library of the source roots, so the VM force-compiles them and
+  reports zero hits (verified). A file still missing after a clean run has
+  no coverable line and is not applicable.
+- Native semantics: a line is reported only where code enters a function or
+  makes a call; a literal `return` or an assignment of a literal or local has
+  no line. A branch is a VM basic-block entry (function entry, then/else
+  blocks at their opening lines, switch cases, loop bodies, catch blocks).
+  `&&`, `??`, and conditional expressions are not instrumented; an `if`
+  without `else` has no implicit-else opportunity. This limitation is
+  declared, not hidden ([decision 0012](0012-dart-profile.md)).
 - Coverage needs a loopback VM service (ephemeral `127.0.0.1` ports); this is
   the permitted instrumentation IPC.
-- Zero tests exit 79; a missing `test/` exits 65; both are errors.
+- Zero tests exit 79 and a missing suite root is a failing load case; both
+  are errors.
 - Flutter is detected from `flutter: {sdk: flutter}` dependencies, an
   `environment.flutter` constraint, or a top-level `flutter:` section and is
   reported as an unsupported variant.

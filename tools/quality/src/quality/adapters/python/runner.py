@@ -4,6 +4,7 @@ The runner writes its own coverage settings, so `[tool.coverage]` and
 `.coveragerc` in the candidate cannot omit files or exclude lines. Tests get a
 new home, cache, and temporary directory inside the run's work area; only the
 pinned toolchains and uv's package cache are shared, so offline tools stay usable.
+Unit suites reach loopback only where the system allows it (decision 0008).
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ import os
 from collections.abc import Mapping
 from pathlib import Path
 
-from quality.adapters.native import fail, failure
+from quality.adapters.native import fail, failure, suite_command
 from quality.process import Command, ProcessError, run, sanitized
 from quality.testing import Suite, SuiteRequest, SuiteRun
 
@@ -69,8 +70,9 @@ def suite_environment(request: SuiteRequest) -> dict[str, str]:
 def run_pytest(python: Path, request: SuiteRequest, config: str) -> SuiteRun:
     """Run one suite; a run that leaves no results could not run at all."""
     (request.output / RCFILE).write_text(coverage_settings(request.output), encoding="utf-8")
+    argv, unisolated = suite_command(request, pytest_argv(python, request, config))
     command = Command(
-        pytest_argv(python, request, config),
+        argv,
         cwd=request.directory,
         timeout=SUITE_TIMEOUT,
         env=suite_environment(request),
@@ -84,4 +86,4 @@ def run_pytest(python: Path, request: SuiteRequest, config: str) -> SuiteRun:
         output = completed.stderr_text() or completed.stdout_text()
         fail(TOOL, f"exit status {completed.returncode} without test results: {output}")
     report = request.output / COVERAGE if request.suite is Suite.UNIT else None
-    return SuiteRun(completed.returncode, results, report)
+    return SuiteRun(completed.returncode, results, report, unisolated=unisolated)
