@@ -38,6 +38,9 @@ type PackageName = Annotated[
     str, StringConstraints(pattern=r"^(?:@?[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$")
 ]
 type ExactVersion = Annotated[str, StringConstraints(pattern=r"^\d+\.\d+\.\d+$")]
+TOOL_VERSION = r"^\d+(?:\.\d+)+$"
+# A vendor checksum file: an HTTPS URL, or `{url}` and a suffix, with `{version}` placeholders.
+type ChecksumTemplate = Annotated[str, StringConstraints(pattern=r"^(?:https://|\{url\})[^\s]+$")]
 type MinorVersion = Annotated[str, StringConstraints(pattern=r"^\d+\.\d+$")]
 
 
@@ -97,12 +100,15 @@ class Tool(Strict):
     """A pinned tool with one artifact per machine architecture and optional data files.
 
     `executable` is the program's path inside the installed directory; it
-    defaults to `binary`, the name of the program.
+    defaults to `binary`, the name of the program. `checksums` names the
+    vendor's checksum file, from which `quality tools update` takes the
+    checksums of another release.
     """
 
-    version: Annotated[str, StringConstraints(pattern=r"^\d+(?:\.\d+)+$")]
+    version: Annotated[str, StringConstraints(pattern=TOOL_VERSION)]
     binary: Name
     executable: Member | None = None
+    checksums: ChecksumTemplate | None = None
     artifacts: dict[Architecture, Artifact] = Field(min_length=1)
     extras: dict[Member, Extra] = Field(default_factory=dict[Member, Extra])
 

@@ -51,7 +51,9 @@ def test_arguments_and_exit_statuses_pass_through_to_the_core(template: Path) ->
     assert unknown.returncode == 2, unknown.stderr
 
 
-def test_without_the_pinned_uv_only_bootstrap_may_download(template: Path, tmp_path: Path) -> None:
+def test_without_the_pinned_uv_other_commands_never_download(
+    template: Path, tmp_path: Path
+) -> None:
     refused = launch(template, "--version", XDG_CACHE_HOME=str(tmp_path / "empty"))
     assert refused.returncode == 3
     assert refused.stdout == ""

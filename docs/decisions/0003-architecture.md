@@ -1,7 +1,7 @@
 # 0003 Architecture and configuration layout
 
 Status: accepted (P00); launcher path amended in P05, adapter layout in P06,
-CI wrappers and reports in P10.
+CI wrappers and reports in P10, the template layer and dormant helpers in P11.
 
 ## Repository layout
 
@@ -12,11 +12,11 @@ CI wrappers and reports in P10.
 | `tools/quality/` | The always-required Python tooling core (`pyproject.toml`, `uv.lock`) |
 | `tools/quality/src/quality/` | Core package |
 | `tools/quality/tests/unit/` | Core unit suite (shipped with the template) |
-| `tools/quality/tests/acceptance/` | Maintainer acceptance harness (not exported) |
+| `tools/quality/tests/acceptance/` | Maintainer acceptance harness (left out of an export, [decision 0016](0016-template-lifecycle.md)) |
 | `tools/quality/launcher/` | The launcher component: stdlib source, tests, and its own lockfile |
 | `tools/quality/helpers/{typescript,dart,php}/` | Native helper bundles, each a native project with its own lockfile and tests |
 | `tools/quality/toolchains.toml` | Toolchain pins and checksums |
-| `docs/` | Documentation, decisions, plan records |
+| `docs/` | Documentation and decisions; the plan records are left out of an export |
 | `.github/workflows/`, `ci/gitlab/` | Thin CI wrappers ([decision 0015](0015-ci-wrappers-and-merge-gates.md)) |
 | `.github/CODEOWNERS`, `.github/rulesets/` | Owners of the control files and the prepared branch ruleset |
 
@@ -48,11 +48,14 @@ are enforced on the core by the declared-module architecture rule:
    do not import each other.
 8. `rules` – common repository, documentation, secret, blob, exception,
    structure, and architecture rules over normalized data.
-9. `scenarios`, `ci`, `toolchain`, `hooks` – feature modules; `ci` holds the
-   workflow, CODEOWNERS, control-file, and job-result rules.
+9. `template`, `ci`, `hooks`, `toolchain`, `scenarios` – feature modules;
+   `ci` holds the workflow, CODEOWNERS, control-file, and job-result rules,
+   and `template` the project export
+   ([decision 0016](0016-template-lifecycle.md)).
 10. `engine` and `cli` – orchestration and argument parsing only.
 
-Lower layers never import higher layers; cycles are errors.
+Lower layers never import higher layers; cycles are errors. The exact order
+is the `layers` list under `[components.architecture]` in `quality.toml`.
 
 ## Language adapters
 
@@ -68,9 +71,11 @@ Every component is declared in `quality.toml` with `role`:
 
 - `application` – the project's own code; activates its profile toolchain.
 - `tooling` – the Python core; always active.
-- `helper` – a native helper bundle. It is active when an application
-  component uses its profile, when the candidate changes any of its files, or
-  when `repository.mode = "maintainer"` (this repository).
+- `helper` – a native helper bundle under `tools/quality/helpers`. It is
+  active when an application component uses its profile, when the candidate
+  changes any of its files, or when `repository.mode = "maintainer"` (the
+  template's own repository). Otherwise it is dormant: bootstrap does not set
+  it up, so its profile toolchain is never downloaded, and checks skip it.
 
 Discovery reports manifests outside declared components and source files
 outside declared roots as errors, so helper manifests and fixtures never

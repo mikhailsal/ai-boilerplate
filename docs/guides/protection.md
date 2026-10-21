@@ -68,8 +68,7 @@ gh api repos/OWNER/REPO/rulesets
 Then prove it: a direct push to `main` must be rejected, and a pull request
 whose `gate` job fails must show `required` as failed and the merge button
 blocked. Until someone has observed this, record the protection as
-unverified, as the [implementation plan](../../PLAN.md) does for this
-repository.
+unverified.
 
 ## GitLab
 

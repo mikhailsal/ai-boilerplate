@@ -1,4 +1,4 @@
-"""`quality tools`: install the pinned standalone tools into the local cache."""
+"""`quality tools`: install the pinned standalone tools, or move a pin to another release."""
 
 from __future__ import annotations
 
@@ -8,11 +8,20 @@ import sys
 from quality.cli import Subcommands
 from quality.diagnostics import Diagnostic, Outcome
 from quality.diagnostics.render import render_text
-from quality.toolchain import ManifestError, ToolchainError, cache_root, install, load_manifest
+from quality.toolchain import (
+    ManifestError,
+    ToolchainError,
+    UpdateError,
+    cache_root,
+    install,
+    load_manifest,
+    update,
+)
 from quality.toolchain.install import INSTALL_FAILED
+from quality.toolchain.manifest import MANIFEST
 
 NAME = "tools"
-ACTIONS = frozenset({"install"})
+ACTIONS = frozenset({"install", "update"})
 DEFAULT_TOOLS = ("gitleaks", "actionlint", "osv-scanner")
 
 
@@ -34,6 +43,17 @@ def register(commands: Subcommands) -> None:
     )
     add.add_argument("names", nargs="*", help="tool names from toolchains.toml")
     add.set_defaults(handler=run_install)
+    move = actions.add_parser(
+        "update",
+        help="move a pinned tool to another release",
+        description="Rewrite the tool's entry in toolchains.toml for VERSION: the artifact URLs "
+        "and members get the new version, and the checksums come from the vendor's checksum "
+        "file that the tool's `checksums` names. Nothing is installed or staged. Exit 0 when "
+        "rewritten, 2 when the entry cannot be derived, 3 when a download fails.",
+    )
+    move.add_argument("name", help="a tool name from toolchains.toml")
+    move.add_argument("version", help="the release to pin")
+    move.set_defaults(handler=run_update)
 
 
 def run_install(args: argparse.Namespace) -> int:
@@ -62,3 +82,21 @@ def run_install(args: argparse.Namespace) -> int:
     if found:
         sys.stdout.write(render_text(outcome))
     return int(outcome.exit_code())
+
+
+def run_update(args: argparse.Namespace) -> int:
+    """Rewrite one tool's pins and print the new artifacts."""
+    try:
+        updated = update(MANIFEST.read_text(encoding="utf-8"), args.name, args.version)
+    except UpdateError as error:
+        outcome = Outcome.of([error.diagnostic])
+        sys.stdout.write(render_text(outcome))
+        return int(outcome.exit_code())
+    MANIFEST.write_text(updated.text, encoding="utf-8")
+    print(f"{args.name} {updated.old.version} -> {updated.new.version} in {MANIFEST.name}")
+    for arch, artifact in updated.new.artifacts.items():
+        print(f"  {arch}: {artifact.url} sha256 {artifact.sha256}")
+    for filename, extra in updated.new.extras.items():
+        print(f"  {filename}: {extra.url} sha256 {extra.sha256}")
+    print(f"next: ./quality tools install {args.name}, then review, stage, and commit")
+    return 0

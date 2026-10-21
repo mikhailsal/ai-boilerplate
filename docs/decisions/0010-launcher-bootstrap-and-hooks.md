@@ -1,6 +1,6 @@
 # 0010 Launcher, bootstrap, doctor, and hooks
 
-Status: accepted (P05); amended in P06, P07, and P08.
+Status: accepted (P05); amended in P06, P07, P08, and P11.
 
 ## Launcher
 
@@ -12,8 +12,11 @@ CPython with Ruff targeting Python 3.10.
 
 - `./quality bootstrap` installs the pinned uv from a SHA-256-verified
   download ([decision 0002](0002-installation-strategy.md)), installs the
-  pinned CPython with `uv python install`, and syncs the core environment
-  with `uv sync --frozen`. Then it runs the core's `bootstrap` command.
+  pinned CPython with `uv python install --no-bin`, and syncs the core
+  environment with `uv sync --frozen`. Then it runs the core's `bootstrap`
+  command. Since P11 `./quality template export` prepares the core the same
+  way, because a fresh clone of the template has nothing installed yet
+  ([decision 0016](0016-template-lifecycle.md#export)).
 - Every other command first runs `uv sync --frozen --offline --quiet` in
   `tools/quality`. A failure is exit 3 with the instruction to run
   `./quality bootstrap`; nothing is downloaded.
@@ -124,5 +127,7 @@ calls in scratch repositories with the hooks bootstrap installed.
   on the server side.
 - The scratch acceptance repositories run the core under test through a
   small entry point, not the launcher. The launcher itself is covered by its
-  own unit suite and by this repository, whose hooks run through it; P11
-  repeats the whole flow in a fresh export.
+  own unit suite and by this repository, whose hooks run through it. Since
+  P11 the lifecycle acceptance test runs the real launcher of a template
+  clone and of the project it exports, and the core's end-to-end suite
+  exports a project from a fresh clone.

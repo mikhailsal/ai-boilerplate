@@ -4,7 +4,7 @@ from quality.gitio.candidate import Candidate, index_tree, revision, staged
 from quality.gitio.diff import FileChange, Hunk, added_lines, map_line, tree_changes
 from quality.gitio.errors import RULES, GitioError
 from quality.gitio.history import HistoryBlob, RevisionRange, new_blobs
-from quality.gitio.repo import Repository
+from quality.gitio.repo import Repository, create_repository
 from quality.gitio.revisions import (
     changed_lines,
     commit_lines,
@@ -34,6 +34,7 @@ __all__ = [
     "changed_lines",
     "check_isolated",
     "commit_lines",
+    "create_repository",
     "index_tree",
     "list_tree",
     "map_line",

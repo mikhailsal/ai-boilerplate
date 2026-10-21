@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from quality import ci, discovery, engine, gitio, hooks, reports, toolchain
+from quality import ci, discovery, engine, gitio, hooks, reports, template, toolchain
 from quality.adapters import markdown, native, secrets
 from quality.adapters.dart import profile as dart
 from quality.adapters.php import profile as php
@@ -61,5 +61,6 @@ def build_registry() -> RuleRegistry:
             *hooks.RULES,
             *reports.RULES,
             *ci.RULES,
+            *template.RULES,
         ]
     )

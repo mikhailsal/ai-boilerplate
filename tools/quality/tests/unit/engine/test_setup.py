@@ -111,6 +111,33 @@ def test_a_component_with_problems_is_not_ready(project: GitRepo, python: Setup)
     assert report.lines == ["web: the typescript environment is ready"]
 
 
+HELPER = ComponentSpec(id="web-helper", root="helper", profile="typescript", role="helper")
+
+
+@pytest.mark.parametrize("mode", ["project", "maintainer"])
+def test_a_dormant_helper_is_set_up_only_once_it_is_active(repo: GitRepo, mode: str) -> None:
+    repo.write("quality.toml", policy_toml(APP, HELPER, mode=mode))
+    repo.write("app/src/app/core.py", "x = 1\n")
+    repo.write("helper/src/index.ts", "")
+    repo.commit_all("base")
+    python, typescript = Setup(), Setup()
+    setups = {Profile.PYTHON: python, Profile.TYPESCRIPT: typescript}
+    report = provision_components(Staged(repo.repository()), setups, RULES)
+    if mode == "project":
+        assert report.lines == [
+            "app: the python environment is ready",
+            "web-helper: dormant, so its typescript tools wait",
+        ]
+        assert typescript.calls == []
+    else:
+        assert report.lines[1] == "web-helper: the typescript environment is ready"
+    repo.write("helper/src/index.ts", "// changed\n")
+    repo.git("add", "helper/src/index.ts")
+    staged = probe_components(Staged(repo.repository()), setups, RULES)
+    assert staged.lines[1] == "web-helper: the typescript environment is ready"
+    assert typescript.calls[-1][:2] == ("probe", "web-helper")
+
+
 def test_an_alternate_index_is_the_candidate(project: GitRepo, tmp_path: Path) -> None:
     index = tmp_path / "index"
     project.git("read-tree", "HEAD", GIT_INDEX_FILE=str(index))

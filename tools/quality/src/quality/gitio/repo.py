@@ -21,6 +21,21 @@ PINNED_CONFIG = (
     "color.ui=false",
 )
 REPOSITORY_VARIABLES = ("GIT_DIR", "GIT_WORK_TREE")
+# A commit the core creates carries the user's identity: from these variables, or
+# from their Git configuration under HOME. None is invented, and Git may not guess one.
+IDENTITY_VARIABLES = (
+    "GIT_AUTHOR_NAME",
+    "GIT_AUTHOR_EMAIL",
+    "GIT_AUTHOR_DATE",
+    "GIT_COMMITTER_NAME",
+    "GIT_COMMITTER_EMAIL",
+    "GIT_COMMITTER_DATE",
+)
+NO_GUESSED_IDENTITY = {
+    "GIT_CONFIG_COUNT": "1",
+    "GIT_CONFIG_KEY_0": "user.useConfigOnly",
+    "GIT_CONFIG_VALUE_0": "true",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,6 +132,30 @@ class Repository:
         except FileNotFoundError:
             return frozenset()
         return frozenset(listing.split())
+
+
+def create_repository(
+    path: Path, *, branch: str, message: str, environ: Mapping[str, str]
+) -> Repository:
+    """Make the directory `path` a repository whose first commit holds all of its files.
+
+    Ignored files are committed too, so the commit holds exactly what the
+    directory holds. Ambient Git variables are not inherited, apart from the
+    user's identity.
+    """
+    identity = {key: environ[key] for key in IDENTITY_VARIABLES if key in environ}
+    init = _git(
+        path, sanitized(environ, extra=identity), ("init", "-q", f"--initial-branch={branch}")
+    )
+    if not init.ok:
+        detail = init.stderr_text().strip() or f"exit {init.returncode}"
+        raise _failure(command="init", detail=detail)
+    place = {"GIT_DIR": str(path / ".git"), "GIT_WORK_TREE": str(path)}
+    repo = Repository(path, path / ".git", sanitized(environ, extra={**identity, **place}))
+    repo.git("add", "--all", "--force")
+    strict = {**repo.env, **NO_GUESSED_IDENTITY}
+    repo.git("commit", "--quiet", "--message", message, env=strict)
+    return repo
 
 
 def _git(

@@ -106,9 +106,14 @@ def rules_of(result: Completed) -> set[str]:
 
 @dataclass(frozen=True, slots=True)
 class Project:
-    """A repository with Python components, committed before any hook exists."""
+    """A repository with Python components, committed before any hook exists.
+
+    `caches` replaces the shared cache variables, for a user whose cache holds
+    only some of the toolchains.
+    """
 
     repo: GitRepo
+    caches: Mapping[str, str] | None = None
 
     @property
     def path(self) -> Path:
@@ -116,8 +121,9 @@ class Project:
         return self.repo.path
 
     def environ(self) -> dict[str, str]:
-        """Return the scratch user's environment with the shared caches."""
-        return self.repo.environ(**shared_caches(os.environ))
+        """Return the scratch user's environment with its caches."""
+        caches = shared_caches(os.environ) if self.caches is None else self.caches
+        return self.repo.environ(**caches)
 
     def run(self, *argv: str) -> Completed:
         """Run a command in the work tree as the user would."""

@@ -18,6 +18,7 @@ from quality.policy.models import (
     Suite,
     Thresholds,
 )
+from quality.policy.template import TemplatePolicy
 from quality.policy.validate import cross_validate, owned_paths
 
 __all__ = [
@@ -37,6 +38,7 @@ __all__ = [
     "Quarantine",
     "Role",
     "Suite",
+    "TemplatePolicy",
     "Thresholds",
     "cross_validate",
     "load_policy",

@@ -1,10 +1,12 @@
 # Pinned standalone tools; see docs/decisions/0001-toolchain-pins.md.
-# Checksums come from the vendors' published checksum files.
+# Checksums come from the vendors' published checksum files, which each tool's
+# `checksums` names; `quality tools update` reads them for a new release.
 schema_version = 1
 
 [tools.uv]
 version = "0.12.24"
 binary = "uv"
+checksums = "{url}.sha256"
 
 [tools.uv.artifacts.x86_64]
 url = "https://github.com/astral-sh/uv/releases/download/0.12.24/uv-x86_64-unknown-linux-gnu.tar.gz"
@@ -21,11 +23,13 @@ member = "uv-aarch64-unknown-linux-gnu/uv"
 [tools.gitleaks]
 version = "8.30.1"
 binary = "gitleaks"
+checksums = "https://github.com/gitleaks/gitleaks/releases/download/v{version}/gitleaks_{version}_checksums.txt"
 
-# The rule set embedded in this release, fetched by commit so the secret adapter can
-# derive its configuration outside the scanned tree (decision 0007).
+# The rule set embedded in this release, fetched at its tag and pinned by checksum
+# so the secret adapter can derive its configuration outside the scanned tree
+# (decision 0007).
 [tools.gitleaks.extras."gitleaks.toml"]
-url = "https://raw.githubusercontent.com/gitleaks/gitleaks/83d9cd684c87d95d656c1458ef04895a7f1cbd8e/config/gitleaks.toml"
+url = "https://raw.githubusercontent.com/gitleaks/gitleaks/v8.30.1/config/gitleaks.toml"
 sha256 = "e163e53b9e7e8a8511e77271e2b323ed057759542a6d988258afe3a1fa329caf"
 
 [tools.gitleaks.artifacts.x86_64]
@@ -43,6 +47,7 @@ member = "gitleaks"
 [tools.osv-scanner]
 version = "2.7.0"
 binary = "osv-scanner"
+checksums = "https://github.com/google/osv-scanner/releases/download/v{version}/osv-scanner_SHA256SUMS"
 
 [tools.osv-scanner.artifacts.x86_64]
 url = "https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64"
@@ -57,6 +62,7 @@ packaging = "binary"
 [tools.actionlint]
 version = "1.7.12"
 binary = "actionlint"
+checksums = "https://github.com/rhysd/actionlint/releases/download/v{version}/actionlint_{version}_checksums.txt"
 
 [tools.actionlint.artifacts.x86_64]
 url = "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz"
@@ -77,6 +83,7 @@ member = "actionlint"
 version = "24.22.0"
 binary = "node"
 executable = "bin/node"
+checksums = "https://nodejs.org/dist/v{version}/SHASUMS256.txt"
 
 [tools.node.artifacts.x86_64]
 url = "https://nodejs.org/dist/v24.22.0/node-v24.22.0-linux-x64.tar.xz"
@@ -94,6 +101,7 @@ member = "node-v24.22.0-linux-arm64"
 version = "3.13.6"
 binary = "dart"
 executable = "bin/dart"
+checksums = "{url}.sha256sum"
 
 [tools.dart.artifacts.x86_64]
 url = "https://storage.googleapis.com/dart-archive/channels/stable/release/3.13.6/sdk/dartsdk-linux-x64-release.zip"
@@ -112,6 +120,7 @@ member = "dart-sdk"
 [tools.composer]
 version = "2.10.3"
 binary = "composer"
+checksums = "{url}.sha256sum"
 
 [tools.composer.artifacts.x86_64]
 url = "https://getcomposer.org/download/2.10.3/composer.phar"

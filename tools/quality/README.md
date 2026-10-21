@@ -2,7 +2,7 @@
 
 The `quality` command-line tool decides whether a candidate change passes.
 Git hooks and CI only call it. This directory holds its typed Python source,
-unit, e2e, and acceptance tests, the stdlib launcher, and locked development tooling.
+its tests, the stdlib launcher, and locked development tooling.
 
 ## Layout
 
@@ -10,7 +10,7 @@ unit, e2e, and acceptance tests, the stdlib launcher, and locked development too
 | --- | --- |
 | `src/quality/diagnostics` | Finding model, rule registry, text and JSON renderers |
 | `src/quality/process` | Subprocess runner and allowlisted child environments |
-| `src/quality/policy` | `quality.toml` models, loading, cross-validation, schema export |
+| `src/quality/policy` | `quality.toml` models, loading, cross-validation, schema export, and the text edit of `component add` |
 | `src/quality/gitio` | Candidate trees, isolated snapshots, and changed-line diffs from Git plumbing |
 | `src/quality/discovery` | File types, manifests, classification, ownership, activation, test scope |
 | `src/quality/metrics` | Structure metrics model shared by profile adapters |
@@ -21,21 +21,31 @@ unit, e2e, and acceptance tests, the stdlib launcher, and locked development too
 | `src/quality/adapters` | Native tool adapters: the Python profile (Ruff, Pyright, pytest, uv environments, fixes), the TypeScript profile (Prettier, ESLint, tsc, Vitest, npm environments, fixes), the Dart profile (dart format, dart analyze, package:test, package:coverage, pub environments, fixes), the PHP profile (Composer, PHP CS Fixer, PHPStan, PHPUnit with Xdebug, the system PHP, fixes), Python structure and imports, Markdown lint, gitleaks, actionlint, osv-scanner, HTTP probes |
 | `src/quality/rules` | Common rules: files, configuration, suppressions, docs, links, structure, architecture, exceptions, tests, quarantine, coverage |
 | `src/quality/scenarios` | Capability catalog, scenario manifests, static validation, proof from test results, and capability suggestions |
-| `src/quality/toolchain` | Pinned standalone tool manifest and verified installation |
+| `src/quality/toolchain` | Pinned standalone tool manifest, verified installation, and `tools update` from vendor checksum files |
 | `src/quality/hooks` | Text, installation, and status of the managed Git hooks |
 | `src/quality/ci` | CI wrapper rules: workflow trust, the aggregate job, CODEOWNERS, control files, and the job-result verdict |
+| `src/quality/template` | Template export: maintainer-only fences, left-out paths, and the new project's root commit |
 | `src/quality/engine` | Orchestration of `check`, `gate`, `audit`, history ranges, external links, test suites, fixes, bootstrap, and doctor |
 | `src/quality/catalog.py` | The registry of every rule the core can report |
-| `src/quality/cli` | Argument parsing and subcommands (`audit`, `bootstrap`, `check`, `ci`, `doctor`, `explain`, `fix`, `gate`, `inventory`, `links`, `policy`, `scenarios`, `self-test`, `test`, `tools`) |
+| `src/quality/cli` | Argument parsing and subcommands (`audit`, `bootstrap`, `check`, `ci`, `component`, `doctor`, `explain`, `fix`, `gate`, `inventory`, `links`, `policy`, `scenarios`, `self-test`, `template`, `test`, `tools`) |
 | `src/quality/testkit` | Test builders shared by unit, contract, and acceptance tests, including scratch projects with real hooks, the `greet` and `notes` scenario fixtures, and offline advisory databases |
 | `toolchains.toml` | Versions, URLs, and SHA-256 checksums of standalone tools, Node, the Dart SDK, and Composer; the npm, pub, and Composer packages TypeScript, Dart, and PHP components lock; and the PHP and Xdebug minor versions the system must provide |
 | `helpers/typescript` | The Node helper of the TypeScript profile: types, structure, imports, and ESLint configuration probes; a separate component |
 | `helpers/dart` | The Dart helper of the Dart profile: structure and imports with package:analyzer; a separate component |
 | `helpers/php` | The PHP helper of the PHP profile: structure, imports, and which files only declare, with nikic/php-parser; a separate component |
-| `tests/unit` | Unit tests; they must keep core coverage at the policy minimum |
-| `tests/e2e` | End-to-end tests: the exported template, copied without installed environments, run through `./quality` |
-| `tests/acceptance` | Acceptance tests: real commits and pushes through the managed hooks in scratch repositories |
+| `tests/unit` | Unit tests, including the contract every language profile meets; they must keep core coverage at the policy minimum |
+| `tests/e2e` | End-to-end tests: a project exported from a fresh clone, without installed environments, run through `./quality` |
 | `launcher/` | The `./quality` launcher, a separate component that runs on the system `python3`; `launcher/e2e` runs it from a fresh copy |
+
+<!-- maintainer-only:begin -->
+
+In the template's own repository, `tests/acceptance` holds the maintainer
+acceptance harness: real commits and pushes through the managed hooks in
+scratch repositories, and the template lifecycle from export to a
+four-language project. The export leaves it out
+([decision 0016](../../docs/decisions/0016-template-lifecycle.md)).
+
+<!-- maintainer-only:end -->
 
 Packages depend only on lower layers, as described in
 [decision 0003](../../docs/decisions/0003-architecture.md); the layer order is
@@ -49,7 +59,8 @@ coverage engine in
 [decision 0012](../../docs/decisions/0012-dart-profile.md), the PHP profile
 [decision 0013](../../docs/decisions/0013-php-profile.md), behavioral scenarios
 [decision 0014](../../docs/decisions/0014-behavioral-scenarios.md), the CI wrappers and merge gates
-[decision 0015](../../docs/decisions/0015-ci-wrappers-and-merge-gates.md), and the launcher,
+[decision 0015](../../docs/decisions/0015-ci-wrappers-and-merge-gates.md), the template
+lifecycle [decision 0016](../../docs/decisions/0016-template-lifecycle.md), and the launcher,
 bootstrap, doctor, and hooks are
 [decision 0010](../../docs/decisions/0010-launcher-bootstrap-and-hooks.md).
 
@@ -66,9 +77,8 @@ bootstrap, doctor, and hooks are
 ## Native development commands
 
 Day to day, use the gate itself from the repository root:
-`./quality self-test` (unit suites with coverage) and
-`./quality self-test --level acceptance`. The tool versions are locked in
-`pyproject.toml` and `uv.lock`
+`./quality self-test` runs the unit suites with coverage. The tool versions
+are locked in `pyproject.toml` and `uv.lock`
 ([decision 0001](../../docs/decisions/0001-toolchain-pins.md)); after
 `./quality bootstrap`, the native commands run from this directory:
 
@@ -77,13 +87,19 @@ Day to day, use the gate itself from the repository root:
 .venv/bin/ruff check src tests
 .venv/bin/pyright
 PYTHONPATH=src .venv/bin/python -m pytest tests/unit --cov=src --cov-branch
-PYTHONPATH=src .venv/bin/python -m pytest tests/acceptance
 ```
 
-The acceptance tests compare the hook output exactly, so they expect the
-network isolation of test suites: where unprivileged user namespaces are
-unavailable, the extra `tests.network` warning fails them
+<!-- maintainer-only:begin -->
+
+In the template's own repository, `./quality self-test --level acceptance`
+runs the maintainer acceptance harness; natively, it is
+`PYTHONPATH=src .venv/bin/python -m pytest tests/acceptance` from this
+directory. The acceptance tests compare the hook output exactly, so they
+expect the network isolation of test suites: where unprivileged user
+namespaces are unavailable, the extra `tests.network` warning fails them
 ([decision 0008](../../docs/decisions/0008-test-and-coverage-engine.md#network-isolation)).
+
+<!-- maintainer-only:end -->
 
 The TypeScript helper runs on the pinned Node. `./quality bootstrap` caches
 the packages of its `package-lock.json`, and `npm ci --offline` installs them

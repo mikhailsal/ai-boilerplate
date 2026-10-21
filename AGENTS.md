@@ -1,8 +1,9 @@
 # Agent instructions
 
-This repository is a Git template whose quality gate is the `quality`
-command-line tool in [`tools/quality`](tools/quality/README.md). Hooks and CI
-only call it; a pass or fail comes from the tool, not from the wrapper.
+This repository's quality gate is the `quality` command-line tool in
+[`tools/quality`](tools/quality/README.md), from the AI boilerplate template.
+Hooks and CI only call it; a pass or fail comes from the tool, not from the
+wrapper.
 
 ## Setup
 
@@ -12,9 +13,23 @@ only call it; a pass or fail comes from the tool, not from the wrapper.
 
 Bootstrap installs the pinned tools, fills the package caches, and installs
 the check-only `pre-commit` hook (add `--pre-push` for the push hook). Run it
-again after pulling changes to `tools/quality` or a lockfile;
-`./quality doctor` says whether everything is ready. Prerequisites are in
-[decision 0002](docs/decisions/0002-installation-strategy.md).
+again after pulling changes to `tools/quality` or a lockfile, and after
+staging a new component; `./quality doctor` says whether everything is ready.
+Bootstrap sets up only the profiles the staged components use. Prerequisites
+are in [decision 0002](docs/decisions/0002-installation-strategy.md).
+
+## Components
+
+- `./quality component add <directory>` adds a directory with a supported
+  manifest to `quality.toml`; stage both, run `./quality bootstrap`, and
+  commit. The [profile support matrix](docs/reference/profiles.md) lists the
+  manifests and layouts.
+- New languages and coverage formats are added as described in the
+  [extension guide](docs/guides/extending.md).
+- `./quality tools update <tool> <version>` moves a pinned tool to another
+  release with the vendor's checksums; the
+  [maintenance guide](docs/guides/maintenance.md) covers updating tools,
+  packages, policy, and the template.
 
 ## Checks
 
@@ -27,8 +42,18 @@ again after pulling changes to `tools/quality` or a lockfile;
   It never stages anything: review the change and stage it yourself.
 - `./quality test` runs the unit suites of the affected components with their
   coverage floors; `--suite`, `--component`, and `--all` select more.
-- `./quality self-test --level unit`, `--level e2e`, or `--level acceptance`
-  tests the quality tooling itself; the acceptance suite drives real Git hooks.
+- `./quality self-test --level unit` or `--level e2e` tests the quality
+  tooling itself.
+
+<!-- maintainer-only:begin -->
+
+- `./quality self-test --level acceptance` runs the maintainer acceptance
+  harness, which drives real Git hooks; `./quality template export <directory>`
+  writes a new project from this template
+  ([decision 0016](docs/decisions/0016-template-lifecycle.md)).
+
+<!-- maintainer-only:end -->
+
 - `./quality scenarios` validates the scenario manifests without running
   tests and suggests undeclared capabilities
   ([decision 0014](docs/decisions/0014-behavioral-scenarios.md)).

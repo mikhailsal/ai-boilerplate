@@ -123,19 +123,28 @@ def test_a_missing_core_interpreter_asks_for_bootstrap(
     )
 
 
-def test_bootstrap_installs_uv_python_and_the_environment(world: World) -> None:
+@pytest.mark.parametrize("argv", [["bootstrap"], ["template", "export", "../project"]])
+def test_bootstrap_installs_uv_python_and_the_environment(world: World, argv: list[str]) -> None:
     server = Server()
     commands = Commands([0, 0])
-    executed = world.run(["bootstrap"], commands, opener=server)
+    executed = world.run(argv, commands, opener=server)
     assert world.uv.read_bytes() == BINARY
     uv = str(world.uv)
     downloads = {**world.env(), "UV_PYTHON_DOWNLOADS": "automatic"}
     assert [(run.argv, run.cwd, run.env, run.capture) for run in commands.runs] == [
-        ([uv, "python", "install", "3.14.8"], world.core, downloads, False),
+        ([uv, "python", "install", "--no-bin", "3.14.8"], world.core, downloads, False),
         ([uv, "sync", "--frozen"], world.core, world.env(), False),
     ]
-    assert executed.argv[-1:] == ["bootstrap"]
+    assert executed.argv[-len(argv) :] == argv
     assert len(server.downloads) == 1
+
+
+@pytest.mark.parametrize("argv", [["template"], ["export", "bootstrap"], ["check", "bootstrap"]])
+def test_other_commands_never_download(
+    world: World, capsys: pytest.CaptureFixture[str], argv: list[str]
+) -> None:
+    assert world.fail(argv, Commands([])) == 3
+    assert "is not installed; run ./quality bootstrap" in capsys.readouterr().err
 
 
 def test_bootstrap_reuses_an_installed_uv(world: World) -> None:
@@ -146,7 +155,7 @@ def test_bootstrap_reuses_an_installed_uv(world: World) -> None:
 @pytest.mark.parametrize(
     ("statuses", "message"),
     [
-        ([1], "quality: uv python install 3.14.8 failed with exit status 1\n"),
+        ([1], "quality: uv python install --no-bin 3.14.8 failed with exit status 1\n"),
         ([0, 4], "quality: uv sync --frozen failed with exit status 4\n"),
     ],
 )

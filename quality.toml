@@ -3,7 +3,12 @@
 schema_version = 1
 
 [repository]
+# maintainer-only:begin
+# Lines between these fences stay in the template's own repository: `quality
+# template export` removes them, so an exported project runs in project mode
+# without the maintainer acceptance harness (decision 0016).
 mode = "maintainer"
+# maintainer-only:end
 default_branch = "main"
 
 [thresholds]
@@ -30,9 +35,15 @@ role = "tooling"
 profile = "python"
 root = "tools/quality"
 source = ["src"]
-tests = { unit = ["tests/unit"], e2e = ["tests/e2e"], acceptance = ["tests/acceptance"] }
 capabilities = ["cli"]
 scenarios = "scenarios.toml"
+
+[components.tests]
+unit = ["tests/unit"]
+e2e = ["tests/e2e"]
+# maintainer-only:begin
+acceptance = ["tests/acceptance"]
+# maintainer-only:end
 
 # Decision 0003: packages depend only on packages listed after them.
 [components.architecture]
@@ -45,6 +56,7 @@ layers = [
     "toolchain",
     "hooks",
     "ci",
+    "template",
     "rules",
     "adapters",
     "reports",
@@ -68,6 +80,7 @@ modules = [
     { name = "toolchain", paths = ["src/quality/toolchain/**"] },
     { name = "hooks", paths = ["src/quality/hooks/**"] },
     { name = "ci", paths = ["src/quality/ci/**"] },
+    { name = "template", paths = ["src/quality/template/**"] },
     { name = "rules", paths = ["src/quality/rules/**"] },
     { name = "adapters", paths = ["src/quality/adapters/**"] },
     { name = "reports", paths = ["src/quality/reports/**"] },
@@ -96,7 +109,8 @@ capabilities = ["cli"]
 scenarios = "scenarios.toml"
 
 # The Node helper of the TypeScript profile (decision 0011), checked by that
-# profile. A helper bundle is active in this maintainer repository (decision 0003).
+# profile. A helper bundle runs when an application uses its profile, when the
+# candidate changes it, or in maintainer mode (decision 0003).
 [[components]]
 id = "quality-typescript-helper"
 role = "helper"
@@ -145,6 +159,21 @@ control = ["ci/**"]
 [audit]
 blocking_score = 7.0
 unscored = "error"
+
+# maintainer-only:begin
+# What `quality template export` leaves out of a new project, and the files
+# whose maintainer-only regions it removes (decision 0016).
+[template]
+exclude = ["PLAN.md", "docs/plan/**", "tools/quality/tests/acceptance/**"]
+fenced = [
+    "quality.toml",
+    "tools/quality/scenarios.toml",
+    "README.md",
+    "AGENTS.md",
+    "docs/README.md",
+    "tools/quality/README.md",
+]
+# maintainer-only:end
 
 [[classification]]
 pattern = "quality"

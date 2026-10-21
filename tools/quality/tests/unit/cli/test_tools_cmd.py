@@ -1,11 +1,15 @@
+import functools
+import hashlib
+import io
 from pathlib import Path
 
 import pytest
 
 from quality.cli import tools_cmd
 from quality.cli.main import main
-from quality.toolchain import ManifestError, Tool, ToolchainError
+from quality.toolchain import ManifestError, Tool, ToolchainError, load_manifest, update
 from quality.toolchain.install import INSTALL_FAILED
+from quality.toolchain.manifest import MANIFEST
 
 
 class FakeInstaller:
@@ -108,3 +112,61 @@ def test_an_action_is_required(capsys: pytest.CaptureFixture[str]) -> None:
         main(["tools"])
     assert raised.value.code == 2
     assert "usage: quality tools" in capsys.readouterr().err
+
+
+@pytest.fixture
+def manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    path = tmp_path / "toolchains.toml"
+    path.write_bytes(MANIFEST.read_bytes())
+    monkeypatch.setattr(tools_cmd, "MANIFEST", path)
+    return path
+
+
+def test_update_rewrites_the_pins_from_the_vendor_checksums(
+    manifest: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    base = "https://github.com/rhysd/actionlint/releases/download/v1.7.13"
+    sums = f"{'c' * 64}  actionlint_1.7.13_linux_amd64.tar.gz\n"
+    sums += f"{'d' * 64}  actionlint_1.7.13_linux_arm64.tar.gz\n"
+    documents = {f"{base}/actionlint_1.7.13_checksums.txt": sums.encode()}
+    monkeypatch.setattr(
+        tools_cmd,
+        "update",
+        functools.partial(update, opener=lambda url: io.BytesIO(documents[url])),
+    )
+    assert main(["tools", "update", "actionlint", "1.7.13"]) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "actionlint 1.7.12 -> 1.7.13 in toolchains.toml",
+        f"  x86_64: {base}/actionlint_1.7.13_linux_amd64.tar.gz sha256 {'c' * 64}",
+        f"  aarch64: {base}/actionlint_1.7.13_linux_arm64.tar.gz sha256 {'d' * 64}",
+        "next: ./quality tools install actionlint, then review, stage, and commit",
+    ]
+    assert load_manifest(manifest).tools["actionlint"].version == "1.7.13"
+    assert load_manifest(manifest).tools["gitleaks"] == load_manifest().tools["gitleaks"]
+
+
+def test_update_lists_the_new_extras(
+    manifest: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def vendor(url: str) -> io.BytesIO:
+        if url.endswith("_checksums.txt"):
+            names = ("linux_x64", "linux_arm64")
+            return io.BytesIO(
+                "".join(f"{'e' * 64}  gitleaks_8.31.0_{n}.tar.gz\n" for n in names).encode()
+            )
+        return io.BytesIO(b"rules\n")
+
+    monkeypatch.setattr(tools_cmd, "update", functools.partial(update, opener=vendor))
+    assert main(["tools", "update", "gitleaks", "8.31.0"]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    rules = "https://raw.githubusercontent.com/gitleaks/gitleaks/v8.31.0/config/gitleaks.toml"
+    assert lines[3] == f"  gitleaks.toml: {rules} sha256 {hashlib.sha256(b'rules\n').hexdigest()}"
+
+
+def test_an_update_that_cannot_be_derived_changes_nothing(
+    manifest: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    before = manifest.read_bytes()
+    assert main(["tools", "update", "uv", "0.12.24"]) == 2
+    assert "(tools.update-invalid)" in capsys.readouterr().out
+    assert manifest.read_bytes() == before

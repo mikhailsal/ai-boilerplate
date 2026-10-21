@@ -8,6 +8,7 @@ from pydantic import Field, model_validator
 
 from quality.policy.ci import AuditPolicy, CiPolicy
 from quality.policy.enums import Capability, Category, Enhancement, Profile, Role, Suite
+from quality.policy.template import TemplatePolicy
 from quality.policy.types import (
     Date,
     Flag,
@@ -27,7 +28,7 @@ from quality.policy.types import (
 class Repository(StrictModel):
     """Repository-wide settings."""
 
-    mode: Literal["project", "maintainer"]
+    mode: Literal["project", "maintainer"] = "project"
     default_branch: Text = "main"
 
 
@@ -206,3 +207,4 @@ class Policy(StrictModel):
     quarantine: list[Quarantine] = Field(default_factory=list[Quarantine])
     ci: CiPolicy | None = None
     audit: AuditPolicy = Field(default_factory=AuditPolicy)
+    template: TemplatePolicy = Field(default_factory=TemplatePolicy)

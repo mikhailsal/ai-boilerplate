@@ -59,7 +59,7 @@ def test_provision_installs_the_pinned_interpreter_then_syncs(
     (component / ".python-version").write_text("\n3.14.8\n\n")
     assert fake_uv(tmp_path).provision(APP, component.parent) == []
     assert calls(tmp_path) == [
-        f"{component} automatic python install 3.14.8",
+        f"{component} automatic python install --no-bin 3.14.8",
         f"{component} never sync --frozen --quiet",
     ]
 

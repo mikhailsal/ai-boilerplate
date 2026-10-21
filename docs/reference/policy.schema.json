@@ -497,6 +497,7 @@
           "type": "string"
         },
         "mode": {
+          "default": "project",
           "enum": [
             "project",
             "maintainer"
@@ -505,9 +506,6 @@
           "type": "string"
         }
       },
-      "required": [
-        "mode"
-      ],
       "title": "Repository",
       "type": "object"
     },
@@ -574,6 +572,28 @@
         }
       },
       "title": "Suites",
+      "type": "object"
+    },
+    "TemplatePolicy": {
+      "additionalProperties": false,
+      "description": "Maintainer content that a project made from this repository does not receive.\n\n`exclude` lists the paths the export leaves out. Each file in `fenced`\nloses its maintainer-only regions, the lines between a line containing\n`maintainer-only:begin` and one containing `maintainer-only:end`.",
+      "properties": {
+        "exclude": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Exclude",
+          "type": "array"
+        },
+        "fenced": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Fenced",
+          "type": "array"
+        }
+      },
+      "title": "TemplatePolicy",
       "type": "object"
     },
     "Thresholds": {
@@ -694,6 +714,9 @@
       "const": 1,
       "title": "Schema Version",
       "type": "integer"
+    },
+    "template": {
+      "$ref": "#/$defs/TemplatePolicy"
     },
     "thresholds": {
       "$ref": "#/$defs/Thresholds"

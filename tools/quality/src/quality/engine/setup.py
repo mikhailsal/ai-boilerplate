@@ -3,7 +3,10 @@
 Bootstrap downloads what offline checks need and installs the managed hooks;
 doctor verifies the same without downloading or changing anything. Both read the
 components from the staged candidate in an isolated snapshot, exactly as the
-pre-commit check will, so untracked files cannot hide or cause a problem.
+pre-commit check will, so untracked files cannot hide or cause a problem. Only
+the components that check would activate are set up: a dormant helper bundle
+needs no toolchain until the candidate changes it or an application uses its
+profile (decision 0003).
 """
 
 from __future__ import annotations
@@ -13,10 +16,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from quality.diagnostics import Diagnostic
+from quality.discovery import active_components
 from quality.engine.common import tool_findings
 from quality.engine.profiles import ProfileSetup
-from quality.engine.scope import checked_policy, unavailable
-from quality.gitio import GitioError, Repository, materialize, staged
+from quality.engine.scope import changed_paths, checked_policy, unavailable
+from quality.gitio import GitioError, Repository, materialize, staged, tree_changes
 from quality.hooks import HookConflictError, HookName, inspect, install, status_diagnostics
 from quality.policy import Component, Profile
 
@@ -45,14 +49,22 @@ def _probe(setup: ProfileSetup, component: Component, root: Path) -> list[Diagno
 
 
 def _components(
-    root: Path, setups: Mapping[Profile, ProfileSetup], rules: Iterable[str], step: Step
+    root: Path,
+    changed: tuple[str, ...],
+    setups: Mapping[Profile, ProfileSetup],
+    rules: Iterable[str],
+    step: Step,
 ) -> SetupReport:
     report = SetupReport()
     policy = checked_policy(root, rules)
     if isinstance(policy, tuple):
         report.diagnostics.extend(policy)
         return report
+    active = {component.id for component in active_components(policy, changed)}
     for component in policy.components:
+        if component.id not in active:
+            report.lines.append(f"{component.id}: dormant, so its {component.profile} tools wait")
+            continue
         setup = setups.get(component.profile)
         if setup is None:
             report.diagnostics.append(unavailable(component, "environment setup for it"))
@@ -77,11 +89,13 @@ class Staged:
 def each_component(
     target: Staged, setups: Mapping[Profile, ProfileSetup], rules: Iterable[str], step: Step
 ) -> SetupReport:
-    """Run one step for every component of the staged candidate, as checks will see it."""
+    """Run one step for every active component of the staged candidate, as checks see it."""
     repo = target.repo
     try:
-        with materialize(repo, staged(repo, target.index).tree) as snapshot:
-            return _components(snapshot.root, setups, rules, step)
+        candidate = staged(repo, target.index)
+        changed = tuple(changed_paths(tree_changes(repo, candidate.base_tree, candidate.tree)))
+        with materialize(repo, candidate.tree) as snapshot:
+            return _components(snapshot.root, changed, setups, rules, step)
     except GitioError as error:
         return SetupReport([error.diagnostic])
 

@@ -12,7 +12,12 @@ component must lock ([decision 0012](0012-dart-profile.md)). Since P08 it
 pins Composer, under `[packages.composer]` the Composer packages every PHP
 component must lock, and under `[runtimes]` the minor versions of PHP and
 Xdebug, which the PHP profile requires but does not install
-([decision 0013](0013-php-profile.md)). This record explains the choices.
+([decision 0013](0013-php-profile.md)). Since P11 each tool names its
+vendor's checksum file in `checksums`, from which `./quality tools update`
+derives a new release's pins, and the gitleaks rule set is fetched at the
+release tag instead of a commit, so its URL follows the version
+([decision 0016](0016-template-lifecycle.md#updating-pinned-tools)). This
+record explains the choices.
 
 ## Shared core
 
@@ -87,7 +92,7 @@ Xdebug, which the PHP profile requires but does not install
 | Composer phar | `7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6` |
 | gitleaks x64 | `551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb` |
 | gitleaks arm64 | `e4a487ee7ccd7d3a7f7ec08657610aa3606637dab924210b3aee62570fb4b080` |
-| gitleaks rules (`config/gitleaks.toml` at commit `83d9cd6`) | `e163e53b9e7e8a8511e77271e2b323ed057759542a6d988258afe3a1fa329caf` |
+| gitleaks rules (`config/gitleaks.toml` at tag `v8.30.1`, commit `83d9cd6`) | `e163e53b9e7e8a8511e77271e2b323ed057759542a6d988258afe3a1fa329caf` |
 | osv-scanner amd64 | `160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b` |
 | osv-scanner arm64 | `4061ef4c021ed3c47f203b818f337e351336cc5cd67c0274fc36bd1dfc728dd7` |
 | actionlint amd64 | `8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8` |

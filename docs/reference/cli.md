@@ -27,6 +27,16 @@ environment fails with `core.environment`.
 | `bootstrap [--pre-push]` | Install the pinned tools, interpreters, and locked packages, then the managed hooks ([decision 0010](../decisions/0010-launcher-bootstrap-and-hooks.md)) |
 | `doctor [--json]` | Verify offline and read-only that checks can run here |
 | `tools install [NAME ...]` | Download, verify, and install pinned tools from `tools/quality/toolchains.toml`: gitleaks, actionlint, and osv-scanner by default, or the named ones such as `node`, `dart`, or `composer`; bootstrap installs Node only for a TypeScript component, the Dart SDK only for a Dart component, and Composer only for a PHP component |
+| `tools update NAME VERSION` | Rewrite one tool's pins in `toolchains.toml` for another release, with checksums from the vendor's checksum file that its `checksums` template names; nothing is installed or staged ([maintenance guide](../guides/maintenance.md)) |
+
+## Project lifecycle
+
+[Decision 0016](../decisions/0016-template-lifecycle.md) describes these commands.
+
+| Command | Purpose |
+| --- | --- |
+| `template export DIRECTORY [--rev REV]` | Write a commit of this repository, without `[template].exclude` and the maintainer-only regions of `[template].fenced`, to a new or empty directory, and make it a repository whose root commit, made with your Git identity, carries a `Quality-Template` trailer naming that commit; the launcher may download the core environment for it |
+| `component add ROOT [--id ID] [--profile P] [--source DIR ...] [--unit DIR ...] [--capability C ...] [--no-boundary-reason TEXT]` | Append an application component to `quality.toml`, with the profile detected from its manifest and the profile's conventional source and unit test directories; the edit is validated before it is written, and nothing is staged |
 
 ## Checking and testing
 
@@ -71,5 +81,3 @@ proved, suspended, and not required by the run; `gate` adds the candidate's
 revisions and trees; `audit` adds the scanned lockfiles and how many findings
 exceptions cover; `scenarios` adds every scenario of the manifests; `doctor`
 adds its check lines.
-
-Commands planned for later phases: `component add` and `tools update` (P11).

@@ -92,6 +92,7 @@ def test_the_command_table_matches_the_parser(capsys: pytest.CaptureFixture[str]
         "bootstrap",
         "check",
         "ci",
+        "component",
         "doctor",
         "explain",
         "fix",
@@ -101,6 +102,7 @@ def test_the_command_table_matches_the_parser(capsys: pytest.CaptureFixture[str]
         "policy",
         "scenarios",
         "self-test",
+        "template",
         "test",
         "tools",
     }
@@ -112,7 +114,7 @@ def test_the_command_table_matches_the_parser(capsys: pytest.CaptureFixture[str]
                 parser.parse_args(argv)
             assert raised.value.code == 0
     capsys.readouterr()
-    for name in ("ci", "policy", "tools"):
+    for name in ("ci", "component", "policy", "template", "tools"):
         with pytest.raises(SystemExit) as raised:
             parser.parse_args([name, "unknown"])
         assert raised.value.code == 2

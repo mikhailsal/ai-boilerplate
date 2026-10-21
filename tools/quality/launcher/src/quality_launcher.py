@@ -3,8 +3,9 @@
 
 The repository's `quality` symlink points here. This file runs on the system python3
 (3.10 or newer) with the standard library only. `bootstrap` installs the pinned uv,
-CPython, and core environment; every other command syncs that environment offline.
-Both then replace this process with the core.
+CPython, and core environment, and so does `template export`, which a fresh clone of
+the template runs before any project exists; every other command syncs that
+environment offline. All then replace this process with the core.
 """
 
 from __future__ import annotations
@@ -35,6 +36,9 @@ BOOT = (
     "import sys; sys.path.insert(0, sys.argv.pop(1)); sys.argv[0] = 'quality'; "
     "from quality.cli.main import main; raise SystemExit(main())"
 )
+
+# The commands that may download the core environment (decisions 0010 and 0016).
+DOWNLOADING = (("bootstrap",), ("template", "export"))
 
 Exec = Callable[[str, list[str], Mapping[str, str]], NoReturn]
 
@@ -114,15 +118,22 @@ def _run(host: Host, argv: list[str], core: Path, env: Mapping[str, str]) -> Non
         raise LauncherError(msg)
 
 
+def may_download(argv: Sequence[str]) -> bool:
+    """Whether the command may download uv, CPython, and the core's locked packages."""
+    return any(tuple(argv[: len(command)]) == command for command in DOWNLOADING)
+
+
 def prepare(argv: Sequence[str], core: Path, host: Host) -> dict[str, str]:
-    """Bring the core environment in line with its lockfile; only `bootstrap` downloads."""
+    """Bring the core environment in line with its lockfile, downloading only if allowed."""
     uv = load_uv(core / "toolchains.toml")
     cache = cache_base(host.environ)
     env = uv_environment(host.environ, cache)
-    if argv[:1] == ["bootstrap"]:
+    if may_download(argv):
         tool = str(install_uv(uv, cache, machine(host.arch), host.opener))
         downloads = {**env, "UV_PYTHON_DOWNLOADS": "automatic"}
-        _run(host, [tool, "python", "install", python_version(core)], core, downloads)
+        # --no-bin keeps the interpreter out of the user's ~/.local/bin.
+        install = [tool, "python", "install", "--no-bin", python_version(core)]
+        _run(host, install, core, downloads)
         _run(host, [tool, "sync", "--frozen"], core, env)
         return env
     if not executable(path := uv.path(cache)):

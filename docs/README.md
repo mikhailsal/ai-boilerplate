@@ -19,6 +19,7 @@
 | [0013](decisions/0013-php-profile.md) | PHP profile: Composer, PHP CS Fixer, PHPStan, PHPUnit with Xdebug |
 | [0014](decisions/0014-behavioral-scenarios.md) | Behavioral scenarios: capabilities, manifests, proof, and quarantine |
 | [0015](decisions/0015-ci-wrappers-and-merge-gates.md) | CI wrappers, the required status, dependency audit, and control files |
+| [0016](decisions/0016-template-lifecycle.md) | Template lifecycle: export, components, tool updates, and adapter contracts |
 
 ## Guides
 
@@ -26,11 +27,21 @@
   to write tests that prove scenarios.
 - [Hosting protection](guides/protection.md): the prepared ruleset and code
   owners, how to apply and confirm them, and the real trust boundary.
+- [Architecture](guides/architecture.md): components, kinds, activation,
+  scope, and the layers of the core.
+- [Exceptions](guides/exceptions.md): when an exception is justified and how
+  to declare, review, and retire it.
+- [Extending](guides/extending.md): adding a language profile or a coverage
+  format, and the contract tests it must pass.
+- [Maintenance](guides/maintenance.md): updating pinned tools, packages, the
+  policy, and a project from a newer template.
 
 ## Reference
 
 - [Command-line reference](reference/cli.md): commands, options, exit codes,
   and JSON reports.
+- [Profile support matrix](reference/profiles.md): languages, manifests,
+  native tools, coverage formats, and system requirements.
 - [Policy JSON Schema](reference/policy.schema.json), generated from the
   policy models; the policy itself is [`quality.toml`](../quality.toml).
 - [Scenario manifest JSON Schema](reference/scenarios.schema.json), generated
@@ -39,8 +50,12 @@
   development commands.
 - [Agent instructions](../AGENTS.md): setup and the everyday commands.
 
+<!-- maintainer-only:begin -->
+
 ## Plan
 
 - [Implementation plan](../PLAN.md) with one record per phase.
 - [Requirement traceability](plan/traceability.md) and the
   [adversarial checklist](plan/adversarial.md).
+
+<!-- maintainer-only:end -->

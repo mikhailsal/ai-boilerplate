@@ -1,6 +1,6 @@
 # 0002 Installation strategy
 
-Status: accepted (P00); amended in P03, P05, P06, P08, and P10.
+Status: accepted (P00); amended in P03, P05, P06, P08, P10, and P11.
 
 Commands that are not implemented yet are named in plain text with the phase
 that delivers them; `quality check` fails documentation that presents a
@@ -15,8 +15,9 @@ missing command as runnable.
 - `python3` 3.10 or newer from the distribution. It runs only the stdlib
   launcher `./quality`; the core itself runs on the pinned CPython 3.14.8.
 - Network access while bootstrapping (`./quality bootstrap`, or
-  `quality tools install` for the standalone tools) and while updating pins
-  (P11).
+  `quality tools install` for the standalone tools), while exporting a
+  project from a fresh template clone, and while updating pins with
+  `./quality tools update`.
 - For the PHP profile only: PHP 8.4 CLI with the `dom`, `mbstring`, `xml`,
   `xmlwriter`, and `tokenizer` extensions, the `zip` extension or the `unzip`
   command for Composer's archives, plus Xdebug 3.5 installed but not
@@ -50,6 +51,13 @@ standalone tools:
   osv-scanner, because the core's own tests run it and merge CI runs
   `quality audit`
   ([decision 0015](0015-ci-wrappers-and-merge-gates.md#dependency-gates)).
+
+Since P11 bootstrap sets up only the components that a check would activate.
+A helper bundle whose profile no application uses is dormant, so a Python
+project downloads none of Node.js, the Dart SDK, and Composer, until the
+candidate changes the helper itself
+([decision 0003](0003-architecture.md#roles-and-activation)). uv installs
+CPython with `--no-bin`, so nothing is added to the user's `~/.local/bin`.
 
 The PHP runtime is the one toolchain not downloaded: portable PHP builds with
 Xdebug are not a maintained upstream artifact. Its minor version and the
@@ -85,6 +93,8 @@ bootstrap, doctor, and whole-repository check commands.
 
 ## Updates
 
-A tools update command (P11) rewrites pins and checksums in
-`tools/quality/toolchains.toml` from vendor checksum files, producing a
-reviewable diff. It never runs during checks.
+`./quality tools update NAME VERSION` (since P11) rewrites one tool's pins
+and checksums in `tools/quality/toolchains.toml` from the vendor's checksum
+file, producing a reviewable diff
+([maintenance guide](../guides/maintenance.md#pinned-tools)). It never runs
+during checks.

@@ -31,7 +31,8 @@ class PythonSetup:
         version = (directory / ".python-version").read_text(encoding="utf-8").strip()
         env = self.uv.environ()
         env["UV_PYTHON_DOWNLOADS"] = "automatic"
-        argv = (str(self.uv.executable), "python", "install", version)
+        # --no-bin keeps the interpreter out of the user's ~/.local/bin.
+        argv = (str(self.uv.executable), "python", "install", "--no-bin", version)
         try:
             completed = run(Command(argv, cwd=directory, timeout=DOWNLOAD_TIMEOUT, env=env))
         except ProcessError as error:

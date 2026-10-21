@@ -14,6 +14,7 @@ from quality.cli import (
     bootstrap_cmd,
     check_cmd,
     ci_cmd,
+    component_cmd,
     doctor_cmd,
     explain_cmd,
     fix_cmd,
@@ -24,6 +25,7 @@ from quality.cli import (
     scenarios_cmd,
     selftest_cmd,
     suites_cmd,
+    template_cmd,
     tools_cmd,
 )
 from quality.cli.provenance import judge
@@ -42,6 +44,7 @@ COMMANDS = (
     bootstrap_cmd,
     check_cmd,
     ci_cmd,
+    component_cmd,
     doctor_cmd,
     explain_cmd,
     fix_cmd,
@@ -52,6 +55,7 @@ COMMANDS = (
     scenarios_cmd,
     selftest_cmd,
     suites_cmd,
+    template_cmd,
     tools_cmd,
 )
 

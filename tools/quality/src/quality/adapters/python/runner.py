@@ -18,7 +18,9 @@ from quality.adapters.native import fail, failure, suite_command
 from quality.process import Command, ProcessError, run, sanitized
 from quality.testing import Suite, SuiteRequest, SuiteRun
 
-SUITE_TIMEOUT = 3600.0
+# A hang guard, not a budget: the core's acceptance suite drives nested gates
+# through real hooks and runs for about an hour on a workstation.
+SUITE_TIMEOUT = 7200.0
 RESULTS = "junit.xml"
 COVERAGE = "coverage.json"
 RCFILE = "coveragerc"

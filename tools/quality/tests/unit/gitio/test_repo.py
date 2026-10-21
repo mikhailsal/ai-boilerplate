@@ -2,8 +2,8 @@ from pathlib import Path
 
 import pytest
 
-from quality.gitio import GitioError, Repository
-from quality.testkit.gitrepo import GitRepo
+from quality.gitio import GitioError, Repository, create_repository
+from quality.testkit.gitrepo import IDENTITY, GitRepo
 
 
 def rule_of(error: pytest.ExceptionInfo[GitioError]) -> str:
@@ -102,3 +102,42 @@ def test_missing_git_executable_is_reported(repo: GitRepo, tmp_path: Path) -> No
     with pytest.raises(GitioError, match="executable not found") as raised:
         broken.git("status")
     assert rule_of(raised) == "git.failed"
+
+
+def test_a_new_repository_commits_every_file_as_the_user(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    (project / "build").mkdir(parents=True)
+    (project / ".gitignore").write_text("build/\n")
+    (project / "build" / "kept.txt").write_text("kept\n")
+    (project / "README.md").write_text("# Project\n")
+    foreign = GitRepo.create(tmp_path / "foreign")
+    environ = {
+        **IDENTITY,
+        "HOME": str(foreign.home),
+        "GIT_DIR": str(foreign.path / ".git"),
+        "GIT_INDEX_FILE": str(tmp_path / "foreign-index"),
+    }
+    created = create_repository(project, branch="trunk", message="Root\n", environ=environ)
+    assert created.worktree == project
+    log = created.git("log", "--format=%an <%ae>%n%B", "trunk").stdout_text()
+    assert log == "Quality Test <quality-test@example.invalid>\nRoot\n\n"
+    listed = created.git("ls-files").stdout_text().split()
+    assert listed == [".gitignore", "README.md", "build/kept.txt"]
+    assert created.git("status", "--porcelain").stdout_text() == ""
+    assert foreign.run_git("rev-parse", "--verify", "--quiet", "HEAD").returncode != 0
+
+
+def test_a_new_repository_needs_the_user_s_identity(tmp_path: Path) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "README.md").write_text("# Project\n")
+    home = tmp_path / "home"
+    home.mkdir()
+    with pytest.raises(GitioError, match="git commit failed") as raised:
+        create_repository(project, branch="main", message="Root\n", environ={"HOME": str(home)})
+    assert rule_of(raised) == "git.failed"
+
+
+def test_a_new_repository_needs_a_valid_branch_name(tmp_path: Path) -> None:
+    with pytest.raises(GitioError, match="git init failed"):
+        create_repository(tmp_path, branch="a..b", message="Root\n", environ=IDENTITY)
