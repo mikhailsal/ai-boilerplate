@@ -32,6 +32,10 @@ jobs:
             php8.4-xdebug php8.4-pcov
           sudo phpdismod -v 8.4 -s ALL xdebug pcov
           sudo update-alternatives --set php /usr/bin/php8.4
+      - name: Allow the network isolation of the test suites (decision 0015)
+        # Ubuntu 24.04 restricts unprivileged user namespaces through AppArmor; every
+        # suite runs in one without network access, or the gate warns (tests.network).
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
       - name: Restore the download cache of the default branch
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -110,10 +114,10 @@ jobs:
           path: ~/.cache/quality
           key: quality-cache-${{ hashFiles('tools/quality/toolchains.toml', '**/*.lock', '**/package-lock.json') }}
           restore-keys: quality-cache-
-      - name: Install the pinned tools and the scanner
-        run: |
-          ./quality bootstrap
-          ./quality tools install osv-scanner
+      - name: Install the pinned scanner
+        # The launcher installs the core; the audit reads only lockfiles, so no
+        # component environment is needed.
+        run: ./quality tools install osv-scanner
       - name: Match the lockfiles against current advisories
         run: ./quality audit --rev HEAD
 
@@ -135,11 +139,10 @@ jobs:
           path: ~/.cache/quality
           key: quality-cache-${{ hashFiles('tools/quality/toolchains.toml', '**/*.lock', '**/package-lock.json') }}
           restore-keys: quality-cache-
-      - name: Install the pinned core
-        run: ./quality bootstrap
       - name: Decide from the results of every required job
         env:
           NEEDS: ${{ toJSON(needs) }}
+        # The launcher installs the pinned core on first use.
         run: |
           printf '%s' "$NEEDS" > "$RUNNER_TEMP/needs.json"
           ./quality ci verdict --needs "$RUNNER_TEMP/needs.json"

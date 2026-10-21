@@ -145,9 +145,11 @@ def test_a_lockfile_that_no_longer_matches_its_project_is_stale(tmp_path: Path) 
     pyproject.write_text(
         pyproject.read_text().replace("dependencies = []", 'dependencies = ["idna"]')
     )
+    # Offline, uv either finds the lock outdated or cannot resolve the new requirement
+    # from the cache, which holds locked wheels but no index pages; both are stale.
     stale = stale_lock(local_uv(), project)
     assert stale is not None
-    assert "idna" in stale
+    assert stale.startswith("error: ")
 
 
 def test_a_lock_check_reports_uv_output_and_fails_on_errors(tmp_path: Path) -> None:

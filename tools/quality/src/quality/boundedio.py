@@ -7,13 +7,14 @@ deserialized into executable objects and report contents are never run.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import cast
 from xml.etree.ElementTree import Element
 
 from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring
+
+from quality import strictjson
 
 DEFAULT_LIMIT = 256 * 1024 * 1024
 
@@ -41,16 +42,11 @@ def read_bounded(path: Path, limit: int = DEFAULT_LIMIT) -> bytes:
     return data
 
 
-def _reject_constant(name: str) -> None:
-    msg = f"non-standard JSON constant {name}"
-    raise ValueError(msg)
-
-
 def parse_json(data: bytes, origin: str) -> JsonValue:
-    """Parse strict JSON (no NaN or Infinity) from bytes."""
+    """Parse strict JSON (no NaN or Infinity, bounded nesting) from bytes."""
     try:
-        return cast(JsonValue, json.loads(data.decode("utf-8"), parse_constant=_reject_constant))
-    except (UnicodeDecodeError, ValueError, RecursionError) as exc:
+        return cast(JsonValue, strictjson.loads(data.decode("utf-8")))
+    except (UnicodeDecodeError, ValueError) as exc:
         msg = f"malformed JSON in {origin}: {exc}"
         raise ReportError(msg) from exc
 

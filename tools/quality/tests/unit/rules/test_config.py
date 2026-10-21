@@ -2,9 +2,11 @@ import pytest
 
 from quality.diagnostics import Location
 from quality.policy import Category
-from quality.rules.config import check_config
+from quality.rules.config import TOO_DEEP, check_config
 from quality.rules.model import CandidateFile
 from quality.testkit.candidates import candidate
+
+DEEP = "[" * 10_000 + "]" * 10_000
 
 
 def config(
@@ -40,6 +42,10 @@ def test_valid_configuration_passes(path: str, text: str) -> None:
         ("a.toml", "a = 1\na = 2\n", 2, "Cannot overwrite a value"),
         ("a.yaml", "a: 1\n---\nb: [1\n", 4, "expected ',' or ']', but got '<stream end>'"),
         ("a.yml", "key: value\n  bad: indent\n", 2, "mapping values are not allowed here"),
+        ("a.json", '{"a": NaN}', None, "non-standard JSON constant NaN"),
+        ("a.json", DEEP, None, "containers nest deeper than 512 levels"),
+        ("a.toml", f"a = {DEEP}", None, TOO_DEEP),
+        ("a.yaml", DEEP, None, TOO_DEEP),
     ],
 )
 def test_syntax_errors_are_reported_at_their_line(

@@ -57,6 +57,7 @@ layers = [
     "policy",
     "process",
     "diagnostics",
+    "strictjson",
 ]
 modules = [
     { name = "cli", paths = ["src/quality/cli/**", "src/quality/__main__.py"] },
@@ -79,6 +80,7 @@ modules = [
     { name = "policy", paths = ["src/quality/policy/**"] },
     { name = "process", paths = ["src/quality/process/**"] },
     { name = "diagnostics", paths = ["src/quality/diagnostics/**"] },
+    { name = "strictjson", paths = ["src/quality/strictjson.py"] },
 ]
 
 # The stdlib launcher behind the root `quality` symlink; it runs on the system

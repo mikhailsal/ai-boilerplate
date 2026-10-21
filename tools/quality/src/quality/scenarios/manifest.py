@@ -40,6 +40,8 @@ def parse_manifest(data: bytes, path: str, component: str) -> ManifestLoad:
         return _invalid(f"the scenario manifest is not UTF-8: {error.reason}", path, component)
     except tomllib.TOMLDecodeError as error:
         return _invalid(error.msg, path, component, error.lineno)
+    except RecursionError:
+        return _invalid("the scenario manifest nests too deeply to parse", path, component)
     try:
         manifest = ScenarioManifest.model_validate(document)
     except ValidationError as error:

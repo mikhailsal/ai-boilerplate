@@ -59,6 +59,17 @@ def test_lockfiles_are_written_offline_from_the_cache(fake_node: FakeNode, tmp_p
     assert f"--cache={tmp_path / 'npm-cache'}" in flags
 
 
+def test_npm_starts_from_the_helper_lockfile_or_the_existing_one(
+    fake_node: FakeNode, tmp_path: Path
+) -> None:
+    fake_node.npm('cp package-lock.json start.json\necho "{}" > package-lock.json\n')
+    lock(tmp_path, fake_node.node)
+    assert (tmp_path / "start.json").read_text() == typescriptproject.SEED.read_text()
+    (tmp_path / "package-lock.json").write_text("existing")
+    lock(tmp_path, fake_node.node)
+    assert (tmp_path / "start.json").read_text() == "existing"
+
+
 def test_a_lockfile_npm_cannot_write_fails_the_arrangement(
     fake_node: FakeNode, tmp_path: Path
 ) -> None:

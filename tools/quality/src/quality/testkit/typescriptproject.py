@@ -2,23 +2,29 @@
 
 The component pins the profile's packages at the versions of the core's
 toolchain manifest. The pinned npm writes its `package-lock.json` with
-`--package-lock-only --offline`, so nothing is downloaded: bootstrapping this
-repository filled the cache, because its TypeScript helper locks the same
-packages.
+`--package-lock-only --offline`, so nothing is downloaded. Bootstrapping this
+repository installs the TypeScript helper, which locks the same packages, but
+`npm ci` caches only their tarballs, not the registry metadata that resolving
+versions needs. A component without a lockfile therefore starts from the
+helper's lockfile, which resolves every pinned package, and npm fits it to the
+component's manifest.
 """
 
 from __future__ import annotations
 
 import json
+import shutil
 import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 
+from quality.adapters.typescript import helper
 from quality.adapters.typescript.environment import Node
 from quality.process import Command, run
 from quality.toolchain import cache_root, load_manifest, locate
 
 LOCK_TIMEOUT = 600.0
+SEED = helper.CORE / "helpers" / "typescript" / "package-lock.json"
 COMPILER_OPTIONS: dict[str, object] = {
     "target": "es2024",
     "module": "nodenext",
@@ -97,6 +103,9 @@ def write(directory: Path, files: Mapping[str, str]) -> None:
 def lock(directory: Path, node: Node | None = None) -> Path:
     """Write the lockfile of the package in `directory` from the cache; return its path."""
     found = node or pinned_node()
+    target = directory / "package-lock.json"
+    if not target.exists():
+        shutil.copyfile(SEED, target)
     with tempfile.TemporaryDirectory(prefix="quality-npm-") as scratch:
         home = Path(scratch)
         user, shared = home / "npmrc", home / "npmrc-global"
@@ -110,7 +119,7 @@ def lock(directory: Path, node: Node | None = None) -> Path:
     if not completed.ok:
         msg = f"npm could not lock {directory}: {completed.stderr_text().strip()}"
         raise AssertionError(msg)
-    return directory / "package-lock.json"
+    return target
 
 
 def typescript_project(

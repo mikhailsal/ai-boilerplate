@@ -40,8 +40,24 @@ def test_parse_json_accepts_standard_documents() -> None:
 
 @pytest.mark.parametrize(
     "data",
-    [b'{"a": NaN}', b"[Infinity]", b"[-Infinity]", b"{", b"\xff", b"[" * 100_000],
-    ids=["nan", "infinity", "negative-infinity", "truncated", "non-utf8", "deep-nesting"],
+    [
+        b'{"a": NaN}',
+        b"[Infinity]",
+        b"[-Infinity]",
+        b"{",
+        b"\xff",
+        b"[" * 100_000,
+        b"[" * 513 + b"]" * 513,
+    ],
+    ids=[
+        "nan",
+        "infinity",
+        "negative-infinity",
+        "truncated",
+        "non-utf8",
+        "deep-nesting",
+        "too-deep",
+    ],
 )
 def test_parse_json_rejects_non_standard_or_malformed_input(data: bytes) -> None:
     with pytest.raises(ReportError, match="malformed JSON in origin"):

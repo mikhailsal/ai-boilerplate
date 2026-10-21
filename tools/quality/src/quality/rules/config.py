@@ -10,6 +10,7 @@ from pathlib import PurePosixPath
 
 import yaml
 
+from quality import strictjson
 from quality.diagnostics import Diagnostic, Location, Rule
 from quality.policy import Category
 from quality.rules.model import CandidateFile
@@ -29,10 +30,8 @@ RULES = (SYNTAX,)
 
 JSONC_NAMES = re.compile(r"^(?:tsconfig|jsconfig)(?:\.[\w-]+)*\.json$|^\.eslintrc\.json$")
 JSONC_DIRECTORIES = frozenset({".vscode", ".devcontainer"})
-
-
-class _DuplicateKeyError(ValueError):
-    pass
+# TOML and YAML parsers recurse in Python and stop at its recursion limit.
+TOO_DEEP = "the document nests too deeply to parse"
 
 
 def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -40,17 +39,17 @@ def _unique_pairs(pairs: list[tuple[str, object]]) -> dict[str, object]:
     for key, value in pairs:
         if key in result:
             msg = f"duplicate key '{key}'"
-            raise _DuplicateKeyError(msg)
+            raise ValueError(msg)
         result[key] = value
     return result
 
 
 def _json(text: str) -> tuple[int | None, str] | None:
     try:
-        json.loads(text, object_pairs_hook=_unique_pairs)
+        strictjson.loads(text, _unique_pairs)
     except json.JSONDecodeError as error:
         return error.lineno, error.msg
-    except _DuplicateKeyError as error:
+    except ValueError as error:
         return None, str(error)
     return None
 
@@ -60,6 +59,8 @@ def _toml(text: str) -> tuple[int | None, str] | None:
         tomllib.loads(text)
     except tomllib.TOMLDecodeError as error:
         return error.lineno, error.msg
+    except RecursionError:
+        return None, TOO_DEEP
     return None
 
 
@@ -72,6 +73,8 @@ def _yaml(text: str) -> tuple[int | None, str] | None:
         return (mark.line + 1 if mark is not None else None), str(error.problem)
     except yaml.YAMLError as error:
         return None, str(error)
+    except RecursionError:
+        return None, TOO_DEEP
     return None
 
 

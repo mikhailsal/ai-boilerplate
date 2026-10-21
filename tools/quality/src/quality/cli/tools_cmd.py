@@ -13,7 +13,7 @@ from quality.toolchain.install import INSTALL_FAILED
 
 NAME = "tools"
 ACTIONS = frozenset({"install"})
-DEFAULT_TOOLS = ("gitleaks", "actionlint")
+DEFAULT_TOOLS = ("gitleaks", "actionlint", "osv-scanner")
 
 
 def register(commands: Subcommands) -> None:
@@ -28,8 +28,9 @@ def register(commands: Subcommands) -> None:
     add = actions.add_parser(
         "install",
         help="download, verify, and install pinned tools",
-        description="Install the named tools, or the tools every check needs (gitleaks and "
-        "actionlint). Exit 0 when all are installed, 2 for unknown names, 3 when a download fails.",
+        description="Install the named tools, or the default ones (gitleaks, actionlint, and "
+        "osv-scanner). Exit 0 when all are installed, 2 for unknown names, 3 when a download "
+        "fails.",
     )
     add.add_argument("names", nargs="*", help="tool names from toolchains.toml")
     add.set_defaults(handler=run_install)

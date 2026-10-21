@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import posixpath
 import tomllib
 from collections.abc import Callable, Mapping
@@ -11,6 +10,7 @@ from typing import cast
 
 import yaml
 
+from quality import strictjson
 from quality.boundedio import ReportError, read_bounded
 
 CONFIG_LIMIT = 4 * 1024 * 1024
@@ -26,7 +26,7 @@ def load_toml(path: Path) -> Table:
     data = read_bounded(path, CONFIG_LIMIT)
     try:
         return tomllib.loads(data.decode("utf-8"))
-    except (UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
+    except (UnicodeDecodeError, tomllib.TOMLDecodeError, RecursionError) as error:
         msg = f"{path.name} is not valid TOML: {error}"
         raise ReportError(msg) from error
 
@@ -35,8 +35,8 @@ def load_json_object(path: Path) -> Table:
     """Read a bounded file holding one plain JSON object (no comments)."""
     data = read_bounded(path, CONFIG_LIMIT)
     try:
-        value: object = json.loads(data.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError, RecursionError) as error:
+        value = strictjson.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as error:
         msg = f"{path.name} is not plain JSON: {error}"
         raise ReportError(msg) from error
     if not isinstance(value, dict):

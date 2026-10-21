@@ -58,6 +58,12 @@ def test_a_toml_error_names_its_line() -> None:
     assert problems("schema_version = 1\ncomponent = \n") == [("Invalid value", PATH, 2)]
 
 
+def test_a_manifest_that_nests_too_deeply_is_rejected() -> None:
+    assert problems("a = " + "[" * 10_000 + "]" * 10_000) == [
+        ("the scenario manifest nests too deeply to parse", PATH, None)
+    ]
+
+
 @pytest.mark.parametrize(
     ("selector", "valid"),
     [("a::b", True), ("a::*", True), ("*", False), ("a*b", False), ("a**", False)],

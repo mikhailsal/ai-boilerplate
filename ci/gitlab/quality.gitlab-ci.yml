@@ -5,7 +5,9 @@
 #
 # GitLab has no aggregate job: "Pipelines must succeed" uses the pipeline status,
 # which fails when any job fails or is cancelled. No job sets `allow_failure`,
-# and both jobs share the workflow rules, so neither can be left out.
+# and both jobs share the workflow rules, so neither can be left out. Test suites
+# run in a user namespace without network access; where the runner forbids user
+# namespaces (often in containers), the gate warns (tests.network).
 
 workflow:
   rules:
@@ -56,5 +58,4 @@ gate:
 
 audit:
   script:
-    - ./quality tools install osv-scanner
     - ./quality audit --rev HEAD

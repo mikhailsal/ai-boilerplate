@@ -72,7 +72,7 @@ def tool_line(tmp_path: Path) -> str:
     root = tmp_path / "cache" / "quality" / "toolchains"
     return "".join(
         f"{name} {TOOLS[name].version}: {installed(name, TOOLS[name], root)}\n"
-        for name in ("gitleaks", "actionlint")
+        for name in ("gitleaks", "actionlint", "osv-scanner")
     )
 
 

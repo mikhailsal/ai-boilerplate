@@ -29,6 +29,8 @@ Each subpackage has one responsibility. Dependencies point downwards only and
 are enforced on the core by the declared-module architecture rule:
 
 1. `diagnostics` – diagnostic model, rule registry, rendering, exit codes.
+   `strictjson` below it parses JSON with a nesting bound that holds on every
+   machine, because the standard decoder's limit follows the C stack.
 2. `process` – subprocess execution with argument arrays, explicit working
    directory, sanitized environment, timeouts, bounded output, and process
    group cleanup on timeout or interruption.

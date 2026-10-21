@@ -4,6 +4,8 @@ from quality.discovery import Manifest, ManifestError, parse_manifest
 from quality.discovery.manifests import MAX_MANIFEST_BYTES, is_manifest
 from quality.policy import Profile
 
+DEEP = b"[" * 10_000 + b"]" * 10_000
+
 
 @pytest.mark.parametrize(
     ("path", "text", "profile", "package", "workspace"),
@@ -48,8 +50,22 @@ def test_parses_manifests_without_running_them(
         ("composer.json", b"{,}"),
         ("package.json", b"\xff"),
         ("package.json", b" " * (MAX_MANIFEST_BYTES + 1)),
+        ("package.json", DEEP),
+        ("pyproject.toml", b"a = " + DEEP),
+        ("pubspec.yaml", DEEP),
     ],
-    ids=["toml", "ini", "json", "yaml", "composer", "utf8", "oversized"],
+    ids=[
+        "toml",
+        "ini",
+        "json",
+        "yaml",
+        "composer",
+        "utf8",
+        "oversized",
+        "deep-json",
+        "deep-toml",
+        "deep-yaml",
+    ],
 )
 def test_unreadable_manifests_raise(path: str, data: bytes) -> None:
     with pytest.raises(ManifestError, match="manifest"):

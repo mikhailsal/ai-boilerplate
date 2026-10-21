@@ -32,15 +32,20 @@ def use(monkeypatch: pytest.MonkeyPatch, installer: FakeInstaller) -> FakeInstal
     return installer
 
 
-def test_the_default_installs_what_every_check_needs(
+def test_the_default_installs_what_checks_and_the_core_tests_need(
     cache: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     installer = use(monkeypatch, FakeInstaller())
     assert main(["tools", "install"]) == 0
-    assert installer.calls == [("gitleaks", "8.30.1", cache), ("actionlint", "1.7.12", cache)]
+    assert installer.calls == [
+        ("gitleaks", "8.30.1", cache),
+        ("actionlint", "1.7.12", cache),
+        ("osv-scanner", "2.7.0", cache),
+    ]
     assert capsys.readouterr().out.splitlines() == [
         f"gitleaks 8.30.1: {cache}/gitleaks-8.30.1/gitleaks",
         f"actionlint 1.7.12: {cache}/actionlint-1.7.12/actionlint",
+        f"osv-scanner 2.7.0: {cache}/osv-scanner-2.7.0/osv-scanner",
     ]
 
 
@@ -48,11 +53,11 @@ def test_named_tools_are_installed_in_order(
     cache: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     installer = use(monkeypatch, FakeInstaller())
-    assert main(["tools", "install", "actionlint", "osv-scanner"]) == 0
-    assert [call[0] for call in installer.calls] == ["actionlint", "osv-scanner"]
+    assert main(["tools", "install", "osv-scanner", "actionlint"]) == 0
+    assert [call[0] for call in installer.calls] == ["osv-scanner", "actionlint"]
     assert capsys.readouterr().out.splitlines() == [
-        f"actionlint 1.7.12: {cache}/actionlint-1.7.12/actionlint",
         f"osv-scanner 2.7.0: {cache}/osv-scanner-2.7.0/osv-scanner",
+        f"actionlint 1.7.12: {cache}/actionlint-1.7.12/actionlint",
     ]
 
 

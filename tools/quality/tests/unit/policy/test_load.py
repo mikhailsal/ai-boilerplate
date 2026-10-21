@@ -48,6 +48,8 @@ def test_non_utf8_and_oversized_files_are_syntax_errors() -> None:
     )
     (oversized,) = parse_policy(b"#" * (MAX_POLICY_BYTES + 1)).diagnostics
     assert oversized.message == "policy file exceeds 1 MiB"
+    (deep,) = parse_policy(b"a = " + b"[" * 10_000 + b"]" * 10_000).diagnostics
+    assert (deep.rule, deep.message) == ("policy.syntax", "policy file nests too deeply to parse")
 
 
 def test_unknown_keys_are_reported_with_their_path() -> None:

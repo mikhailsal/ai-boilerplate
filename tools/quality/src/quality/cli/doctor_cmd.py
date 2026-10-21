@@ -12,7 +12,7 @@ from pathlib import Path
 from quality.catalog import build_registry
 from quality.cli import Subcommands
 from quality.cli.inventory_cmd import index_from
-from quality.cli.local import core_tool, local_setups, local_tools, local_uv
+from quality.cli.local import core_tool, local_scanner, local_setups, local_tools, local_uv
 from quality.diagnostics import Outcome
 from quality.diagnostics.render import outcome_to_json, render_text
 from quality.engine.setup import SetupReport, Staged, hook_status, probe_components
@@ -45,6 +45,7 @@ def toolchain() -> SetupReport:
         "uv": lambda: local_uv().executable,
         "gitleaks": lambda: local_tools().gitleaks,
         "actionlint": lambda: local_tools().actionlint,
+        "osv-scanner": local_scanner,
         "ruff": lambda: core_tool("ruff"),
         "pyright": lambda: core_tool("pyright"),
     }

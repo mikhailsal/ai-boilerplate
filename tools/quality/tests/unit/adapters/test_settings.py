@@ -21,7 +21,9 @@ def test_toml_files_are_parsed(tmp_path: Path) -> None:
     assert load_toml(path) == {"tool": {"x": {"value": 1}}}
 
 
-@pytest.mark.parametrize("data", [b"[tool\n", b"key = '\xff'\n"])
+@pytest.mark.parametrize(
+    "data", [b"[tool\n", b"key = '\xff'\n", b"a = " + b"[" * 10_000 + b"]" * 10_000]
+)
 def test_unusable_toml_is_reported(tmp_path: Path, data: bytes) -> None:
     path = tmp_path / "a.toml"
     path.write_bytes(data)
@@ -48,7 +50,8 @@ def test_json_objects_are_parsed(tmp_path: Path) -> None:
     ("text", "message"),
     [
         ('{"a": 1, // comment\n}', "is not plain JSON"),
-        ("[" * 100_000 + "]" * 100_000, "is not plain JSON"),
+        ("[" * 100_000 + "]" * 100_000, "is not plain JSON: containers nest deeper than 512"),
+        ('{"a": NaN}', "is not plain JSON: non-standard JSON constant NaN"),
         ("[1, 2]", "does not hold a JSON object"),
     ],
 )

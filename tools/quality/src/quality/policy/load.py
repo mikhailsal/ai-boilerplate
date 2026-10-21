@@ -98,6 +98,9 @@ def parse_policy(data: bytes, path: str = POLICY_FILE) -> LoadResult:
     except tomllib.TOMLDecodeError as exc:
         location = Location(path, exc.lineno, exc.colno)
         return LoadResult(None, (POLICY_SYNTAX.diagnostic(exc.msg, location=location),))
+    except RecursionError:
+        message = "policy file nests too deeply to parse"
+        return LoadResult(None, (POLICY_SYNTAX.diagnostic(message, location=Location(path)),))
     try:
         policy = Policy.model_validate(document)
     except ValidationError as exc:

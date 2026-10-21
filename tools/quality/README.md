@@ -80,6 +80,11 @@ PYTHONPATH=src .venv/bin/python -m pytest tests/unit --cov=src --cov-branch
 PYTHONPATH=src .venv/bin/python -m pytest tests/acceptance
 ```
 
+The acceptance tests compare the hook output exactly, so they expect the
+network isolation of test suites: where unprivileged user namespaces are
+unavailable, the extra `tests.network` warning fails them
+([decision 0008](../../docs/decisions/0008-test-and-coverage-engine.md#network-isolation)).
+
 The TypeScript helper runs on the pinned Node. `./quality bootstrap` caches
 the packages of its `package-lock.json`, and `npm ci --offline` installs them
 into `node_modules`. The native commands run from `helpers/typescript` with

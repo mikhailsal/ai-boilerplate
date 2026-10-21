@@ -69,6 +69,7 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, setup: ScriptedSetu
     )
     monkeypatch.setattr(doctor_cmd, "local_uv", lambda: Uv(bin_dir / "uv", tmp_path / "py"))
     monkeypatch.setattr(doctor_cmd, "local_tools", lambda: tools)
+    monkeypatch.setattr(doctor_cmd, "local_scanner", lambda: bin_dir / "osv-scanner")
     monkeypatch.setattr(doctor_cmd, "core_tool", core_tool)
     monkeypatch.setattr(doctor_cmd, "local_setups", lambda: {Profile.PYTHON: setup})
     monkeypatch.chdir(repo.path)
@@ -81,7 +82,7 @@ def toolchain_lines(tmp_path: Path) -> list[str]:
         f"python {platform.python_version()}: {sys.executable}",
         *(
             f"{name}: {bin_dir / name}"
-            for name in ("uv", "gitleaks", "actionlint", "ruff", "pyright")
+            for name in ("uv", "gitleaks", "actionlint", "osv-scanner", "ruff", "pyright")
         ),
     ]
 

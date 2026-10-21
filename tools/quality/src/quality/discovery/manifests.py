@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import configparser
-import json
 import re
 import tomllib
 from collections.abc import Callable
@@ -13,6 +12,7 @@ from typing import cast
 
 import yaml
 
+from quality import strictjson
 from quality.policy import Profile
 
 MAX_MANIFEST_BYTES = 1024 * 1024
@@ -59,7 +59,7 @@ def _setup_cfg(text: str) -> tuple[bool, bool]:
 
 
 def _package_json(text: str) -> tuple[bool, bool]:
-    document = _mapping(json.loads(text))
+    document = _mapping(strictjson.loads(text))
     return True, "workspaces" in document
 
 
@@ -69,7 +69,7 @@ def _pubspec(text: str) -> tuple[bool, bool]:
 
 
 def _composer(text: str) -> tuple[bool, bool]:
-    json.loads(text)
+    strictjson.loads(text)
     return True, False
 
 
@@ -100,7 +100,13 @@ def parse_manifest(path: str, data: bytes) -> Manifest:
         raise ManifestError(msg)
     try:
         package, workspace = parser(data.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError, configparser.Error, yaml.YAMLError) as exc:
+    except (
+        UnicodeDecodeError,
+        ValueError,
+        RecursionError,
+        configparser.Error,
+        yaml.YAMLError,
+    ) as exc:
         msg = f"cannot parse manifest: {exc}".splitlines()[0]
         raise ManifestError(msg) from exc
     return Manifest(path=path, profile=profile, package=package, workspace=workspace)
