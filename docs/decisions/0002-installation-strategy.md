@@ -87,9 +87,23 @@ names the install command.
 
 ## Clean-environment proof
 
-P11 runs a fresh template export in a pinned `ubuntu` container image
-(referenced by digest) with only the prerequisites above, then runs the
-bootstrap, doctor, and whole-repository check commands.
+In P11 a clone of the template ran in the container image
+`ubuntu@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac`
+with only Git 2.43.0, Python 3.12.3, and CA certificates installed, as an
+unprivileged user with a Git identity and an empty home. There:
+
+- `./quality template export ../my-project` downloaded uv, CPython 3.14.8,
+  and the core's packages and committed the export in 48 seconds;
+- in the export, the first `./quality bootstrap` installed gitleaks,
+  actionlint, and osv-scanner and left the three helpers dormant; the second
+  installed nothing, and `./quality doctor` passed;
+- the cache held no profile toolchain, and `~/.local/bin` did not exist;
+- `./quality check --all` passed, and a documentation commit passed through
+  the hook.
+
+Docker refuses unprivileged user namespaces, so the unit suites ran with the
+network and the check warned with `tests.network`
+([decision 0008](0008-test-and-coverage-engine.md#network-isolation)).
 
 ## Updates
 
