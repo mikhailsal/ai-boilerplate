@@ -29,6 +29,30 @@
       "title": "Architecture",
       "type": "object"
     },
+    "AuditPolicy": {
+      "additionalProperties": false,
+      "description": "Which advisories block: a CVSS score at or above `blocking_score`.\n\nLower scores are warnings. An advisory without a score is an error unless\n`unscored` is \"warning\".",
+      "properties": {
+        "blocking_score": {
+          "default": 7.0,
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Blocking Score",
+          "type": "number"
+        },
+        "unscored": {
+          "default": "error",
+          "enum": [
+            "error",
+            "warning"
+          ],
+          "title": "Unscored",
+          "type": "string"
+        }
+      },
+      "title": "AuditPolicy",
+      "type": "object"
+    },
     "Capability": {
       "description": "Behavioral capabilities a component can declare (decision 0014).",
       "enum": [
@@ -58,6 +82,47 @@
       ],
       "title": "Category",
       "type": "string"
+    },
+    "CiPolicy": {
+      "additionalProperties": false,
+      "description": "The workflow whose aggregate job is the required status, and the owned control files.\n\n`required_jobs` are the jobs the aggregate job must find successful;\n`control` adds paths to those derived from the policy that need owner\nreview in `codeowners`.",
+      "properties": {
+        "aggregate_job": {
+          "default": "required",
+          "title": "Aggregate Job",
+          "type": "string"
+        },
+        "codeowners": {
+          "default": ".github/CODEOWNERS",
+          "title": "Codeowners",
+          "type": "string"
+        },
+        "control": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Control",
+          "type": "array"
+        },
+        "required_jobs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Required Jobs",
+          "type": "array"
+        },
+        "workflow": {
+          "title": "Workflow",
+          "type": "string"
+        }
+      },
+      "required": [
+        "workflow",
+        "required_jobs"
+      ],
+      "title": "CiPolicy",
+      "type": "object"
     },
     "Classification": {
       "additionalProperties": false,
@@ -576,6 +641,20 @@
   "additionalProperties": false,
   "description": "The complete repository policy loaded from `quality.toml`.",
   "properties": {
+    "audit": {
+      "$ref": "#/$defs/AuditPolicy"
+    },
+    "ci": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CiPolicy"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "classification": {
       "items": {
         "$ref": "#/$defs/Classification"

@@ -38,4 +38,5 @@ def pinned_tools() -> Tools:
     if not rules.is_file():
         msg = f"run `quality tools install` first; {rules} is missing"
         raise AssertionError(msg)
-    return Tools(python=Path(sys.executable), gitleaks=gitleaks, gitleaks_rules=rules)
+    actionlint = locate("actionlint", load_manifest().tools["actionlint"], root)
+    return Tools(Path(sys.executable), gitleaks, rules, actionlint)

@@ -1,17 +1,21 @@
-"""`quality check`: every gate over one isolated candidate snapshot.
+"""`quality check` and `quality gate`: every gate over one isolated candidate snapshot.
 
-The common gates and the static scenario checks cover the whole candidate.
-Profile gates, unit suites with their coverage floors, and the suites of the
-scenarios mandatory at the stage cover the components the change affects, or
-every active component when asked; a component whose profile has no adapter fails.
+The common gates and the static scenario checks cover the whole candidate, and
+the new commits of a candidate that carries them. Profile gates, unit suites
+with their coverage floors, and the suites of the scenarios mandatory at the
+stage cover the components the change affects, or every active component when
+asked; a component whose profile has no adapter fails.
 """
 
 from __future__ import annotations
 
+import tempfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date
+from pathlib import Path
 
+from quality.ci import changed_control
 from quality.diagnostics import Diagnostic, Rule
 from quality.engine.common import (
     COMMON_MEASURED,
@@ -25,7 +29,9 @@ from quality.engine.common import (
     measured_gates,
     tool_findings,
 )
+from quality.engine.history import check_history
 from quality.engine.profiles import ProfileAdapter
+from quality.engine.runs import SuiteFindings, suite_findings
 from quality.engine.scenarios import load_manifests, reconciled, required_at, stage_suites
 from quality.engine.scope import (
     UNAVAILABLE,
@@ -35,10 +41,10 @@ from quality.engine.scope import (
     prepare_components,
     unavailable,
 )
-from quality.engine.suites import SuiteFindings, suite_findings
-from quality.gitio import Candidate, Repository, materialize
+from quality.gitio import Candidate, Repository, Snapshot, materialize
 from quality.policy import Component, Profile, Quarantine
 from quality.policy.scenarios import Stage
+from quality.reports import write_evidence
 from quality.rules import exceptions, quarantine
 from quality.rules.coverage import ComponentCoverage
 from quality.scenarios.reconcile import ScenarioSummary
@@ -56,7 +62,11 @@ def _no_adapters() -> Adapters:
 
 @dataclass(frozen=True, slots=True)
 class Settings:
-    """What a check needs besides the candidate."""
+    """What a check needs besides the candidate.
+
+    `reports` is a prepared directory that receives the exports and native
+    reports of the suites while the snapshot exists.
+    """
 
     tools: Tools
     commands: Commands
@@ -65,6 +75,7 @@ class Settings:
     profiles: Adapters = field(default_factory=_no_adapters)
     everything: bool = False
     stage: Stage = Stage.COMMIT
+    reports: Path | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +154,24 @@ def profile_gates(
     return found, ready, findings
 
 
+def history_gates(
+    repo: Repository, candidate: Candidate, snapshot: Snapshot, tools: Tools, limit: int
+) -> list[Diagnostic]:
+    """Check every blob of the candidate's new commits, when it carries them (R04)."""
+    if candidate.history is None:
+        return []
+    work = Path(tempfile.mkdtemp(prefix="history-", dir=snapshot.work))
+    return check_history(repo, candidate.history, work, tools=tools, blob_limit=limit)
+
+
+def control_changes(scope: Scope, stage: Stage) -> list[Diagnostic]:
+    """List the changed control files at the merge stage of a policy with `[ci]`."""
+    ci = scope.policy.ci
+    if ci is None or stage is not Stage.MERGE:
+        return []
+    return list(changed_control(scope.policy, ci, scope.inventory.files, scope.changes.paths))
+
+
 def _inspect(repo: Repository, candidate: Candidate, settings: Settings) -> Report:
     with materialize(repo, candidate.tree) as snapshot:
         policy = checked_policy(snapshot.root, settings.rules)
@@ -152,15 +181,25 @@ def _inspect(repo: Repository, candidate: Candidate, settings: Settings) -> Repo
         limit = policy.thresholds.blob_bytes
         found = candidate_files(snapshot.root, snapshot.entries, scope.inventory, limit)
         common = common_gates(scope, found, tools=settings.tools, commands=settings.commands)
+        history = history_gates(repo, candidate, snapshot, settings.tools, limit)
         manifests = load_manifests(repo, candidate.base_tree, scope)
         held, expired = quarantine.current(policy.quarantine, settings.today)
-        gates = [*scope.inventory.diagnostics, *common, *manifests.diagnostics, *expired]
+        gates = [
+            *scope.inventory.diagnostics,
+            *common,
+            *history,
+            *control_changes(scope, settings.stage),
+            *manifests.diagnostics,
+            *expired,
+        ]
 
         def plan(component: Component) -> tuple[Suite, ...]:
             return stage_suites(manifests.subjects.get(component.id), settings.stage)
 
         profiled, ready, findings = profile_gates(scope, settings.profiles, plan, held)
         proved, scenarios = reconciled(manifests, findings.ran, required_at(settings.stage), held)
+        if settings.reports is not None:
+            proved.extend(write_evidence(settings.reports, snapshot.root, findings.evidence))
         checked = [component for component, _ in ready]
         applied = exceptions.apply_exceptions(
             [*gates, *profiled, *proved],

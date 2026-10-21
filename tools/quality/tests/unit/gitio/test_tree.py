@@ -2,7 +2,7 @@ import hashlib
 
 import pytest
 
-from quality.gitio import GitioError, blob_id, list_tree, read_blobs
+from quality.gitio import GitioError, blob_id, list_tree, read_blobs, read_path
 from quality.gitio import tree as tree_module
 from quality.gitio.tree import blob_sizes
 from quality.testkit.gitrepo import GitRepo
@@ -65,3 +65,17 @@ def test_blob_ids_match_git(repo: GitRepo) -> None:
         assert blob_id(data) == repo.git("hash-object", "--stdin", stdin=data).strip()
     expected = hashlib.sha256(b"blob 3\0abc").hexdigest()
     assert blob_id(b"abc", algorithm="sha256") == expected
+
+
+def test_read_path_returns_one_regular_file_within_the_limit(repo: GitRepo) -> None:
+    repo.write("policy.toml", "a = 1\n")
+    repo.write("dir/file", "x")
+    (repo.path / "link").symlink_to("policy.toml")
+    repo.commit_all("files")
+    git = repo.repository()
+    tree = git.tree_of(git.resolve_commit("HEAD"))
+    assert read_path(git, tree, "policy.toml", 6) == b"a = 1\n"
+    assert read_path(git, tree, "policy.toml", 5) is None
+    assert read_path(git, tree, "link", 100) is None
+    assert read_path(git, tree, "dir", 100) is None
+    assert read_path(git, tree, "absent", 100) is None

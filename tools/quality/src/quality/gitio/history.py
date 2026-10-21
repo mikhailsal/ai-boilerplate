@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from quality.gitio.errors import GIT_FAILED, GitioError
+from quality.gitio.errors import GIT_FAILED, GIT_REVISION_UNRESOLVABLE, GitioError
 from quality.gitio.repo import Repository
 
 HISTORY_OUTPUT_LIMIT = 512 * 1024 * 1024
@@ -57,8 +57,26 @@ def _names(repo: Repository, span: RevisionRange) -> dict[str, str]:
     return names
 
 
+def check_complete(repo: Repository, span: RevisionRange) -> None:
+    """Fail when a shallow clone cut the range, so that older new commits are missing."""
+    shallow = repo.shallow_commits()
+    if not shallow:
+        return
+    commits = repo.git(
+        "rev-list", "--end-of-options", *span.arguments(), output_limit=HISTORY_OUTPUT_LIMIT
+    ).stdout_text()
+    cut = sorted(shallow.intersection(commits.split()))
+    if cut:
+        message = f"the history of '{span.tip}' is cut at shallow commit {cut[0]}"
+        raise GitioError(GIT_REVISION_UNRESOLVABLE.diagnostic(message))
+
+
 def new_blobs(repo: Repository, span: RevisionRange) -> tuple[HistoryBlob, ...]:
-    """Every blob of the range, including blobs that were deleted again before the tip."""
+    """Every blob of the range, including blobs that were deleted again before the tip.
+
+    A range that a shallow clone cut fails rather than checking part of it.
+    """
+    check_complete(repo, span)
     objects = repo.git(
         "rev-list",
         "--objects",

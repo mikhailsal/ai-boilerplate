@@ -16,7 +16,7 @@ from quality.discovery import (
     build_inventory,
 )
 from quality.engine.profiles import ProfileTests
-from quality.gitio import Candidate, FileChange, Repository, Snapshot, commit_lines, tree_changes
+from quality.gitio import Candidate, FileChange, Repository, Snapshot, changed_lines, tree_changes
 from quality.policy import Category, Component, Policy, Profile, cross_validate, load_policy
 from quality.testing import StaticRequest
 
@@ -53,10 +53,11 @@ def checked_policy(root: Path, rules: Iterable[str]) -> Policy | tuple[Diagnosti
 
 @dataclass(frozen=True, slots=True)
 class Changes:
-    """What the candidate changes: lines per path and the files it adds."""
+    """What the candidate changes: lines per path, the files it adds, and every touched path."""
 
     lines: Mapping[str, frozenset[int]]
     added: frozenset[str]
+    paths: frozenset[str] = frozenset()
 
 
 def changed_paths(changes: Iterable[FileChange]) -> list[str]:
@@ -142,7 +143,7 @@ def candidate_scope(
     inventory = build_inventory(policy, snapshot.root, snapshot.entries)
     diff = tree_changes(repo, candidate.base_tree, candidate.tree)
     paths = changed_paths(diff)
-    changes = Changes(commit_lines(repo, candidate), added_files(diff))
+    changes = Changes(changed_lines(repo, candidate), added_files(diff), frozenset(paths))
     active = active_components(policy, paths)
     selected = selected_components(policy, paths, everything=everything)
     return Scope(policy, snapshot, inventory, changes, active, selected)

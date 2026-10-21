@@ -61,7 +61,12 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, setup: ScriptedSetu
     for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("HOME", str(repo.home))
-    tools = Tools(Path(sys.executable), bin_dir / "gitleaks", bin_dir / "gitleaks.toml")
+    tools = Tools(
+        Path(sys.executable),
+        bin_dir / "gitleaks",
+        bin_dir / "gitleaks.toml",
+        bin_dir / "actionlint",
+    )
     monkeypatch.setattr(doctor_cmd, "local_uv", lambda: Uv(bin_dir / "uv", tmp_path / "py"))
     monkeypatch.setattr(doctor_cmd, "local_tools", lambda: tools)
     monkeypatch.setattr(doctor_cmd, "core_tool", core_tool)
@@ -74,7 +79,10 @@ def toolchain_lines(tmp_path: Path) -> list[str]:
     bin_dir = tmp_path / "bin"
     return [
         f"python {platform.python_version()}: {sys.executable}",
-        *(f"{name}: {bin_dir / name}" for name in ("uv", "gitleaks", "ruff", "pyright")),
+        *(
+            f"{name}: {bin_dir / name}"
+            for name in ("uv", "gitleaks", "actionlint", "ruff", "pyright")
+        ),
     ]
 
 

@@ -38,10 +38,10 @@ CONFIG = Rule(
     title="Python tool configuration is missing, weakens the profile, or leaves the snapshot",
     requirement="R04",
     explanation=(
-        "A Python component needs pyproject.toml with a [project] table, a uv.lock that locks "
-        "pytest, pytest-cov, and coverage, an exact .python-version, an explicit Ruff lint "
-        "selection, and Pyright in strict mode without ignored paths or weakened rules. Paths "
-        "in tool settings must stay inside the repository."
+        "A Python component needs pyproject.toml with a [project] table, a uv.lock that matches "
+        "it and locks pytest, pytest-cov, and coverage, an exact .python-version, an explicit "
+        "Ruff lint selection, and Pyright in strict mode without ignored paths or weakened "
+        "rules. Paths in tool settings must stay inside the repository."
     ),
     remedy="Fix the named setting in the component's configuration file.",
 )

@@ -88,11 +88,14 @@ def test_subcommand_help_states_exit_codes(
 def test_the_command_table_matches_the_parser(capsys: pytest.CaptureFixture[str]) -> None:
     table = command_table()
     assert set(table) == {
+        "audit",
         "bootstrap",
         "check",
+        "ci",
         "doctor",
         "explain",
         "fix",
+        "gate",
         "inventory",
         "links",
         "policy",
@@ -109,7 +112,7 @@ def test_the_command_table_matches_the_parser(capsys: pytest.CaptureFixture[str]
                 parser.parse_args(argv)
             assert raised.value.code == 0
     capsys.readouterr()
-    for name in ("policy", "tools"):
+    for name in ("ci", "policy", "tools"):
         with pytest.raises(SystemExit) as raised:
             parser.parse_args([name, "unknown"])
         assert raised.value.code == 2

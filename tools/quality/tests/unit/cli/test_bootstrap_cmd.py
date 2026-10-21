@@ -16,7 +16,7 @@ from quality.toolchain.install import INSTALL_FAILED, MISSING
 
 FOREIGN = "#!/bin/sh\nexit 0\n"
 OFFLINE = native.failure("uv sync", "no network").diagnostic
-GITLEAKS = load_manifest().tools["gitleaks"]
+TOOLS = load_manifest().tools
 
 
 @dataclass(slots=True)
@@ -69,8 +69,11 @@ def hook(repo: GitRepo, name: HookName) -> Path:
 
 
 def tool_line(tmp_path: Path) -> str:
-    binary = installed("gitleaks", GITLEAKS, tmp_path / "cache" / "quality" / "toolchains")
-    return f"gitleaks {GITLEAKS.version}: {binary}\n"
+    root = tmp_path / "cache" / "quality" / "toolchains"
+    return "".join(
+        f"{name} {TOOLS[name].version}: {installed(name, TOOLS[name], root)}\n"
+        for name in ("gitleaks", "actionlint")
+    )
 
 
 def test_tools_environments_and_the_hook_are_installed(
@@ -128,6 +131,7 @@ def test_failed_downloads_do_not_stop_the_rest(
     assert main(["bootstrap"]) == 3
     output = capsys.readouterr().out
     assert "gitleaks: network is unreachable (tools.install-failed)" in output
+    assert "actionlint: network is unreachable (tools.install-failed)" in output
     assert "uv sync: no network (tools.failed)" in output
     assert f"pre-commit hook: {hook(project, HookName.PRE_COMMIT)}\n" in output
 

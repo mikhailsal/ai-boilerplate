@@ -1,6 +1,6 @@
 # 0002 Installation strategy
 
-Status: accepted (P00); amended in P03, P05, P06, and P08.
+Status: accepted (P00); amended in P03, P05, P06, P08, and P10.
 
 Commands that are not implemented yet are named in plain text with the phase
 that delivers them; `quality check` fails documentation that presents a
@@ -46,7 +46,10 @@ standalone tools:
 - PHP profile active: `composer.phar`, installed by `quality bootstrap` only
   when a PHP component exists, or explicitly with `quality tools install
   composer` (since P08);
-- merge CI and maintainers: osv-scanner and actionlint.
+- always since P10: actionlint, because every check lints the workflows;
+- merge CI and maintainers: osv-scanner, installed explicitly with
+  `quality tools install osv-scanner` for `quality audit`
+  ([decision 0015](0015-ci-wrappers-and-merge-gates.md#dependency-gates)).
 
 The PHP runtime is the one toolchain not downloaded: portable PHP builds with
 Xdebug are not a maintained upstream artifact. Its minor version and the

@@ -44,6 +44,7 @@ def toolchain() -> SetupReport:
     probes: dict[str, Callable[[], Path]] = {
         "uv": lambda: local_uv().executable,
         "gitleaks": lambda: local_tools().gitleaks,
+        "actionlint": lambda: local_tools().actionlint,
         "ruff": lambda: core_tool("ruff"),
         "pyright": lambda: core_tool("pyright"),
     }

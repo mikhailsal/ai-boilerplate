@@ -76,6 +76,29 @@ def test_blobs_introduced_by_a_merge_resolution(repo: GitRepo) -> None:
     assert {blob.path for blob in blobs} == {"a.txt"}
 
 
+def shallow_clone(repo: GitRepo, depth: int) -> GitRepo:
+    clone = GitRepo(repo.path.parent / "clone", repo.home)
+    repo.git("clone", "-q", "--depth", str(depth), f"file://{repo.path}", str(clone.path))
+    return clone
+
+
+def test_a_range_cut_by_a_shallow_clone_fails(repo: GitRepo) -> None:
+    first = repo.commit_all("first")
+    repo.write("a.txt", "a")
+    second = repo.commit_all("second")
+    repo.write("a.txt", "b")
+    tip = repo.commit_all("third")
+    assert repo.repository().shallow_commits() == frozenset()
+    clone = shallow_clone(repo, 2).repository()
+    assert clone.shallow_commits() == frozenset({second})
+    assert [blob.size for blob in new_blobs(clone, RevisionRange(second, tip))] == [1]
+    with pytest.raises(GitioError, match=f"cut at shallow commit {second}") as raised:
+        new_blobs(clone, RevisionRange(None, tip))
+    assert raised.value.diagnostic.rule == "git.revision-unresolvable"
+    with pytest.raises(GitioError, match="no such commit"):
+        clone.resolve_commit(first)
+
+
 def test_unexpected_object_listing_fails(repo: GitRepo, monkeypatch: pytest.MonkeyPatch) -> None:
     repo.write("a.txt", "a")
     tip = repo.commit_all("first")

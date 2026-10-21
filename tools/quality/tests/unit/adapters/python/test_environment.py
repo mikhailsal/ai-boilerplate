@@ -10,6 +10,7 @@ from quality.adapters.python.environment import (
     SYNC_TIMEOUT,
     Environments,
     Uv,
+    stale_lock,
     sync,
 )
 from quality.cli.local import local_uv
@@ -135,3 +136,23 @@ def test_environments_sync_once_per_component_and_work_area(tmp_path: Path) -> N
         == second / "python-env" / "app" / "bin" / "python"
     )
     assert log.read_text().splitlines() == [str(snapshot / "app")] * 2
+
+
+def test_a_lockfile_that_no_longer_matches_its_project_is_stale(tmp_path: Path) -> None:
+    project = python_project(tmp_path / "app", {})
+    assert stale_lock(local_uv(), project) is None
+    pyproject = project / "pyproject.toml"
+    pyproject.write_text(
+        pyproject.read_text().replace("dependencies = []", 'dependencies = ["idna"]')
+    )
+    stale = stale_lock(local_uv(), project)
+    assert stale is not None
+    assert "idna" in stale
+
+
+def test_a_lock_check_reports_uv_output_and_fails_on_errors(tmp_path: Path) -> None:
+    quiet = Uv(script(tmp_path / "quiet", "exit 1"), tmp_path)
+    assert stale_lock(quiet, tmp_path) == "uv.lock needs to be updated"
+    broken = Uv(script(tmp_path / "broken", 'echo "no interpreter" >&2\nexit 2'), tmp_path)
+    with pytest.raises(native.ToolFailedError, match="uv lock --check: exit status 2: no interp"):
+        stale_lock(broken, tmp_path)

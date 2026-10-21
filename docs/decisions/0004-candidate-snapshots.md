@@ -79,7 +79,8 @@ Residual risks:
 
 - The comparison itself (the CLI entry point, the provenance module, and the
   launcher) runs from the working tree, so a local edit there is not defended
-  against. CI runs the committed core and is the boundary.
+  against. CI runs the committed core and is the boundary
+  ([decision 0015](0015-ci-wrappers-and-merge-gates.md)).
 - `pyproject.toml` of the core is not compared; its environment is defined by
   `uv.lock` alone.
 - `--rev` of a commit whose core lockfile differs from the working tree fails

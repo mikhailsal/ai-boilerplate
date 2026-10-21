@@ -2,7 +2,9 @@
 
 Every snapshot gets its own environment per component, built from the candidate's
 `uv.lock` by the pinned uv. Checks never download: a package or interpreter that is
-not cached is an environment error that names the bootstrap command.
+not cached is an environment error that names the bootstrap command. `uv sync
+--frozen` installs the lockfile as it is, so `uv lock --check` first confirms
+that it still matches pyproject.toml.
 """
 
 from __future__ import annotations
@@ -12,7 +14,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from quality.adapters.native import fail, failure
+from quality.adapters.native import fail, failure, run_tool
 from quality.policy import Component
 from quality.process import Command, ProcessError, run, sanitized
 
@@ -22,6 +24,9 @@ DOWNLOAD_TIMEOUT = 3600.0
 # Settings of the user's uv that only choose where caches live.
 CACHE_VARIABLES = ("UV_CACHE_DIR",)
 TOOL = "uv sync"
+LOCK_TOOL = "uv lock --check"
+# `uv lock --check` exits 1 when the lockfile needs an update or cannot be resolved offline.
+STALE = 1
 BOOTSTRAP_HINT = "run `./quality bootstrap` to install the locked packages and interpreter"
 
 
@@ -68,6 +73,16 @@ def sync(uv: Uv, project: Path, target: Path, *, label: str, offline: bool = Tru
     if not python.is_file():
         fail(TOOL, f"{label}: no interpreter at {python}")
     return python
+
+
+def stale_lock(uv: Uv, project: Path) -> str | None:
+    """Return why the project's uv.lock does not match pyproject.toml, or None when it does."""
+    argv = (str(uv.executable), "lock", "--check", "--offline", "--quiet")
+    command = Command(argv, cwd=project, timeout=SYNC_TIMEOUT, env=uv.environ())
+    completed = run_tool(command, name=LOCK_TOOL, accepted={0, STALE})
+    if completed.returncode == 0:
+        return None
+    return completed.stderr_text().strip() or "uv.lock needs to be updated"
 
 
 @dataclass(slots=True)

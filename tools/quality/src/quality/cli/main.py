@@ -10,11 +10,14 @@ from typing import cast
 
 from quality import __version__
 from quality.cli import (
+    audit_cmd,
     bootstrap_cmd,
     check_cmd,
+    ci_cmd,
     doctor_cmd,
     explain_cmd,
     fix_cmd,
+    gate_cmd,
     inventory_cmd,
     links_cmd,
     policy_cmd,
@@ -35,11 +38,14 @@ fail; Git hooks and CI only call it. Exit codes: 0 pass, 1 violations,
 """
 
 COMMANDS = (
+    audit_cmd,
     bootstrap_cmd,
     check_cmd,
+    ci_cmd,
     doctor_cmd,
     explain_cmd,
     fix_cmd,
+    gate_cmd,
     inventory_cmd,
     links_cmd,
     policy_cmd,

@@ -83,6 +83,8 @@ def test_the_common_gate_tools_are_located_in_the_cache(
     binary.write_text("#!/bin/sh\n")
     binary.chmod(0o755)
     assert missing(local_tools).startswith("gitleaks rule set is not installed")
+    (binary.parent / "gitleaks.toml").write_text("")
+    assert missing(local_tools).startswith(f"actionlint {pinned('actionlint').version} is not")
 
 
 def test_uv_is_located_with_its_managed_interpreters(

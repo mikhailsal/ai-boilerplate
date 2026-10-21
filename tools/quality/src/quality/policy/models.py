@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import Field, model_validator
 
+from quality.policy.ci import AuditPolicy, CiPolicy
 from quality.policy.enums import Capability, Category, Enhancement, Profile, Role, Suite
 from quality.policy.types import (
     Date,
@@ -18,14 +19,9 @@ from quality.policy.types import (
     RelPath,
     RootPath,
     RuleId,
+    StrictModel,
     Text,
 )
-
-
-class StrictModel(BaseModel):
-    """Base model: frozen, unknown keys forbidden; scalar types are strict."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
 
 class Repository(StrictModel):
@@ -208,3 +204,5 @@ class Policy(StrictModel):
     classification: list[Classification] = Field(default_factory=list[Classification])
     exceptions: list[PolicyException] = Field(default_factory=list[PolicyException])
     quarantine: list[Quarantine] = Field(default_factory=list[Quarantine])
+    ci: CiPolicy | None = None
+    audit: AuditPolicy = Field(default_factory=AuditPolicy)

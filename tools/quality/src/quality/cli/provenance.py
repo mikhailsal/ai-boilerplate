@@ -1,6 +1,6 @@
 """Verdict commands run with the candidate's own core (decision 0004).
 
-`check`, `test`, and `self-test` set `judged`; before their handler runs,
+`check`, `gate`, `test`, and `self-test` set `judged`; before their handler runs,
 `judge` decides whether this core may judge the candidate. It hands the command
 to the candidate's core when the cores differ, and it never skips the
 comparison: there is no option or variable to turn it off.
@@ -18,6 +18,7 @@ import quality
 from quality.cli.verdict import candidate_of
 from quality.diagnostics import Diagnostic, Outcome
 from quality.diagnostics.render import outcome_to_json, render_text
+from quality.engine.gate import GateError
 from quality.engine.provenance import (
     LOCK,
     Provenance,
@@ -46,12 +47,12 @@ def judge(args: argparse.Namespace, argv: Sequence[str], root: Path = RUNNING_CO
     """Return the verdict of the candidate's core, or None when this core is the candidate's.
 
     A candidate that cannot be resolved returns None too: the handler then
-    reports the same Git error itself.
+    reports the same Git or usage error itself.
     """
     try:
         repo, candidate = candidate_of(args)
         core = candidate_core(repo, candidate.tree)
-    except GitioError:
+    except GitioError, GateError:
         return None
     if core is None:
         return None

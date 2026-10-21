@@ -1,5 +1,6 @@
 """Policy: typed models, loading, cross-validation, and schema export."""
 
+from quality.policy.ci import AuditPolicy, CiPolicy
 from quality.policy.load import LoadResult, load_policy, parse_policy
 from quality.policy.models import (
     Capability,
@@ -20,8 +21,10 @@ from quality.policy.models import (
 from quality.policy.validate import cross_validate, owned_paths
 
 __all__ = [
+    "AuditPolicy",
     "Capability",
     "Category",
+    "CiPolicy",
     "Classification",
     "Component",
     "CoveragePolicy",

@@ -18,11 +18,14 @@
 | [0012](decisions/0012-dart-profile.md) | Dart profile: dart format, dart analyze, package:test, package:coverage |
 | [0013](decisions/0013-php-profile.md) | PHP profile: Composer, PHP CS Fixer, PHPStan, PHPUnit with Xdebug |
 | [0014](decisions/0014-behavioral-scenarios.md) | Behavioral scenarios: capabilities, manifests, proof, and quarantine |
+| [0015](decisions/0015-ci-wrappers-and-merge-gates.md) | CI wrappers, the required status, dependency audit, and control files |
 
 ## Guides
 
 - [Test quality](guides/test-quality.md): what counts as test evidence and how
   to write tests that prove scenarios.
+- [Hosting protection](guides/protection.md): the prepared ruleset and code
+  owners, how to apply and confirm them, and the real trust boundary.
 
 ## Reference
 

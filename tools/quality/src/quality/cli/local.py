@@ -53,6 +53,7 @@ DART = "dart"
 COMPOSER = "composer"
 # The system programs of the PHP profile, by their `[runtimes]` names in the manifest.
 PHP_RUNTIMES = ("php", "xdebug")
+SCANNER = "osv-scanner"
 
 
 def pinned(name: str) -> Tool:
@@ -72,7 +73,13 @@ def local_tools() -> Tools:
     if not rules.is_file():
         message = f"gitleaks rule set is not installed (expected {rules})"
         raise ToolchainError(MISSING.diagnostic(message))
-    return Tools(python=Path(sys.executable), gitleaks=gitleaks, gitleaks_rules=rules)
+    actionlint = locate("actionlint", pinned("actionlint"), root)
+    return Tools(Path(sys.executable), gitleaks, rules, actionlint)
+
+
+def local_scanner() -> Path:
+    """Locate the pinned osv-scanner of the dependency audit."""
+    return locate(SCANNER, pinned(SCANNER), cache_root())
 
 
 def local_uv() -> Uv:

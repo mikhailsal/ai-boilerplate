@@ -44,8 +44,10 @@ layers = [
     "scenarios",
     "toolchain",
     "hooks",
+    "ci",
     "rules",
     "adapters",
+    "reports",
     "coverage",
     "testing",
     "boundedio",
@@ -64,8 +66,10 @@ modules = [
     { name = "scenarios", paths = ["src/quality/scenarios/**"] },
     { name = "toolchain", paths = ["src/quality/toolchain/**"] },
     { name = "hooks", paths = ["src/quality/hooks/**"] },
+    { name = "ci", paths = ["src/quality/ci/**"] },
     { name = "rules", paths = ["src/quality/rules/**"] },
     { name = "adapters", paths = ["src/quality/adapters/**"] },
+    { name = "reports", paths = ["src/quality/reports/**"] },
     { name = "coverage", paths = ["src/quality/coverage/**"] },
     { name = "testing", paths = ["src/quality/testing/**"] },
     { name = "boundedio", paths = ["src/quality/boundedio.py"] },
@@ -122,6 +126,23 @@ source = ["bin", "src"]
 tests = { unit = ["tests"] }
 capabilities = []
 no_boundary_reason = "Internal helper run by its profile adapter; the core's acceptance suites drive it."
+
+# The CI wrapper contract (decision 0015): `required` is the one status that
+# hosting protection requires, and it fails unless every job below succeeded.
+# Control files (derived from this policy, plus `control`) need an owner in
+# `codeowners`; changes to them are listed at the merge stage.
+[ci]
+workflow = ".github/workflows/quality.yml"
+aggregate_job = "required"
+required_jobs = ["gate", "audit"]
+codeowners = ".github/CODEOWNERS"
+control = ["ci/**"]
+
+# The dependency audit of merge CI (`quality audit`): advisories with a CVSS
+# score at or above `blocking_score` fail, lower ones warn, unscored ones fail.
+[audit]
+blocking_score = 7.0
+unscored = "error"
 
 [[classification]]
 pattern = "quality"

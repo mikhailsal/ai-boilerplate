@@ -39,3 +39,16 @@ tests = [
     "tests.acceptance.test_candidate::test_a07_*",
     "tests.acceptance.test_candidate::test_a14_*",
 ]
+
+[[scenarios]]
+id = "merge-gate"
+summary = "The merge gate judges the tested merge on plain Linux, whatever CI variables say."
+capability = "cli"
+level = "acceptance"
+stage = "merge"
+requirements = ["cli.flows"]
+tests = [
+    "tests.acceptance.test_gate::test_a_pull_request_passes_on_plain_linux_with_exported_reports",
+    "tests.acceptance.test_gate::test_provider_variables_do_not_change_the_verdict",
+    "tests.acceptance.test_gate::test_a_stricter_policy_on_main_invalidates_an_earlier_green_result",
+]

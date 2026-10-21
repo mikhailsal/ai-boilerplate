@@ -1,6 +1,7 @@
 # 0003 Architecture and configuration layout
 
-Status: accepted (P00); launcher path amended in P05, adapter layout in P06.
+Status: accepted (P00); launcher path amended in P05, adapter layout in P06,
+CI wrappers and reports in P10.
 
 ## Repository layout
 
@@ -16,7 +17,8 @@ Status: accepted (P00); launcher path amended in P05, adapter layout in P06.
 | `tools/quality/helpers/{typescript,dart,php}/` | Native helper bundles, each a native project with its own lockfile and tests |
 | `tools/quality/toolchains.toml` | Toolchain pins and checksums |
 | `docs/` | Documentation, decisions, plan records |
-| `.github/workflows/`, `ci/gitlab/` | Thin CI wrappers |
+| `.github/workflows/`, `ci/gitlab/` | Thin CI wrappers ([decision 0015](0015-ci-wrappers-and-merge-gates.md)) |
+| `.github/CODEOWNERS`, `.github/rulesets/` | Owners of the control files and the prepared branch ruleset |
 
 The core does not own the repository root: application components may use the
 root `pyproject.toml`, `package.json`, `pubspec.yaml`, or `composer.json`.
@@ -36,14 +38,16 @@ are enforced on the core by the declared-module architecture rule:
    and revision mapping.
 5. `discovery` – file classification, component ownership, role activation.
 6. `metrics`, `coverage`, `testing` – normalized models and native report
-   parsers; no subprocess calls.
+   parsers; no subprocess calls. `reports` sits above `coverage` and
+   `testing` and exports their results as JUnit, LCOV, and Cobertura.
 7. `adapters` – one package per language profile, plus modules the profiles
    share (configuration readers and static-check targets); they call native
    tools through `process` and return normalized results. The profile packages
    do not import each other.
 8. `rules` – common repository, documentation, secret, blob, exception,
    structure, and architecture rules over normalized data.
-9. `scenarios`, `ci`, `toolchain`, `hooks`, `reports` – feature modules.
+9. `scenarios`, `ci`, `toolchain`, `hooks` – feature modules; `ci` holds the
+   workflow, CODEOWNERS, control-file, and job-result rules.
 10. `engine` and `cli` – orchestration and argument parsing only.
 
 Lower layers never import higher layers; cycles are errors.

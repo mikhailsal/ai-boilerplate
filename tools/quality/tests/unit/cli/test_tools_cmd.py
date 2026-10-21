@@ -37,8 +37,11 @@ def test_the_default_installs_what_every_check_needs(
 ) -> None:
     installer = use(monkeypatch, FakeInstaller())
     assert main(["tools", "install"]) == 0
-    assert installer.calls == [("gitleaks", "8.30.1", cache)]
-    assert capsys.readouterr().out == f"gitleaks 8.30.1: {cache}/gitleaks-8.30.1/gitleaks\n"
+    assert installer.calls == [("gitleaks", "8.30.1", cache), ("actionlint", "1.7.12", cache)]
+    assert capsys.readouterr().out.splitlines() == [
+        f"gitleaks 8.30.1: {cache}/gitleaks-8.30.1/gitleaks",
+        f"actionlint 1.7.12: {cache}/actionlint-1.7.12/actionlint",
+    ]
 
 
 def test_named_tools_are_installed_in_order(

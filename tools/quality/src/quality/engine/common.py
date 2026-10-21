@@ -16,6 +16,7 @@ from pathlib import Path, PurePosixPath
 from quality.adapters import markdown, native, secrets
 from quality.adapters.python.imports import file_dependencies, import_roots
 from quality.adapters.python.structure import PythonStructure
+from quality.ci import GATE_RULES, ci_gates
 from quality.diagnostics import Diagnostic
 from quality.discovery import Inventory, Region
 from quality.engine.scope import Scope
@@ -26,7 +27,7 @@ from quality.rules import architecture, config, docs, files, structure, suppress
 from quality.rules.links import is_markdown
 from quality.rules.model import CandidateFile
 
-COMMON_RULES = (*files.RULES, *config.RULES, *suppressions.RULES, *docs.RULES)
+COMMON_RULES = (*files.RULES, *config.RULES, *suppressions.RULES, *docs.RULES, *GATE_RULES)
 TOOL_RULES = (*markdown.RULES, *secrets.RULES)
 MEASURED_RULES = (*structure.RULES, *architecture.RULES)
 # Profiles whose files the common gates measure; adapters measure the other profiles' files.
@@ -43,6 +44,7 @@ class Tools:
     python: Path
     gitleaks: Path
     gitleaks_rules: Path
+    actionlint: Path
 
 
 def _read(root: Path, path: str) -> bytes:
@@ -139,7 +141,7 @@ def tool_findings(run: Callable[[], Iterable[Diagnostic]]) -> list[Diagnostic]:
 def common_gates(
     scope: Scope, candidate: list[CandidateFile], *, tools: Tools, commands: Commands
 ) -> Iterator[Diagnostic]:
-    """File, configuration, suppression, documentation, secret, and Python structure gates."""
+    """File, configuration, suppression, documentation, secret, CI, and Python structure gates."""
     policy, snapshot = scope.policy, scope.snapshot
     yield from files.check_files(candidate, policy.thresholds)
     yield from config.check_config(candidate)
@@ -165,6 +167,9 @@ def common_gates(
         return secrets.secret_diagnostics(found)
 
     yield from tool_findings(scan)
+    yield from ci_gates(
+        candidate, policy, snapshot.root, snapshot.work, actionlint=tools.actionlint
+    )
     for component in scope.active:
         if component.profile in COMMON_MEASURED:
             yield from python_gates(component, candidate, policy)

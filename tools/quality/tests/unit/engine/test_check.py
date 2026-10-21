@@ -173,7 +173,7 @@ def test_tool_failures_are_environment_errors(project: GitRepo, tmp_path: Path) 
     failing.write_text("#!/bin/sh\nexit 2\n")
     failing.chmod(0o755)
     tools = pinned_tools()
-    report = check(project, Tools(failing, failing, tools.gitleaks_rules))
+    report = check(project, Tools(failing, failing, tools.gitleaks_rules, tools.actionlint))
     assert rules_of(report) == ["tools.failed", "tools.failed"]
     assert {diagnostic.kind for diagnostic in report.diagnostics} == {Kind.ENVIRONMENT}
 

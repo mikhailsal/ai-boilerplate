@@ -130,3 +130,11 @@ def read_blobs(repo: Repository, blobs: Iterable[tuple[str, int]]) -> Iterator[t
         yield from _parse_batch(
             repo.git("cat-file", "--batch", stdin=stdin, output_limit=limit).stdout
         )
+
+
+def read_path(repo: Repository, tree: str, path: str, limit: int) -> bytes | None:
+    """Return a regular file of a tree, or None when it is absent, not a file, or over `limit`."""
+    found = [entry for entry in list_tree(repo, tree) if entry.path == path and entry.is_file]
+    if not found or found[0].size > limit:
+        return None
+    return b"".join(data for _, data in read_blobs(repo, [(found[0].oid, found[0].size)]))

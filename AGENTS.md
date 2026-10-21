@@ -35,6 +35,11 @@ again after pulling changes to `tools/quality` or a lockfile;
 - `./quality explain <rule-id>` explains a finding and its fix.
 - `./quality links` probes external links in the documentation. It needs the
   network and is not part of `./quality check`.
+- `./quality gate` and `./quality audit` are what CI runs; a pull request
+  passes only when the `required` job of the
+  [quality workflow](.github/workflows/quality.yml) succeeds
+  ([decision 0015](docs/decisions/0015-ci-wrappers-and-merge-gates.md)).
+  Changes to control files need code-owner review.
 - `./quality policy validate` validates [`quality.toml`](quality.toml).
 - Every command and exit code is listed in the
   [command-line reference](docs/reference/cli.md).

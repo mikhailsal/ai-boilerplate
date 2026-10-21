@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from quality import discovery, engine, gitio, hooks, toolchain
+from quality import ci, discovery, engine, gitio, hooks, reports, toolchain
 from quality.adapters import markdown, native, secrets
 from quality.adapters.dart import profile as dart
 from quality.adapters.php import profile as php
@@ -19,6 +19,7 @@ from quality.rules import (
     external,
     files,
     quarantine,
+    regressions,
     structure,
     suppressions,
     testing,
@@ -46,6 +47,7 @@ def build_registry() -> RuleRegistry:
             *quarantine.RULES,
             *scenarios.RULES,
             *coverage.RULES,
+            *regressions.RULES,
             *external.RULES,
             *markdown.RULES,
             *secrets.RULES,
@@ -57,5 +59,7 @@ def build_registry() -> RuleRegistry:
             *dart.RULES,
             *php.RULES,
             *hooks.RULES,
+            *reports.RULES,
+            *ci.RULES,
         ]
     )

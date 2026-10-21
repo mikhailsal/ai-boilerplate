@@ -90,6 +90,21 @@ def test_a_configuration_problem_stops_before_the_sync(tmp_path: Path) -> None:
     assert [d.location and d.location.path for d in found] == ["app/uv.lock"]
 
 
+def test_a_stale_lockfile_stops_before_the_sync(tmp_path: Path) -> None:
+    project = python_project(tmp_path / "app", {})
+    pyproject = project / "pyproject.toml"
+    pyproject.write_text(
+        pyproject.read_text().replace("dependencies = []", 'dependencies = ["idna"]')
+    )
+    profile = PythonProfile(tmp_path, tmp_path, Environments(local_uv()))
+    found = profile.prepare(component(), tmp_path, tmp_path / "work")
+    assert [(d.rule, d.location and d.location.path) for d in found] == [
+        ("python.config", "app/uv.lock")
+    ]
+    assert found[0].message.startswith("uv.lock does not match pyproject.toml: ")
+    assert not (tmp_path / "work").exists()
+
+
 def test_gates_need_a_prepared_component(tmp_path: Path) -> None:
     profile, app = unprepared(tmp_path), component()
     with pytest.raises(native.ToolFailedError, match="'app' was not prepared"):

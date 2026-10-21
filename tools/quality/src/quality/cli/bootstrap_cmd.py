@@ -26,7 +26,7 @@ from quality.toolchain.install import INSTALL_FAILED
 NAME = "bootstrap"
 ACTIONS: frozenset[str] = frozenset()
 # Standalone tools every check needs; uv and the core are the launcher's part.
-TOOLS = ("gitleaks",)
+TOOLS = ("gitleaks", "actionlint")
 
 
 def register(commands: Subcommands) -> None:

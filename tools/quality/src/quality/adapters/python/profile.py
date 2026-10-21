@@ -9,7 +9,7 @@ from pathlib import Path, PurePosixPath
 from quality.adapters import native
 from quality.adapters.python import config, pyright, ruff
 from quality.adapters.python.config import STATIC_SUFFIXES, NativeConfig, check_config
-from quality.adapters.python.environment import Environments
+from quality.adapters.python.environment import Environments, stale_lock
 from quality.adapters.python.runner import run_pytest
 from quality.adapters.target import Target
 from quality.coverage import CoverageReport, parse_coverage_json
@@ -46,6 +46,10 @@ class PythonProfile:
         """Check the configuration; only an accepted one gets an environment."""
         settings, report = check_config(component, snapshot)
         if settings is None or report.found:
+            return report.found
+        stale = stale_lock(self.environments.uv, snapshot / component.root)
+        if stale is not None:
+            report.add("uv.lock", f"uv.lock does not match pyproject.toml: {stale}; run `uv lock`")
             return report.found
         self._native[self.environments.location(component, work)] = settings
         self.environments.python(component, snapshot, work)

@@ -80,9 +80,8 @@ def _repeated_key(root: yaml.Node | None) -> str | None:
     return None
 
 
-def load_yaml_mapping(path: Path) -> Table:
-    """Read a bounded YAML file holding one mapping, with no mapping that repeats a key."""
-    data = read_bounded(path, CONFIG_LIMIT)
+def parse_yaml_mapping(data: bytes, name: str) -> Table:
+    """Parse YAML holding one mapping, with no mapping that repeats a key."""
     try:
         text = data.decode("utf-8")
         loader = yaml.SafeLoader(text)
@@ -92,15 +91,20 @@ def load_yaml_mapping(path: Path) -> Table:
             loader.dispose()
         value: object = yaml.safe_load(text)
     except (UnicodeDecodeError, yaml.YAMLError, RecursionError) as error:
-        msg = f"{path.name} is not valid YAML: {error}"
+        msg = f"{name} is not valid YAML: {error}"
         raise ReportError(msg) from error
     if repeated is not None:
-        msg = f"{path.name} repeats the key '{repeated}'"
+        msg = f"{name} repeats the key '{repeated}'"
         raise ReportError(msg)
     if not isinstance(value, dict):
-        msg = f"{path.name} does not hold a YAML mapping"
+        msg = f"{name} does not hold a YAML mapping"
         raise ReportError(msg)
     return cast(Table, value)
+
+
+def load_yaml_mapping(path: Path) -> Table:
+    """Read a bounded YAML file holding one mapping, with no mapping that repeats a key."""
+    return parse_yaml_mapping(read_bounded(path, CONFIG_LIMIT), path.name)
 
 
 def table(data: Table, *keys: str) -> Table | None:

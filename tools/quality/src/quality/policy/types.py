@@ -1,4 +1,4 @@
-"""Constrained scalar types used by the policy models."""
+"""Constrained scalar types and the strict base model of the policy models."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import re
 from datetime import date
 from typing import Annotated
 
-from pydantic import AfterValidator, Field, Strict
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, Strict
 
 _IDENTIFIER = re.compile(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$")
 _RULE_ID = re.compile(r"^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)+$")
@@ -82,5 +82,12 @@ Glob = Annotated[str, Strict(), AfterValidator(_check_glob)]
 Text = Annotated[str, Strict(), AfterValidator(_check_text)]
 Percent = Annotated[int, Strict(), Field(ge=0, le=100)]
 PositiveInt = Annotated[int, Strict(), Field(gt=0)]
+Score = Annotated[float, Strict(), Field(ge=0, le=10)]
 Flag = Annotated[bool, Strict()]
 Date = Annotated[date, Strict()]
+
+
+class StrictModel(BaseModel):
+    """Base model: frozen, unknown keys forbidden; scalar types are strict."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)

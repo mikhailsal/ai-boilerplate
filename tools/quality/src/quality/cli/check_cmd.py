@@ -9,13 +9,7 @@ from datetime import UTC, datetime
 from quality.catalog import build_registry
 from quality.cli import Subcommands
 from quality.cli.local import local_profiles, local_tools
-from quality.cli.verdict import (
-    candidate_of,
-    coverage_json,
-    coverage_text,
-    scenarios_json,
-    scenarios_text,
-)
+from quality.cli.verdict import candidate_of, report_extra, report_text
 from quality.diagnostics import Outcome
 from quality.diagnostics.render import outcome_to_json, render_text
 from quality.engine import Report, Settings, check_candidate
@@ -78,18 +72,7 @@ def run_check(args: argparse.Namespace) -> int:
         report = Report((error.diagnostic,))
     outcome = Outcome.of(report.diagnostics)
     if args.json:
-        extra = {
-            "files": report.files,
-            "excepted": report.excepted,
-            "tested": list(report.tested),
-            "coverage": coverage_json(report.coverage),
-            "scenarios": scenarios_json(report.scenarios),
-        }
-        sys.stdout.write(outcome_to_json(outcome, command=NAME, extra=extra))
+        sys.stdout.write(outcome_to_json(outcome, command=NAME, extra=report_extra(report)))
     else:
-        summary = (
-            f"checked {report.files} files; {report.excepted} findings covered by exceptions\n"
-        )
-        lines = coverage_text(report.coverage) + scenarios_text(report.scenarios)
-        sys.stdout.write(render_text(outcome) + lines + summary)
+        sys.stdout.write(render_text(outcome) + report_text(report))
     return int(outcome.exit_code())

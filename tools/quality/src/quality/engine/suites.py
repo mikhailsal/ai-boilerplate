@@ -1,31 +1,25 @@
 """`quality test`: the suites and coverage floors of the components a candidate affects.
 
-Suites run in the isolated snapshot through a profile's runner. Results and
-coverage are read only from a new output directory created for that run, and
-coverage is evaluated only after a clean unit run (R06, decision 0008).
+The suites run as in `quality check` (see `engine.runs`, R06); this module
+selects the components and suites a test command names.
 """
 
 from __future__ import annotations
 
-import tempfile
-import time
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-from pathlib import Path
 
 from quality.diagnostics import Diagnostic, Kind, Rule
-from quality.discovery import Region
-from quality.discovery.classify import under
 from quality.engine.profiles import ProfileTests
-from quality.engine.runs import run_suite, unit_coverage
+from quality.engine.runs import suite_findings
 from quality.engine.scenarios import load_manifests, reconciled
 from quality.engine.scope import Scope, candidate_scope, checked_policy, prepare_components
 from quality.gitio import Candidate, Repository, materialize
-from quality.policy import Category, Component, Profile, Quarantine, Role
-from quality.rules import coverage, quarantine, testing
-from quality.scenarios.reconcile import Ran, ScenarioSummary
-from quality.testing import Suite, SuiteRequest, SuiteResults, suite_roots
+from quality.policy import Component, Profile, Role
+from quality.rules import coverage, quarantine
+from quality.scenarios.reconcile import ScenarioSummary
+from quality.testing import Suite, suite_roots
 
 UNKNOWN = Rule(
     id="tests.unknown-component",
@@ -79,92 +73,6 @@ class SuiteReport:
     tested: tuple[str, ...] = ()
     coverage: tuple[coverage.ComponentCoverage, ...] = ()
     scenarios: tuple[ScenarioSummary, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class SuiteFindings:
-    """What the suites of the prepared components produced, and their results by component."""
-
-    diagnostics: list[Diagnostic] = field(default_factory=list[Diagnostic])
-    coverage: list[coverage.ComponentCoverage] = field(
-        default_factory=list[coverage.ComponentCoverage]
-    )
-    ran: dict[str, Ran] = field(default_factory=dict[str, Ran])
-
-
-def expectation(component: Component, scope: Scope, runner: ProfileTests) -> coverage.Expectation:
-    """Derive the expected sources from the snapshot, independently of what tests import."""
-    sources = frozenset(
-        record.path
-        for record in scope.inventory.files
-        if record.component == component.id
-        and record.region is Region.SOURCE
-        and record.category is Category.SOURCE
-        and runner.expected(record.path)
-    )
-    prefix = "" if component.root == "." else component.root + "/"
-    missing = tuple(
-        root
-        for root in component.source
-        if not any(under(entry.path, prefix + root) for entry in scope.snapshot.entries)
-    )
-    changes = scope.changes
-    return coverage.Expectation(component.id, sources, missing, changes.lines, changes.added)
-
-
-def request(scope: Scope, component: Component, suite: Suite) -> SuiteRequest:
-    """Build a request with a new, empty output directory."""
-    snapshot = scope.snapshot
-    started = time.time()
-    output = Path(tempfile.mkdtemp(prefix=f"{component.id}-{suite}-", dir=snapshot.work))
-    roots = suite_roots(component, suite)
-    return SuiteRequest(component, suite, roots, snapshot.root, output, started, snapshot.work)
-
-
-def component_suites(
-    component: Component,
-    runner: ProfileTests,
-    scope: Scope,
-    suites: Iterable[Suite],
-    held: Sequence[Quarantine] = (),
-) -> tuple[list[Diagnostic], coverage.ComponentCoverage | None, Ran]:
-    """Run a component's suites; only its own unit run can satisfy its coverage floors."""
-    found: list[Diagnostic] = []
-    summary = None
-    ran: dict[Suite, SuiteResults | None] = {}
-    for suite in suites:
-        if not suite_roots(component, suite):
-            if suite is Suite.UNIT:
-                found.append(testing.missing_suite(component.id))
-            continue
-        current = request(scope, component, suite)
-        outcome = run_suite(runner, current, quarantine.quarantined(held, component.id, suite))
-        found.extend(outcome.diagnostics)
-        ran[suite] = outcome.results
-        if suite is Suite.UNIT and outcome.run is not None:
-            expected = expectation(component, scope, runner)
-            measured, summary = unit_coverage(runner, current, outcome.run, expected, scope.policy)
-            found.extend(measured)
-    return found, summary, ran
-
-
-def suite_findings(
-    scope: Scope,
-    ready: Iterable[tuple[Component, ProfileTests]],
-    plan: Callable[[Component], Iterable[Suite]],
-    held: Sequence[Quarantine] = (),
-) -> SuiteFindings:
-    """Run the suites each prepared component's plan names, and collect what they produced."""
-    findings = SuiteFindings()
-    for component, runner in ready:
-        diagnostics, summary, ran = component_suites(
-            component, runner, scope, plan(component), held
-        )
-        findings.diagnostics.extend(diagnostics)
-        findings.ran[component.id] = ran
-        if summary is not None:
-            findings.coverage.append(summary)
-    return findings
 
 
 type Selection = tuple[tuple[Component, ...], list[Diagnostic]]

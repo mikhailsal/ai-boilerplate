@@ -10,18 +10,27 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from quality.diagnostics import Diagnostic, Location
+from quality.gitio.diff import LineSet
 from quality.gitio.errors import GIT_CANDIDATE_CHANGED, GIT_UNMERGED, GitioError
+from quality.gitio.history import RevisionRange
 from quality.gitio.repo import Repository
 
 
 @dataclass(frozen=True, slots=True)
 class Candidate:
-    """A tree to validate, the tree it is compared with, and how to recompute it."""
+    """A tree to validate, the tree it is compared with, and how to recompute it.
+
+    `lines` are the new lines when they are not simply those added since the
+    base tree, as for a pull request. `history` is the range of new commits
+    whose every blob is checked, for gates that receive history.
+    """
 
     tree: str
     base_tree: str
     description: str
     resolve: Callable[[], str]
+    lines: LineSet | None = None
+    history: RevisionRange | None = None
 
     def verify_unchanged(self) -> None:
         """Recompute the candidate and fail if it no longer matches the validated tree."""

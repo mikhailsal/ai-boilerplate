@@ -2,9 +2,13 @@ import pytest
 
 from quality.gitio import (
     GitioError,
+    RevisionRange,
+    changed_lines,
     commit_lines,
+    merge_candidate,
     merge_queue_lines,
     pull_request_lines,
+    push_candidate,
     push_lines,
     staged,
 )
@@ -113,3 +117,50 @@ def test_missing_history_fails(repo: GitRepo) -> None:
         pull_request_lines(git, base, unrelated, unrelated)
     with pytest.raises(GitioError, match="no such commit"):
         pull_request_lines(git, "f" * 40, unrelated, unrelated)
+
+
+def test_a_push_candidate_carries_its_new_lines_and_commits(repo: GitRepo) -> None:
+    repo.write("a.py", "one\n")
+    first = repo.commit_all("first")
+    repo.write("a.py", "one\ntwo\n")
+    second = repo.commit_all("second")
+    git = repo.repository()
+    pushed = push_candidate(git, first, "main")
+    assert (pushed.tree, pushed.base_tree) == (git.tree_of(second), git.tree_of(first))
+    assert pushed.lines == {"a.py": frozenset({2})}
+    assert pushed.history == RevisionRange(first, second)
+    assert pushed.description == "revision main"
+    pushed.verify_unchanged()
+    created = push_candidate(git, "0" * 40, second)
+    assert (created.base_tree, created.history) == (git.empty_tree(), RevisionRange(None, second))
+    assert changed_lines(git, created) == {"a.py": frozenset({1, 2})}
+
+
+def test_a_merge_candidate_tests_the_merge_but_owns_only_its_lines(repo: GitRepo) -> None:
+    base, head, tested = pull_request(repo)
+    git = repo.repository()
+    merged = merge_candidate(git, base, head, tested)
+    assert (merged.tree, merged.base_tree) == (git.tree_of(tested), git.tree_of(base))
+    assert changed_lines(git, merged) == pull_request_lines(git, base, head, tested)
+    assert merged.history == RevisionRange(base, tested)
+    unmerged = merge_candidate(git, base, head)
+    assert (unmerged.tree, unmerged.history) == (git.tree_of(head), RevisionRange(base, head))
+
+
+def test_a_queue_candidate_must_be_built_on_its_base(repo: GitRepo) -> None:
+    base, head, tested = pull_request(repo)
+    git = repo.repository()
+    queued = merge_candidate(git, base, head, tested, queue=True)
+    assert queued.lines == merge_queue_lines(git, base, tested)
+    with pytest.raises(GitioError, match="is not built on base") as raised:
+        merge_candidate(git, base, head, queue=True)
+    assert raised.value.diagnostic.rule == "git.revision-unresolvable"
+
+
+def test_a_staged_candidate_owns_the_lines_since_head(repo: GitRepo) -> None:
+    repo.write("a.py", "one\n")
+    repo.git("add", "a.py")
+    git = repo.repository()
+    candidate = staged(git)
+    assert (candidate.lines, candidate.history) == (None, None)
+    assert changed_lines(git, candidate) == commit_lines(git, candidate)

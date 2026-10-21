@@ -109,6 +109,15 @@ class Repository:
         """Whether `ancestor` is reachable from `descendant`."""
         return self.try_git("merge-base", "--is-ancestor", ancestor, descendant).ok
 
+    def shallow_commits(self) -> frozenset[str]:
+        """Return the commits whose parents a shallow clone lacks; none for a full clone."""
+        raw = self.git("rev-parse", "--git-path", "shallow").stdout_text().strip()
+        try:
+            listing = (self.worktree / raw).read_text(encoding="ascii")
+        except FileNotFoundError:
+            return frozenset()
+        return frozenset(listing.split())
+
 
 def _git(
     cwd: Path,

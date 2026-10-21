@@ -1,0 +1,60 @@
+# Minimal GitLab CI reference wrapper (decision 0015). It calls the same entry
+# points as .github/workflows/quality.yml: `quality bootstrap`, `quality gate`
+# with explicit revisions, and `quality audit`. To migrate, copy this file to
+# .gitlab-ci.yml. It is validated as YAML here, never by a live GitLab run.
+#
+# GitLab has no aggregate job: "Pipelines must succeed" uses the pipeline status,
+# which fails when any job fails or is cancelled. No job sets `allow_failure`,
+# and both jobs share the workflow rules, so neither can be left out.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+default:
+  image: ubuntu:24.04@sha256:68ee22004a9109b44973313b02ff7b1de250f1de0f5ecb628d73f579aaff33ac
+  before_script:
+    - apt-get update
+    - >-
+      apt-get install --yes --no-install-recommends ca-certificates curl git gpg-agent
+      python3 software-properties-common unzip
+    - add-apt-repository --yes ppa:ondrej/php
+    - >-
+      apt-get install --yes --no-install-recommends php8.4-cli php8.4-xml
+      php8.4-mbstring php8.4-zip php8.4-xdebug php8.4-pcov
+    - phpdismod -v 8.4 -s ALL xdebug pcov
+    - ./quality bootstrap
+
+variables:
+  DEBIAN_FRONTEND: noninteractive
+  GIT_DEPTH: "0"
+
+gate:
+  timeout: 3h
+  script:
+    - |
+      if [ "$CI_MERGE_REQUEST_EVENT_TYPE" = "merge_train" ]; then
+        set -- --stage merge --base "$CI_MERGE_REQUEST_TARGET_BRANCH_SHA" \
+          --head "$CI_COMMIT_SHA" --queue
+      elif [ -n "$CI_MERGE_REQUEST_TARGET_BRANCH_SHA" ]; then
+        # A merged-results pipeline tests the merge of the source into the target.
+        set -- --stage merge --base "$CI_MERGE_REQUEST_TARGET_BRANCH_SHA" \
+          --head "$CI_MERGE_REQUEST_SOURCE_BRANCH_SHA" --tested "$CI_COMMIT_SHA"
+      elif [ -n "$CI_MERGE_REQUEST_IID" ]; then
+        set -- --stage merge --base "$CI_MERGE_REQUEST_DIFF_BASE_SHA" --head "$CI_COMMIT_SHA"
+      else
+        set -- --stage commit --base "$CI_COMMIT_BEFORE_SHA" --head "$CI_COMMIT_SHA"
+      fi
+      ./quality gate "$@" --reports reports
+  artifacts:
+    when: always
+    paths:
+      - reports/
+    reports:
+      junit: reports/junit/*.xml
+
+audit:
+  script:
+    - ./quality tools install osv-scanner
+    - ./quality audit --rev HEAD
