@@ -67,7 +67,7 @@ proof unchanged.
 | R04.1–R04.7 | Limits unchanged; formatter and lint sets extend to CSS and HTML; asset blob and secret checks; browser/server boundaries | F03 | TODO |
 | R05.1–R05.7 | Frontend documentation within the limits | F07 | TODO |
 | R06.1–R06.11 | Per browser component, unchanged floors and evidence rules | F04 | TODO |
-| R07.1 | Compatible versions from primary sources | F00 | IN_PROGRESS |
+| R07.1 | Compatible versions from primary sources: [decision 0017](../../decisions/0017-browser-frontend-profile.md#versions) | F00 | DONE |
 | R08.1–R08.7 | The `ui` capability of a browser component, the scenario boundary, and viewports | F05 | TODO |
 | R09.1–R09.8 | The `browser` job in the wrappers and the aggregate | F06 | TODO |
 | R10.1–R10.7 | Export, documentation, regressions, and the handoff | F07, F08 | TODO |

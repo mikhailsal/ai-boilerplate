@@ -12,9 +12,9 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 - Base: `BASE_COMPLETE_SHA` is
   `dfb232208b41f8423bd74c5e1724865f199aa455` (see the
   [F00 record](docs/plan/frontend/F00.md#base))
-- Current phase: F00
-- Next action: commit the F00 records, then record the commit in a separate
-  progress commit
+- Current phase: F01
+- Next action: commit the policy schema, activation of examples,
+  `component add --target`, and the explicit browser finding (F01)
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`
 - A box is checked only after its implementation commit exists and its checks
   ran; the phase record holds the SHA and the evidence.
@@ -23,7 +23,7 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 
 | Done | Phase | Status | Record |
 | --- | --- | --- | --- |
-| [ ] | F00 Verify the completed base and establish the extension plan | IN_PROGRESS | [F00](docs/plan/frontend/F00.md) |
+| [x] | F00 Verify the completed base and establish the extension plan | DONE | [F00](docs/plan/frontend/F00.md) |
 | [ ] | F01 Extend the schema and register the browser variant | TODO | |
 | [ ] | F02 Prepare the frontend environment and startup operations | TODO | |
 | [ ] | F03 Implement static checks and production building | TODO | |
@@ -37,12 +37,12 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 
 ### F00
 
-- [ ] Inspect the base, record `BASE_COMPLETE_SHA`, reproduce its principal
+- [x] Inspect the base, record `BASE_COMPLETE_SHA`, reproduce its principal
   checks
-- [ ] Plan, decisions [0017](docs/decisions/0017-browser-frontend-profile.md)
+- [x] Plan, decisions [0017](docs/decisions/0017-browser-frontend-profile.md)
   and [0018](docs/decisions/0018-browser-builds-and-scenarios.md), and the
   FR traceability with the affected R requirements
-- [ ] Compatible versions from primary sources; scope and extension points
+- [x] Compatible versions from primary sources; scope and extension points
 
 ### F01
 
