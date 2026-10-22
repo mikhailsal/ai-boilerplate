@@ -12,8 +12,9 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 - Base: `BASE_COMPLETE_SHA` is
   `dfb232208b41f8423bd74c5e1724865f199aa455` (see the
   [F00 record](docs/plan/frontend/F00.md#base))
-- Current phase: F03
-- Next action: commit the isolated production build (F03)
+- Current phase: F04
+- Next action: the jsdom unit suites of browser components in the commit
+  gate (F04)
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`
 - A box is checked only after its implementation commit exists and its checks
   ran; the phase record holds the SHA and the evidence.
@@ -25,7 +26,7 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 | [x] | F00 Verify the completed base and establish the extension plan | DONE | [F00](docs/plan/frontend/F00.md) |
 | [x] | F01 Extend the schema and register the browser variant | DONE | [F01](docs/plan/frontend/F01.md) |
 | [x] | F02 Prepare the frontend environment and startup operations | DONE | [F02](docs/plan/frontend/F02.md) |
-| [ ] | F03 Implement static checks and production building | IN_PROGRESS | [F03](docs/plan/frontend/F03.md) |
+| [x] | F03 Implement static checks and production building | DONE | [F03](docs/plan/frontend/F03.md) |
 | [ ] | F04 Implement component unit coverage in the strict commit gate | TODO | |
 | [ ] | F05 Implement production browser scenarios and accessibility | TODO | |
 | [ ] | F06 Integrate the existing CLI and portable CI | TODO | |
@@ -65,7 +66,7 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 - [x] Type check, React lint rules, structure, import boundaries, CSS, HTML
   entry points, classification
 - [x] Negative cases of the static checks with their controls
-- [ ] The isolated production build with its evidence and negative cases
+- [x] The isolated production build with its evidence and negative cases
 - The reference application moved to F05, where its checks can pass (see
   the [F03 record](docs/plan/frontend/F03.md#scope))
 

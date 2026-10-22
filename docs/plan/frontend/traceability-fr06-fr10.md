@@ -62,9 +62,9 @@ proof unchanged.
 | R01.6 | The core adds no package manager or framework; Vite, Playwright Test, and Stylelint are the ecosystem's tools that FR02 requires, installed by npm from the lock | F02 | DONE |
 | R01.7, R01.8 | New helper and core code at the component floors; mocked unit tests plus real acceptance | All | TODO |
 | R02.1, R02.4, R02.5 | `component add --target`; the pinned browser with checksums, set up only for active browser components | F01, F02 | DONE |
-| R02.2 | Generated Vite and Playwright wrappers override what decides the verdict | F03, F05 | TODO |
+| R02.2 | Generated Vite and Playwright wrappers override what decides the verdict | F03, F05 | IN_PROGRESS |
 | R03.1–R03.11 | Snapshot and revision semantics proven with frontend files | F04, F05 | TODO |
-| R04.1–R04.7 | Limits unchanged; formatter and lint sets extend to CSS and HTML; asset blob and secret checks; browser/server boundaries | F03 | IN_PROGRESS |
+| R04.1–R04.7 | Limits unchanged; formatter and lint sets extend to CSS and HTML; asset blob and secret checks; browser/server boundaries | F03, F04 | IN_PROGRESS |
 | R05.1–R05.7 | Frontend documentation within the limits | F07 | TODO |
 | R06.1–R06.11 | Per browser component, unchanged floors and evidence rules | F04 | TODO |
 | R07.1 | Compatible versions from primary sources: [decision 0017](../../decisions/0017-browser-frontend-profile.md#versions) | F00 | DONE |
