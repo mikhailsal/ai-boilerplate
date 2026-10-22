@@ -10,7 +10,7 @@ from quality.policy import Component
 from quality.policy.scenarios import ScenarioManifest
 from quality.scenarios.manifest import parse_manifest
 from quality.scenarios.validate import Subject
-from quality.testkit.policies import ComponentSpec, build_policy
+from quality.testkit.policies import BROWSER_STACK, ComponentSpec, build_policy
 
 MANIFEST_PATH = "scenarios.toml"
 
@@ -31,6 +31,7 @@ class ScenarioSpec:
     requirements: tuple[str, ...] = ()
     operations: tuple[str, ...] = ()
     enhanced: str | None = None
+    boundary: str | None = None
 
     def toml(self) -> str:
         """Render the scenario as TOML."""
@@ -47,6 +48,8 @@ class ScenarioSpec:
         ]
         if self.enhanced is not None:
             lines.append(f'enhanced = "{self.enhanced}"')
+        if self.boundary is not None:
+            lines.append(f"boundary = {json.dumps(self.boundary)}")
         return "\n".join(lines) + "\n"
 
 
@@ -86,17 +89,19 @@ def build_manifest(
     return _parsed(manifest_toml(*scenarios, component=component, openapi=openapi), component)
 
 
-def scenario_component(*capabilities: str, extra: str = "") -> Component:
+def scenario_component(*capabilities: str, extra: str = "", browser: bool = False) -> Component:
     """Return component `app` with integration and e2e suites and a manifest.
 
-    It declares `capabilities`, or cli when none are given.
+    It declares `capabilities`, or cli when none are given; a `browser`
+    component is a React + Vite one (decision 0017).
     """
     spec = ComponentSpec(
+        profile="typescript" if browser else "python",
         capabilities=capabilities or ("cli",),
         integration=("integration",),
         e2e=("e2e",),
         scenarios=MANIFEST_PATH,
-        extra=extra,
+        extra=f"{BROWSER_STACK}\n{extra}" if browser else extra,
     )
     return build_policy(spec).components[0]
 

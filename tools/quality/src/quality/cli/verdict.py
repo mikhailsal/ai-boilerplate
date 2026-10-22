@@ -86,6 +86,8 @@ def scenarios_text(summaries: tuple[ScenarioSummary, ...]) -> str:
         line = f"scenarios of {summary.component}: {summary.passed} of {summary.required} proved"
         line += f", {summary.suspended} suspended" if summary.suspended else ""
         line += f", {summary.deferred} not required by this run" if summary.deferred else ""
+        if summary.boundaries:
+            line += f"; tested boundaries: {'; '.join(summary.boundaries)}"
         lines.append(line + "\n")
     return "".join(lines)
 
@@ -99,6 +101,7 @@ def scenarios_json(summaries: tuple[ScenarioSummary, ...]) -> list[dict[str, obj
             "proved": summary.passed,
             "suspended": summary.suspended,
             "deferred": summary.deferred,
+            "boundaries": list(summary.boundaries),
         }
         for summary in summaries
     ]

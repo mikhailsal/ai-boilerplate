@@ -7,8 +7,7 @@ its workspace members are copied: the project's `.npmrc` is not, so the install
 uses the public registry and no credentials. Doctor locates Node without
 downloading it and repeats the install offline (decision 0010). For a browser
 component, bootstrap also installs the pinned Chromium and doctor locates it;
-both check that it starts and that the installed Playwright expects it, then
-report that this build cannot check the component yet.
+both check that it starts and that the installed Playwright expects it.
 """
 
 from __future__ import annotations
@@ -19,7 +18,6 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from quality.adapters.typescript import browser
 from quality.adapters.typescript.chromium import VERSION, Chromium, expected_version
 from quality.adapters.typescript.config import check_config
 from quality.adapters.typescript.environment import Node, npm_ci
@@ -57,7 +55,7 @@ class TypeScriptSetup:
     def _installed(self, component: Component, root: Path, *, offline: bool) -> list[Diagnostic]:
         settings, report = check_config(component, root, self.pins)
         if settings is None or report.found:
-            return [*report.found, *browser.unsupported(component)]
+            return report.found
         node = Node(self.locate() if offline else self.install(), self.cache)
         lock = settings.lock
         # A browser component's Playwright is read from its own install of the lockfile.
@@ -70,7 +68,7 @@ class TypeScriptSetup:
                 if component.in_browser:
                     found = self._browser(component, root, lock, copied, offline=offline)
             self._done.add(done)
-        return [*found, *browser.unsupported(component)]
+        return found
 
     def _browser(
         self, component: Component, root: Path, lock: Lock, installed: Path, *, offline: bool

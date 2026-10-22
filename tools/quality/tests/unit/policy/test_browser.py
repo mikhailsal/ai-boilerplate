@@ -56,6 +56,7 @@ def test_a_browser_component_declares_its_stack_and_gets_default_settings() -> N
         "narrow": Viewport(width=390, height=844),
         "wide": Viewport(width=1280, height=800),
     }
+    assert settings.accessibility_tags == ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]
 
 
 def test_the_browser_table_refines_the_defaults() -> None:
@@ -66,6 +67,7 @@ public_env = { VITE_API_URL = "https://api.example.test", VITE_FLAG = "" }
 server_modules = ["src/server/**"]
 server_packages = ["pg", "@aws-sdk/client-s3"]
 viewports = { phone = { width = 360, height = 740 } }
+accessibility_tags = ["wcag2a", "wcag22aa", "best-practice"]
 """
     policy = parse_policy(web(BROWSER + table).encode()).policy
     assert policy is not None
@@ -75,6 +77,7 @@ viewports = { phone = { width = 360, height = 740 } }
     assert settings.server_modules == ["src/server/**"]
     assert settings.server_packages == ["pg", "@aws-sdk/client-s3"]
     assert settings.viewports == {"phone": Viewport(width=360, height=740)}
+    assert settings.accessibility_tags == ["wcag2a", "wcag22aa", "best-practice"]
 
 
 @pytest.mark.parametrize(
@@ -136,6 +139,11 @@ def test_an_inconsistent_target_declaration_is_invalid(
         (
             '[components.browser]\nviewports = { a = { width = "800", height = 800 } }',
             "components[0].browser.viewports.a.width",
+        ),
+        ("[components.browser]\naccessibility_tags = []", "components[0].browser.accessibil"),
+        (
+            '[components.browser]\naccessibility_tags = ["WCAG2A"]',
+            "components[0].browser.accessibility_tags[0]",
         ),
         ("[components.browser]\ncolour = 1", "components[0].browser.colour"),
     ],

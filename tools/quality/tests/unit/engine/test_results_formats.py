@@ -5,8 +5,10 @@ from pathlib import Path
 
 import pytest
 
+from quality.adapters.typescript.traces import CONSOLE
 from quality.catalog import build_registry
 from quality.engine import SuiteSettings, run_suites
+from quality.engine.runs import native_reports
 from quality.gitio import staged
 from quality.policy import Profile
 from quality.testing import ResultsFormat, Suite, SuiteRequest, SuiteRun
@@ -62,3 +64,55 @@ def test_the_engine_parses_results_in_the_format_the_runner_names(
     git = repo.repository()
     report = run_suites(git, staged(git), SuiteSettings({Profile.PYTHON: tests}, RULES))
     assert [diagnostic.rule for diagnostic in report.diagnostics] == rules
+
+
+def playwright_hook(
+    evidence: dict[str, frozenset[str]],
+) -> Callable[[SuiteRequest, SuiteRun], SuiteRun]:
+    def hook(request: SuiteRequest, done: SuiteRun) -> SuiteRun:
+        results = done.results.with_name("playwright.json")
+        test = {"file": "e2e/a.spec.ts", "title": ["a"], "project": "wide", "outcome": "expected"}
+        entry = {**test, "expected": "passed", "attachments": []}
+        document = {"projects": ["wide"], "tests": [entry], "errors": []}
+        results.write_text(json.dumps(document))
+        extra = results.with_name("build.json")
+        extra.write_text("{}")
+        found = CONSOLE.diagnostic("e2e/a.spec.ts::a: boom", component=request.component.id)
+        return replace(
+            done,
+            results=results,
+            results_format=ResultsFormat.PLAYWRIGHT,
+            evidence=evidence,
+            findings=(found,),
+            reports=(extra,),
+        )
+
+    return hook
+
+
+@pytest.mark.parametrize(
+    ("evidence", "rules"),
+    [
+        ({"e2e/a.spec.ts::a": frozenset({"scan"})}, ["typescript.browser-console"]),
+        ({"e2e/a.spec.ts::b": frozenset({"scan"})}, ["tests.evidence"]),
+    ],
+)
+def test_the_findings_and_evidence_of_a_runner_join_its_results(
+    tmp_path: Path, evidence: dict[str, frozenset[str]], rules: list[str]
+) -> None:
+    repo = GitRepo.create(tmp_path / "repo")
+    repo.write("quality.toml", policy_toml())
+    repo.write("src/app/__init__.py", "")
+    repo.write("src/app/core.py", "def add(a, b):\n    return a + b\n")
+    repo.write("tests/test_core.py", "def test_value():\n    assert True\n")
+    repo.git("add", "-A")
+    tests = ScriptedRunner({("app", Suite.UNIT): Script(files=FULL)}, playwright_hook(evidence))
+    git = repo.repository()
+    report = run_suites(git, staged(git), SuiteSettings({Profile.PYTHON: tests}, RULES))
+    assert [diagnostic.rule for diagnostic in report.diagnostics] == rules
+
+
+def test_the_further_reports_of_a_run_are_kept_with_its_results() -> None:
+    run = SuiteRun(0, Path("junit.xml"), Path("coverage.json"), reports=(Path("build.json"),))
+    assert native_reports(run) == (Path("junit.xml"), Path("coverage.json"), Path("build.json"))
+    assert native_reports(None) == ()

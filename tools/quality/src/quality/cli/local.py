@@ -129,14 +129,9 @@ def tool_step(name: str, step: Callable[[str, Tool, Path], Path]) -> Callable[[]
     return run
 
 
-def node_step(step: Callable[[str, Tool, Path], Path]) -> Callable[[], Path]:
-    """Defer locating or installing the pinned Node until a TypeScript component needs it."""
-    return tool_step(NODE, step)
-
-
 def node_environments() -> node_environment.Environments:
     """Return the TypeScript environments, which locate the installed Node on first use."""
-    return node_environment.Environments(node_step(locate), npm_cache())
+    return node_environment.Environments(tool_step(NODE, locate), npm_cache())
 
 
 def pub_pins() -> Mapping[str, str]:
@@ -201,7 +196,7 @@ def local_profiles() -> Mapping[Profile, ProfileAdapter]:
     """Return the profile adapters of this build with their installed tools."""
     ruff, pyright = (core_tool(name) for name in CORE_TOOLS)
     python = PythonProfile(ruff=ruff, pyright=pyright, environments=Environments(local_uv()))
-    typescript = TypeScriptProfile(node_environments(), npm_pins())
+    typescript = TypeScriptProfile(node_environments(), npm_pins(), chromium=local_chromium())
     dart = DartProfile(dart_environments(), pub_pins(), dart_helper())
     php = PhpProfile(php_environments(), composer_pins(), php_helper())
     return {
@@ -212,11 +207,15 @@ def local_profiles() -> Mapping[Profile, ProfileAdapter]:
     }
 
 
+def local_chromium() -> Chromium:
+    """Return the pinned headless shell that browser scenarios run in."""
+    return Chromium(tool_step(CHROMIUM, locate), tool_step(CHROMIUM, install))
+
+
 def local_setups() -> Mapping[Profile, ProfileSetup]:
     """Return what bootstrap and doctor use to provision and probe each profile."""
-    chromium = Chromium(tool_step(CHROMIUM, locate), tool_step(CHROMIUM, install))
     typescript = TypeScriptSetup(
-        node_step(locate), node_step(install), npm_cache(), npm_pins(), chromium
+        tool_step(NODE, locate), tool_step(NODE, install), npm_cache(), npm_pins(), local_chromium()
     )
     dart = DartSetup(
         tool_step(DART, locate), tool_step(DART, install), pub_cache(), pub_pins(), dart_helper()

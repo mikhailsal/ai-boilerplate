@@ -1,15 +1,16 @@
 import json
+import tomllib
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
-from quality.testkit import browserproject, scratch, typescriptproject
+from quality.testkit import browserproject, browserscenarios, scratch, typescriptproject
 from quality.testkit.browserfakes import ALL_PINS
 from quality.testkit.browserproject import SEED, browser_packages, browser_project
 from quality.testkit.nodefakes import FakeNode
 from quality.testkit.policies import browser_spec
-from quality.testkit.scratch import create_project, typescript
+from quality.testkit.scratch import browser, create_project, typescript
 
 
 def test_a_browser_component_locks_the_browser_and_node_pins() -> None:
@@ -34,12 +35,14 @@ def test_components_start_from_the_seed(tmp_path: Path) -> None:
             "eslint.config.js",
             "package-lock.json",
             "package.json",
+            "scenarios.toml",
             "start.json",
             "tsconfig.json",
             "vite.config.ts",
             *browserproject.FILES,
         ]
     )
+    assert (web / "scenarios.toml").read_text() == browserscenarios.manifest("web")
     manifest = json.loads((web / "package.json").read_text())
     assert manifest["dependencies"] == {"react": "19.3.1", "react-dom": "19.3.1"}
     assert {**manifest["dependencies"], **manifest["devDependencies"]} == ALL_PINS
@@ -63,5 +66,25 @@ def test_scratch_projects_hold_browser_components(
 
     monkeypatch.setattr(scratch, "browser_project", record("browser"))
     monkeypatch.setattr(scratch, "typescript_project", record("node"))
-    create_project(tmp_path / "project", browser_spec(), typescript("api"))
-    assert written == [("browser", "web"), ("node", "api")]
+    create_project(tmp_path / "project", browser_spec(), browser("ui"), typescript("api"))
+    assert written == [("browser", "web"), ("browser", "ui"), ("node", "api")]
+
+
+def test_a_scratch_browser_component_names_its_scenarios() -> None:
+    spec = browser("ui", extra="[components.browser]")
+    assert (spec.id, spec.root, spec.e2e, spec.scenarios) == (
+        "ui",
+        "ui",
+        ("e2e",),
+        "scenarios.toml",
+    )
+    assert spec.browser
+    assert spec.extra.endswith("[components.browser]")
+    parsed = tomllib.loads(browserscenarios.manifest("ui"))
+    assert parsed["component"] == "ui"
+    assert {item for scenario in parsed["scenarios"] for item in scenario["requirements"]} == {
+        "ui.smoke",
+        "ui.flows",
+        "ui.accessibility",
+        "ui.keyboard",
+    }

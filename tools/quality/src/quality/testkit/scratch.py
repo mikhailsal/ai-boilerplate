@@ -18,17 +18,22 @@ import shlex
 import shutil
 import sys
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import quality
 from quality.engine.provenance import BOOT
 from quality.process import Command, Completed, run
-from quality.testkit.browserproject import browser_project
+from quality.testkit.browserproject import MANIFEST, browser_project
 from quality.testkit.dartproject import dart_project
 from quality.testkit.gitrepo import GitRepo
 from quality.testkit.phpproject import php_project
-from quality.testkit.policies import ComponentSpec, classification_toml, policy_toml
+from quality.testkit.policies import (
+    ComponentSpec,
+    browser_spec,
+    classification_toml,
+    policy_toml,
+)
 from quality.testkit.pythonproject import python_project
 from quality.testkit.typescriptproject import typescript_project
 
@@ -78,6 +83,12 @@ def shared_caches(environ: Mapping[str, str]) -> dict[str, str]:
 def component(name: str = "app") -> ComponentSpec:
     """Return a Python application component rooted at `name/`."""
     return ComponentSpec(id=name, root=name)
+
+
+def browser(name: str = "web", extra: str = "") -> ComponentSpec:
+    """Return the browser component `name`, with its end-to-end suite and scenario manifest."""
+    spec = browser_spec(component=name, root=name, extra=extra)
+    return replace(spec, e2e=("e2e",), scenarios=MANIFEST)
 
 
 def typescript(name: str = "web") -> ComponentSpec:

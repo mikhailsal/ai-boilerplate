@@ -48,6 +48,9 @@ PublicValue = Annotated[
 ]
 PackageName = Annotated[str, Strict(), AfterValidator(_check_package)]
 Entry = Annotated[RelPath, AfterValidator(_check_entry)]
+AxeTag = Annotated[
+    str, Strict(), StringConstraints(max_length=64, pattern=r"^[a-z0-9][a-z0-9.-]*$")
+]
 Width = Annotated[int, Strict(), Field(ge=240, le=7680)]
 Height = Annotated[int, Strict(), Field(ge=240, le=4320)]
 
@@ -63,13 +66,18 @@ def _default_viewports() -> dict[str, Viewport]:
     return {"narrow": Viewport(width=390, height=844), "wide": Viewport(width=1280, height=800)}
 
 
+def _default_tags() -> list[str]:
+    return ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]
+
+
 class BrowserSettings(StrictModel):
-    """HTML entry points, public build values, server-only modules, and viewports.
+    """HTML entry points, public build values, server-only modules, viewports, and scans.
 
     `entries` are relative to the component root. `public_env` holds the only
     values the production build exposes to the client; they are not secret.
     Browser source may import neither `server_modules` (globs relative to the
-    root) nor `server_packages`. Every browser scenario runs in each viewport.
+    root) nor `server_packages`. Every browser scenario runs in each viewport,
+    and every accessibility scan runs at least the axe `accessibility_tags`.
     """
 
     entries: list[Entry] = Field(default_factory=lambda: ["index.html"], min_length=1)
@@ -77,6 +85,7 @@ class BrowserSettings(StrictModel):
     server_modules: list[Glob] = Field(default_factory=list[str])
     server_packages: list[PackageName] = Field(default_factory=list[str])
     viewports: dict[Identifier, Viewport] = Field(default_factory=_default_viewports, min_length=1)
+    accessibility_tags: list[AxeTag] = Field(default_factory=_default_tags, min_length=1)
 
 
 @dataclass(frozen=True, slots=True)

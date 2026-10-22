@@ -1,9 +1,7 @@
 """FR03: the static gates of a browser component, run by `quality check` with the real tools.
 
-Until the production build and the Chromium scenarios are in the gate, every
-check of a browser component fails with `typescript.browser-incomplete`, and
-the component cannot name a scenario manifest yet; each case adds exactly the
-finding of one gate to those two, and its unit suite still passes.
+A clean component passes. Each case finds exactly the finding of one gate,
+and its unit suite still passes.
 """
 
 import hashlib
@@ -13,10 +11,8 @@ from pathlib import Path
 import pytest
 
 from quality.testkit.browserproject import APP, ESLINT, ICON, INDEX, STYLES, TESTS
-from quality.testkit.policies import browser_spec
-from quality.testkit.scratch import Project, create_project, output, rules_of
+from quality.testkit.scratch import Project, browser, create_project, output, rules_of
 
-INCOMPLETE = {"typescript.browser-incomplete", "scenarios.manifest"}
 SERVER = '[components.browser]\nserver_modules = ["src/server/**"]'
 DATABASE = "export interface Row {\n  id: number;\n}\n\nexport const rows: Row[] = [];\n"
 STATE = "  const [count, setCount] = useState(0);\n"
@@ -132,14 +128,14 @@ CASES: dict[str, tuple[Mapping[str, str], set[str], str]] = {
 
 
 @pytest.fixture
-def browser(tmp_path: Path) -> Project:
-    """Return a project with the browser component `web`, bootstrapped as far as it goes."""
-    created = create_project(tmp_path / "project", browser_spec(extra=SERVER))
+def web(tmp_path: Path) -> Project:
+    """Return a bootstrapped project with the browser component `web` and a server module."""
+    created = create_project(tmp_path / "project", browser(extra=SERVER))
     created.write("web/src/server/db.ts", DATABASE)
     created.repo.commit_all("add the server module")
     result = created.quality("bootstrap")
-    assert result.returncode == 3, output(result)
-    assert rules_of(result) == {"typescript.browser-incomplete", "typescript.browser-ready"}
+    assert result.returncode == 0, output(result)
+    assert rules_of(result) == {"typescript.browser-ready"}
     return created
 
 
@@ -148,28 +144,29 @@ def check(project: Project, files: Mapping[str, str]) -> tuple[set[str], str]:
         project.write(f"web/{path}", text)
     project.repo.git("add", "-A")
     result = project.quality("check")
-    # The missing scenario manifest is a policy error, which sets the exit code.
-    assert result.returncode == 2, output(result)
-    return rules_of(result), output(result)
+    rules = rules_of(result)
+    assert result.returncode == (1 if rules else 0), output(result)
+    return rules, output(result)
 
 
-def test_a_clean_browser_component_fails_only_as_incomplete(browser: Project) -> None:
-    rules, printed = check(browser, {"src/App.tsx": TYPE_IMPORT})
-    assert rules == INCOMPLETE, printed
+def test_a_clean_browser_component_passes(web: Project) -> None:
+    rules, printed = check(web, {"src/App.tsx": TYPE_IMPORT})
+    assert rules == set(), printed
+    assert "PASSED: 0 error(s), 0 warning(s)" in printed, printed
 
 
 @pytest.mark.parametrize("case", CASES)
-def test_each_static_gate_rejects_its_finding(browser: Project, case: str) -> None:
+def test_each_static_gate_rejects_its_finding(web: Project, case: str) -> None:
     files, added, text = CASES[case]
-    rules, printed = check(browser, files)
-    assert rules == INCOMPLETE | added, printed
+    rules, printed = check(web, files)
+    assert rules == added, printed
     assert text in printed, printed
 
 
-def test_fix_formats_the_stylesheets_and_the_entry_point(browser: Project) -> None:
-    browser.write("web/src/App.module.css", STYLES.replace("  margin", "    margin"))
-    browser.write("web/index.html", INDEX.replace("<title>", "<title>  "))
-    result = browser.quality("fix")
+def test_fix_formats_the_stylesheets_and_the_entry_point(web: Project) -> None:
+    web.write("web/src/App.module.css", STYLES.replace("  margin", "    margin"))
+    web.write("web/index.html", INDEX.replace("<title>", "<title>  "))
+    result = web.quality("fix")
     assert result.returncode == 0, output(result)
-    assert (browser.path / "web/src/App.module.css").read_text() == STYLES
-    assert (browser.path / "web/index.html").read_text() == INDEX
+    assert (web.path / "web/src/App.module.css").read_text() == STYLES
+    assert (web.path / "web/index.html").read_text() == INDEX

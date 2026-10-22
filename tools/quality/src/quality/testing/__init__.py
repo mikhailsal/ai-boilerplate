@@ -3,6 +3,7 @@
 from quality.testing.dartjson import parse_dart_json
 from quality.testing.junit import parse_junit
 from quality.testing.model import (
+    ACCESSIBILITY_SCAN,
     CaseResult,
     Outcome,
     ResultsFormat,
@@ -13,10 +14,19 @@ from quality.testing.model import (
     SuiteRun,
     suite_roots,
 )
+from quality.testing.playwright import (
+    PlaywrightReport,
+    PlaywrightTest,
+    parse_playwright,
+    read_playwright,
+)
 
 __all__ = [
+    "ACCESSIBILITY_SCAN",
     "CaseResult",
     "Outcome",
+    "PlaywrightReport",
+    "PlaywrightTest",
     "ResultsFormat",
     "StaticRequest",
     "Suite",
@@ -25,5 +35,7 @@ __all__ = [
     "SuiteRun",
     "parse_dart_json",
     "parse_junit",
+    "parse_playwright",
+    "read_playwright",
     "suite_roots",
 ]

@@ -1,26 +1,23 @@
 """FR04: the jsdom unit suite of a browser component in `quality check`, with the real tools.
 
-Until the production build and the Chromium scenarios are in the gate, every
-check of a browser component fails with `typescript.browser-incomplete`, and
-the component cannot name a scenario manifest yet; each case adds exactly the
-findings of the unit suite and its floors to those two. A line is a statement
-V8 reports on the original TS/TSX file: a component's `return (` is one line,
-its JSX is not, and a conditional in the JSX is a branch of its own line.
+Each case finds exactly the findings of the unit suite and its floors. The
+component's Playwright scenarios run at the merge stage, so the commit check
+runs only the unit suite; Playwright Test throws when anything else calls its
+`test`, so a passing case also shows that Vitest left them alone. A line is a
+statement V8 reports on the original TS/TSX file: a component's `return (` is
+one line, its JSX is not, and a conditional in the JSX is a branch of its own
+line.
 """
 
-import json
 from collections.abc import Mapping
-from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
-from quality.testkit.browserproject import APP, TESTS, TSCONFIG
-from quality.testkit.policies import browser_spec
-from quality.testkit.scratch import Project, create_project, output, rules_of, typescript
+from quality.testkit.browserproject import APP, TESTS
+from quality.testkit.scratch import Project, browser, create_project, output, rules_of, typescript
 from quality.testkit.typescriptproject import CORE
 
-INCOMPLETE = {"typescript.browser-incomplete", "scenarios.manifest"}
 HOOK = """\
 import { useState } from "react";
 
@@ -117,15 +114,6 @@ REACT = 'import { useState } from "react";\n'
 SHARED = APP.replace(REACT, REACT + '\nimport { twice } from "../../lib/src/core.ts";\n').replace(
     "        Count {count}\n", "        Count {twice(count) / 2}\n"
 )
-# Playwright Test throws when anything else calls `test`, so the unit suite must not run it.
-PLAYWRIGHT = """\
-import { expect, test } from "@playwright/test";
-
-test("the page shows the counter", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("button")).toHaveText("Count 0");
-});
-"""
 WEB = "unit coverage of web: "
 # Each case: the changed files of `web`, the rules it adds, and a line of their output.
 CASES: dict[str, tuple[Mapping[str, str], set[str], str]] = {
@@ -163,10 +151,10 @@ CASES: dict[str, tuple[Mapping[str, str], set[str], str]] = {
 
 
 def bootstrapped(created: Project) -> Project:
-    """Bootstrap the project as far as a browser component goes; its hook is installed."""
+    """Bootstrap the project, which installs its hook and proves that Chromium starts."""
     result = created.quality("bootstrap")
-    assert result.returncode == 3, output(result)
-    assert rules_of(result) == {"typescript.browser-incomplete", "typescript.browser-ready"}
+    assert result.returncode == 0, output(result)
+    assert rules_of(result) == {"typescript.browser-ready"}
     return created
 
 
@@ -175,60 +163,44 @@ def check(project: Project, files: Mapping[str, str]) -> tuple[set[str], str]:
         project.write(path, text)
     project.repo.git("add", "-A")
     result = project.quality("check")
-    # The missing scenario manifest is a policy error, which sets the exit code.
-    assert result.returncode == 2, output(result)
-    return rules_of(result), output(result)
+    rules = rules_of(result)
+    assert result.returncode == (1 if rules else 0), output(result)
+    return rules, output(result)
 
 
 @pytest.fixture
-def browser(tmp_path: Path) -> Project:
-    """Return a project with the browser component `web`, bootstrapped as far as it goes."""
-    return bootstrapped(create_project(tmp_path / "project", browser_spec()))
+def web(tmp_path: Path) -> Project:
+    """Return a bootstrapped project with the browser component `web`."""
+    return bootstrapped(create_project(tmp_path / "project", browser()))
 
 
 @pytest.mark.parametrize("case", CASES)
-def test_each_unit_floor_and_result_is_judged_alone(browser: Project, case: str) -> None:
+def test_each_unit_floor_and_result_is_judged_alone(web: Project, case: str) -> None:
     files, added, text = CASES[case]
-    rules, printed = check(browser, {f"web/{path}": body for path, body in files.items()})
-    assert rules == INCOMPLETE | added, printed
+    rules, printed = check(web, {f"web/{path}": body for path, body in files.items()})
+    assert rules == added, printed
     assert text in printed, printed
 
 
-def test_the_line_floor_applies_to_unchanged_code(browser: Project) -> None:
-    browser.write("web/src/legacy.ts", LEGACY)
-    browser.repo.git("add", "-A")
-    browser.repo.git("commit", "-q", "--no-verify", "-m", "legacy code")
+def test_the_line_floor_applies_to_unchanged_code(web: Project) -> None:
+    web.write("web/src/legacy.ts", LEGACY)
+    web.repo.git("add", "-A")
+    web.repo.git("commit", "-q", "--no-verify", "-m", "legacy code")
     renamed = TESTS.replace("counts its clicks", "counts every click")
-    rules, printed = check(browser, {"web/tests/App.test.tsx": renamed})
-    assert rules == INCOMPLETE | {"coverage.line"}, printed
+    rules, printed = check(web, {"web/tests/App.test.tsx": renamed})
+    assert rules == {"coverage.line"}, printed
     assert f"{WEB}line 70.00% (7/10), branch 100.00% (2/2), changed lines not applicable" in printed
 
 
 def test_shared_source_is_covered_only_by_its_owner(tmp_path: Path) -> None:
-    web = browser_spec(extra='depends_on = ["lib"]')
-    shared = bootstrapped(create_project(tmp_path / "project", typescript("lib"), web))
+    owner = browser(extra='depends_on = ["lib"]')
+    shared = bootstrapped(create_project(tmp_path / "project", typescript("lib"), owner))
     # Only the browser component's tests run the new function of the library.
     changes = {"lib/src/core.ts": CORE + TWICE, "web/src/App.tsx": SHARED}
     rules, printed = check(shared, changes)
-    assert rules == INCOMPLETE | {"coverage.line", "coverage.changed-lines"}, printed
+    assert rules == {"coverage.line", "coverage.changed-lines"}, printed
     assert "(coverage.changed-lines) [lib]" in printed, printed
     assert (
         "unit coverage of lib: line 75.00% (3/4), branch 100.00% (2/2), changed lines 0.00% (0/1)"
     ) in printed
     assert f"{WEB}line 100.00% (7/7), branch 100.00% (2/2)" in printed
-
-
-def test_end_to_end_suites_stay_out_of_the_unit_suite(tmp_path: Path) -> None:
-    created = create_project(tmp_path / "project", replace(browser_spec(), e2e=("e2e",)))
-    tsconfig = {**TSCONFIG, "include": ["src", "tests", "e2e"]}
-    created.write("web/tsconfig.json", json.dumps(tsconfig, indent=2) + "\n")
-    created.repo.commit_all("type-check the end-to-end tests")
-    bootstrapped(created)
-    rules, printed = check(created, {"web/e2e/page.spec.ts": PLAYWRIGHT})
-    assert rules == INCOMPLETE, printed
-    assert f"{WEB}line 100.00% (7/7), branch 100.00% (2/2)" in printed
-    result = created.quality("test", "--suite", "e2e", "--component", "web")
-    assert result.returncode == 2, output(result)
-    assert rules_of(result) == INCOMPLETE, output(result)
-    assert "lacks the production build in the gate, the Chromium scenarios" in output(result)
-    assert WEB not in output(result)

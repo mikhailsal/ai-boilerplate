@@ -68,8 +68,20 @@
     },
     "Scenario": {
       "additionalProperties": false,
-      "description": "One required behavior and the native test cases that prove it.\n\n`tests` are case names as the suite's results report them, or prefixes\nending in `*` that must select at least one case.",
+      "description": "One required behavior and the native test cases that prove it.\n\n`tests` are case names as the suite's results report them, or prefixes\nending in `*` that must select at least one case. `boundary` names what the\ntests exercise, such as a browser route that simulates the backend; every\nscenario of a browser component names it (decision 0018).",
       "properties": {
+        "boundary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Boundary"
+        },
         "capability": {
           "$ref": "#/$defs/Capability"
         },

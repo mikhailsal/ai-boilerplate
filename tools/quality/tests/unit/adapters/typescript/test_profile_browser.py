@@ -5,15 +5,23 @@ from pathlib import Path
 import pytest
 
 from quality.adapters.native import ToolFailedError
+from quality.adapters.typescript import profile as profile_module
 from quality.adapters.typescript.browser import ACCESSIBILITY, HOOKS, TEST_RULES
+from quality.adapters.typescript.endtoend import BrowserTools
 from quality.adapters.typescript.environment import Environments
 from quality.adapters.typescript.profile import TypeScriptProfile
 from quality.diagnostics import Diagnostic, Kind, Location
-from quality.testing import StaticRequest, Suite, SuiteRequest
-from quality.testkit.browserfakes import ALL_PINS, write_browser_component
+from quality.testing import StaticRequest, Suite, SuiteRequest, SuiteRun
+from quality.testkit.browserfakes import (
+    ALL_PINS,
+    FakeChromium,
+    browsers_json,
+    write_browser_component,
+)
 from quality.testkit.nodefakes import (
     FakeNode,
     browser_component,
+    install_package,
     install_tools,
     script,
     write_component,
@@ -118,7 +126,7 @@ def setup(fake_node: FakeNode, snapshot: Path, tmp_path: Path) -> Setup:
     return Setup(profile, snapshot, work, answers)
 
 
-def test_the_browser_gates_run_and_the_component_stays_incomplete(setup: Setup) -> None:
+def test_the_browser_gates_run(setup: Setup) -> None:
     found = setup.static()
     assert [(d.rule, d.location.path if d.location else None) for d in found] == [
         ("typescript.lint", "web/src/use.ts"),
@@ -126,7 +134,6 @@ def test_the_browser_gates_run_and_the_component_stays_incomplete(setup: Setup) 
         ("typescript.entries", "web/index.html"),
         ("typescript.boundaries", "web/src/App.tsx"),
         ("typescript.styles", "web/src/App.css"),
-        ("typescript.browser-incomplete", None),
     ]
     assert found[0].message == (
         "the browser target requires react-hooks/rules-of-hooks, which ESLint does not enable here"
@@ -137,11 +144,6 @@ def test_the_browser_gates_run_and_the_component_stays_incomplete(setup: Setup) 
     assert found[3].message == "browser code imports the Node builtin 'node:fs'"
     assert found[3].location == Location("web/src/App.tsx", 3)
     assert found[4].message == "Unexpected named color (color-named)"
-    assert found[5].kind is Kind.ENVIRONMENT
-    assert (
-        "this build lacks the production build in the gate, the Chromium scenarios"
-        in found[5].message
-    )
 
 
 def test_css_and_entry_points_are_formatted_and_only_browser_sources_are_bounded(
@@ -172,7 +174,7 @@ def test_a_missing_entry_point_is_not_formatted(setup: Setup) -> None:
 
 def test_without_sources_and_stylesheets_their_gates_do_not_run(setup: Setup) -> None:
     found = setup.static(resources=RESOURCES[:3], files=FILES[3:])
-    assert [d.rule for d in found] == ["typescript.entries", "typescript.browser-incomplete"]
+    assert [d.rule for d in found] == ["typescript.entries"]
     assert setup.calls("stylelint") == []
     assert not (setup.answers / "imports.request.json").exists()
 
@@ -196,12 +198,53 @@ def suite(setup: Setup, kind: Suite) -> SuiteRequest:
 
 def test_a_browser_unit_suite_runs_vitest_in_jsdom(setup: Setup) -> None:
     unit = suite(setup, Suite.UNIT)
-    run = setup.profile.run(unit)
-    assert run.results == unit.output / "junit.xml"
+    assert setup.profile.run(unit).results == unit.output / "junit.xml"
     assert '"environment": "jsdom"' in (unit.output / "vitest.quality.mjs").read_text()
 
 
-def test_a_browser_end_to_end_suite_reports_the_missing_gates(setup: Setup) -> None:
-    with pytest.raises(ToolFailedError) as raised:
+def test_a_browser_end_to_end_suite_needs_a_browser(setup: Setup) -> None:
+    with pytest.raises(ToolFailedError, match="this build of the gate has no browser") as raised:
         setup.profile.run(suite(setup, Suite.E2E))
-    assert raised.value.diagnostic.rule == "typescript.browser-incomplete"
+    assert raised.value.diagnostic.kind is Kind.ENVIRONMENT
+
+
+def browser_profile(setup: Setup, fake: FakeChromium) -> TypeScriptProfile:
+    environments, helper = setup.profile.environments, setup.profile.helper
+    profile = TypeScriptProfile(environments, ALL_PINS, chromium=fake.chromium([]), helper=helper)
+    assert profile.prepare(WEB, setup.snapshot, setup.work) == []
+    return profile
+
+
+def test_a_browser_suite_must_know_its_chromium(setup: Setup, tmp_path: Path) -> None:
+    profile = browser_profile(setup, FakeChromium.create(tmp_path / "chromium"))
+    with pytest.raises(ToolFailedError, match="cannot tell which Chromium") as raised:
+        profile.run(suite(setup, Suite.E2E))
+    assert raised.value.diagnostic.rule == "typescript.browser-version"
+
+
+def test_a_browser_suite_runs_with_the_locked_tools_and_the_pinned_browser(
+    setup: Setup, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    directory = setup.snapshot / "web"
+    (directory / "node_modules/playwright-core").mkdir(parents=True)
+    (directory / "node_modules/playwright-core/browsers.json").write_text(browsers_json())
+    install_package(directory, "vite", ALL_PINS["vite"], "exit 0\n")
+    runner = directory / "node_modules/@playwright/test"
+    script(runner / "cli.js", "exit 0\n")
+    manifest = {"version": ALL_PINS["@playwright/test"], "bin": {"playwright": "cli.js"}}
+    (runner / "package.json").write_text(json.dumps(manifest))
+    install_package(directory, "@axe-core/playwright", ALL_PINS["@axe-core/playwright"], "")
+    install_package(directory, "axe-core", "4.11.0", "")
+    fake = FakeChromium.create(tmp_path / "chromium")
+    captured: list[BrowserTools] = []
+
+    def run_browser_suite(tools: BrowserTools, request: SuiteRequest) -> SuiteRun:
+        captured.append(tools)
+        return SuiteRun(0, request.output / "playwright.json")
+
+    monkeypatch.setattr(profile_module, "run_browser_suite", run_browser_suite)
+    browser_profile(setup, fake).run(suite(setup, Suite.E2E))
+    (tools,) = captured
+    assert tools.vite == (directory / "node_modules/vite/cli.sh").resolve()
+    assert tools.playwright == (runner / "cli.js").resolve()
+    assert (tools.browser, tools.axe) == (fake.executable, "4.11.0")

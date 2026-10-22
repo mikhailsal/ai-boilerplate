@@ -1,10 +1,8 @@
 # 0017 Browser frontend profile
 
-Status: proposed (F00, 2026-10-22); the static checks (F03) and the unit
-tests and coverage (F04) are implemented.
-The phases of the frontend extension implement it; until a section says it is
-implemented, a component that needs it fails with an explicit finding instead
-of passing.
+Status: accepted (F05, 2026-10-22); proposed in F00, with the static checks
+implemented in F03, the unit tests and coverage in F04, and the browser
+scenarios of [decision 0018](0018-browser-builds-and-scenarios.md) in F05.
 
 ## Scope
 
@@ -37,8 +35,9 @@ capability before it is accepted.
 - An optional `[components.browser]` table holds what only a browser
   component has: its HTML entry points (default `index.html`), the declared
   public build-time values (`VITE_*` names with non-secret values), the
-  server-only modules and packages its browser code must not import, and the
-  viewports of its browser scenarios.
+  server-only modules and packages its browser code must not import, the
+  viewports of its browser scenarios, and the axe tags each accessibility
+  scan must run (`accessibility_tags`).
 - React rules, DOM globals, the jsdom environment, the build, and the browser
   are applied only to components whose target is `browser`. A Node component
   of the same repository keeps the base checks.
@@ -67,12 +66,6 @@ ambiguous and is refused. `--target browser` fails on missing evidence and
 on unsupported packages, and adds the `ui` capability; `--target node`
 records the user's choice. The command never edits the project's scripts or
 tsconfigs.
-
-Until every browser gate of this decision and of
-[decision 0018](0018-browser-builds-and-scenarios.md) exists, a browser
-component fails each check, bootstrap, and doctor with
-`typescript.browser-incomplete`. Like `profiles.unavailable`, it is an
-environment finding that no exception covers.
 
 ## Versions
 
@@ -144,9 +137,7 @@ its path.
 
 ## Static checks
 
-Implemented. They run in every check of a browser component, and the
-component still fails with `typescript.browser-incomplete` beside their
-findings.
+Implemented. They run in every check of a browser component.
 
 - Prettier checks the TS/TSX files, the configuration scripts, the CSS
   files, and the declared HTML entry points; a page Prettier cannot parse is
@@ -210,8 +201,7 @@ point fails. Coverage is the V8 data remapped to the original files, where a
 conditional in JSX is a branch of its line, with the base floors of
 `quality.toml` per component. A file another component owns counts only in
 its owner's suite, even when this component's tests run it. End-to-end
-suites measure no coverage, so they cannot raise the unit numerator; until
-the Chromium scenarios exist, running one fails as incomplete.
+suites measure no coverage, so they cannot raise the unit numerator.
 
 The production build, the browser scenarios, accessibility, and CI are in
 [decision 0018](0018-browser-builds-and-scenarios.md).

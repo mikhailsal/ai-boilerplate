@@ -15,7 +15,9 @@ before any component is prepared, so the installation changes neither.
 
 Tools run from the package Node would load for the component directory,
 searched upward no further than the lockfile directory, and only at the pinned
-version.
+version. Node's compile cache stays off: tools such as tsc, ESLint, and
+Prettier would otherwise add the modules of every snapshot to one shared
+directory in the system's temporary directory, which nothing ever removes.
 """
 
 from __future__ import annotations
@@ -60,9 +62,12 @@ class Node:
         return self.executable.parent.parent.joinpath(*NPM_CLI)
 
     def environ(self, home: Path, extra: Mapping[str, str] | None = None) -> dict[str, str]:
-        """Return a sanitized environment with a private home and this Node first on PATH."""
+        """Return a sanitized environment with a private home and this Node first on PATH.
+
+        Node's compile cache is off, so no run leaves a cache behind.
+        """
         home.mkdir(parents=True, exist_ok=True)
-        settings = {"HOME": str(home), **(extra or {})}
+        settings = {"HOME": str(home), "NODE_DISABLE_COMPILE_CACHE": "1", **(extra or {})}
         return sanitized(path=[self.executable.parent], extra=settings)
 
 
@@ -135,8 +140,14 @@ def _bin(manifest: Mapping[str, object], name: str) -> str | None:
     return script if isinstance(script, str) else None
 
 
-def tool_script(name: str, directory: Path, top: Path, version: str) -> Path:
-    """Return the command-line script of an installed package at the pinned version."""
+def tool_script(
+    name: str, directory: Path, top: Path, version: str, command: str | None = None
+) -> Path:
+    """Return a command-line script of an installed package at the pinned version.
+
+    `command` names the script among the package's `bin` entries; by default
+    it is the package's name without its scope.
+    """
     package = package_directory(name, directory, top)
     if package is None:
         fail(name, f"{name} is not installed for {directory}; {BOOTSTRAP_HINT}")
@@ -146,7 +157,7 @@ def tool_script(name: str, directory: Path, top: Path, version: str) -> Path:
         fail(name, str(error))
     if manifest.get("version") != version:
         fail(name, f"{package} holds version {manifest.get('version')!r}, not {version}")
-    script = _bin(manifest, name)
+    script = _bin(manifest, command or name)
     path = (package / script).resolve() if script is not None else None
     if path is None or not path.is_relative_to(package.resolve()) or not path.is_file():
         fail(name, f"{package} has no command-line script")

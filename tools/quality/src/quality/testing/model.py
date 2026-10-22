@@ -6,11 +6,14 @@ every profile adapter receives them.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from types import MappingProxyType
 
 from quality.boundedio import ReportError
+from quality.diagnostics import Diagnostic
 from quality.policy import Component, Suite
 
 
@@ -24,12 +27,21 @@ class Outcome(StrEnum):
     EXPECTED_FAILURE = "expected-failure"
 
 
+# The evidence of a case whose test attached a valid accessibility scan in every viewport.
+ACCESSIBILITY_SCAN = "accessibility-scan"
+
+
 @dataclass(frozen=True, slots=True)
 class CaseResult:
-    """One executed or skipped test case."""
+    """One executed or skipped test case.
+
+    `evidence` names what the runner proved the case produced beside its
+    outcome, such as a valid accessibility scan; some requirements need it.
+    """
 
     name: str
     outcome: Outcome
+    evidence: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +84,23 @@ class SuiteResults:
         )
         return SuiteResults(cases, self.focused)
 
+    def with_evidence(self, evidence: Mapping[str, frozenset[str]]) -> SuiteResults:
+        """Record the evidence a runner reports for its cases.
+
+        Raise ReportError when a name is not a case of the results.
+        """
+        unknown = sorted(set(evidence) - {case.name for case in self.cases})
+        if unknown:
+            msg = f"evidence names tests that are not among the results: {', '.join(unknown)}"
+            raise ReportError(msg)
+        cases = tuple(
+            CaseResult(
+                case.name, case.outcome, case.evidence | evidence.get(case.name, frozenset())
+            )
+            for case in self.cases
+        )
+        return SuiteResults(cases, self.focused)
+
 
 def _annotated(name: str, inverted: frozenset[str], retried: frozenset[str]) -> Outcome:
     if name in retried:
@@ -85,6 +114,8 @@ class SuiteRequest:
 
     `started` is the time the output directory was created; reports must not be older.
     `work` is the snapshot's private work area, where runners keep environments.
+    `tree` names the candidate's tree, and `files` are the repository paths the
+    component owns in it, for runners that build the candidate.
     """
 
     component: Component
@@ -94,6 +125,8 @@ class SuiteRequest:
     output: Path
     started: float
     work: Path
+    tree: str = ""
+    files: tuple[str, ...] = ()
 
     @property
     def directory(self) -> Path:
@@ -130,9 +163,14 @@ class ResultsFormat(StrEnum):
 
     JUNIT = "junit"
     DART_JSON = "dart-json"
+    PLAYWRIGHT = "playwright-json"
 
 
 FAILURE_STATUS = frozenset({1})
+
+
+def _no_evidence() -> Mapping[str, frozenset[str]]:
+    return MappingProxyType({})
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,7 +182,10 @@ class SuiteRun:
     the cases the runner reports as passing when they fail as expected,
     `retried` the cases that passed only on a retry, `unhandled` counts errors
     raised outside any test, and `failure_status` holds the exit statuses with
-    which the runner reports failed tests.
+    which the runner reports failed tests. `evidence` maps case names to what
+    they proved beside their outcome, `findings` are what the runner found
+    beside the tests, such as console errors of a browser, and `reports` are
+    further evidence files of the run.
     """
 
     returncode: int
@@ -156,6 +197,9 @@ class SuiteRun:
     retried: frozenset[str] = frozenset()
     unhandled: int = 0
     failure_status: frozenset[int] = FAILURE_STATUS
+    evidence: Mapping[str, frozenset[str]] = field(default_factory=_no_evidence)
+    findings: tuple[Diagnostic, ...] = ()
+    reports: tuple[Path, ...] = ()
 
 
 def suite_roots(component: Component, suite: Suite) -> tuple[str, ...]:

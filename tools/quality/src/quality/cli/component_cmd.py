@@ -71,8 +71,7 @@ def register(commands: Subcommands) -> None:
         "--target",
         choices=[str(target) for target in ExecutionTarget],
         help="where a typescript component runs (default: node); browser declares a React + "
-        "Vite application with the ui capability, which this build fails with "
-        "typescript.browser-incomplete until its browser gates exist",
+        "Vite application with the ui capability",
     )
     add.set_defaults(handler=run_add)
 

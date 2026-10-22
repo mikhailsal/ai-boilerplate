@@ -6,7 +6,7 @@ from quality.diagnostics import Location, Severity
 from quality.policy import Quarantine, Suite
 from quality.policy.scenarios import Scenario
 from quality.scenarios.reconcile import Ran, ScenarioSummary, reconcile, selected
-from quality.testing import CaseResult, Outcome, SuiteResults
+from quality.testing import ACCESSIBILITY_SCAN, CaseResult, Outcome, SuiteResults
 from quality.testkit.policies import ComponentSpec, build_policy, quarantine_toml
 from quality.testkit.scenarios import ScenarioSpec, build_manifest
 
@@ -172,3 +172,38 @@ def test_quarantine_entries_of_other_suites_and_components_do_not_apply() -> Non
         quarantine_toml("i::flow", "flow", component="other"),
     )
     assert check(GOOD, entries=entries) == ([], ScenarioSummary("app", 2, 2))
+
+
+SCANNED = ScenarioSpec(
+    "scanned",
+    ("e::form*",),
+    "ui",
+    "e2e",
+    requirements=("ui.flows", "ui.accessibility", "ui.keyboard"),
+    boundary="a routed API",
+)
+STATIC = ScenarioSpec("static", ("e::home",), "ui", "e2e", boundary="the static build")
+AGAIN = ScenarioSpec("again", ("e::home",), "ui", "e2e", boundary="the static build")
+
+
+def test_a_scanned_requirement_needs_the_evidence_of_every_selected_case() -> None:
+    scan = frozenset({ACCESSIBILITY_SCAN})
+    cases = (
+        CaseResult("e::form-narrow", PASSED, evidence=scan),
+        CaseResult("e::form-wide", PASSED),
+        CaseResult("e::home", PASSED),
+    )
+    found, summary = check({Suite.E2E: SuiteResults(cases)}, SCANNED, STATIC, AGAIN)
+    assert found == [
+        (
+            "scenarios.evidence",
+            Severity.ERROR,
+            (
+                "scenario 'scanned' (ui, e2e): 'e::form-wide' passed without a valid "
+                "accessibility scan in every viewport"
+            ),
+        )
+    ]
+    assert summary == ScenarioSummary("app", 3, 2, boundaries=("a routed API", "the static build"))
+    proved = SuiteResults((CaseResult("e::form", PASSED, evidence=scan),))
+    assert check({Suite.E2E: proved}, SCANNED)[0] == []

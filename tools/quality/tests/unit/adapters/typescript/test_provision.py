@@ -16,7 +16,6 @@ from quality.testkit.nodefakes import write_component as write_node_component
 
 APP = typescript_component()
 WEB = browser_component()
-INCOMPLETE = "typescript.browser-incomplete"
 
 
 @pytest.fixture
@@ -92,7 +91,7 @@ def test_doctor_locates_node_and_installs_offline(
     assert listing == ["package-lock.json", "package.json"]
 
 
-def test_a_browser_component_gets_its_browser_and_is_still_reported(
+def test_a_browser_component_gets_its_browser(
     fake_node: FakeNode, fake_chromium: FakeChromium, snapshot: Path
 ) -> None:
     files = write_browser_component(snapshot / "web")
@@ -101,9 +100,8 @@ def test_a_browser_component_gets_its_browser_and_is_still_reported(
     calls: list[str] = []
     provisioner = setup(fake_node, calls, fake_chromium)
     for step in (provisioner.provision, provisioner.probe):
-        ready, incomplete = step(WEB, snapshot)
-        assert (ready.rule, incomplete.rule) == ("typescript.browser-ready", INCOMPLETE)
-        assert {ready.component, incomplete.component} == {"web"}
+        [ready] = step(WEB, snapshot)
+        assert (ready.rule, ready.component) == ("typescript.browser-ready", "web")
     assert calls == ["install", "install chromium", "locate", "locate chromium"]
     assert [call[1] for call in fake_node.calls()] == ["ci", "ci"]
     assert tree(files) == before
@@ -115,7 +113,7 @@ def test_a_playwright_made_for_another_chromium_fails(
     write_browser_component(snapshot / "web")
     fake_node.npm(install_playwright("155.0.1.2"))
     found = setup(fake_node, [], fake_chromium).probe(WEB, snapshot)
-    assert [d.rule for d in found] == ["typescript.browser-version", INCOMPLETE]
+    assert [d.rule for d in found] == ["typescript.browser-version"]
     assert "expects Chromium 155.0.1.2" in found[0].message
 
 
@@ -125,7 +123,7 @@ def test_an_uninstalled_playwright_core_is_reported(
     write_browser_component(snapshot / "web")
     calls: list[str] = []
     found = setup(fake_node, calls, fake_chromium).provision(WEB, snapshot)
-    assert [d.rule for d in found] == ["typescript.browser-version", INCOMPLETE]
+    assert [d.rule for d in found] == ["typescript.browser-version"]
     assert found[0].message.startswith("cannot tell which Chromium the locked Playwright expects")
     assert calls == ["install"]
 
@@ -136,7 +134,7 @@ def test_a_browser_component_without_its_packages_installs_nothing(
     write_node_component(snapshot / "web")
     calls: list[str] = []
     found = setup(fake_node, calls, fake_chromium).provision(WEB, snapshot)
-    assert [d.rule for d in found] == ["typescript.config"] * len(BROWSER_REQUIRED) + [INCOMPLETE]
+    assert [d.rule for d in found] == ["typescript.config"] * len(BROWSER_REQUIRED)
     assert "the lockfile does not lock react; add react@19.3.1" in [d.message for d in found]
     assert (calls, fake_node.calls()) == ([], [])
 

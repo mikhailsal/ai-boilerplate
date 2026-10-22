@@ -16,6 +16,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from quality.adapters.typescript.environment import Node
+from quality.testkit.browserscenarios import MANIFEST, SCENARIOS, SCENARIOS_FILE, manifest
 from quality.testkit.typescriptproject import lock, package_json, pinned_packages, write
 from quality.toolchain import load_manifest
 
@@ -33,7 +34,10 @@ COMPILER_OPTIONS: dict[str, object] = {
     "types": ["vite/client"],
     "lib": ["es2023", "dom", "dom.iterable"],
 }
-TSCONFIG: dict[str, object] = {"compilerOptions": COMPILER_OPTIONS, "include": ["src", "tests"]}
+TSCONFIG: dict[str, object] = {
+    "compilerOptions": COMPILER_OPTIONS,
+    "include": ["src", "tests", "e2e"],
+}
 ESLINT = """\
 import js from "@eslint/js";
 import jsxA11y from "eslint-plugin-jsx-a11y-x";
@@ -168,6 +172,7 @@ FILES = {
     "src/App.module.css": STYLES,
     "tests/App.test.tsx": TESTS,
     "tests/main.test.tsx": MAIN_TESTS,
+    SCENARIOS_FILE: SCENARIOS,
 }
 
 
@@ -183,7 +188,10 @@ def browser_project(
     name: str = "web",
     node: Node | None = None,
 ) -> Path:
-    """Write and lock a browser component with `files` into `directory`; return it."""
+    """Write and lock a browser component with `files` into `directory`; return it.
+
+    By default it is the counter with its unit tests, its scenarios, and their manifest.
+    """
     packages = browser_packages()
     runtime = {package: packages.pop(package) for package in RUNTIME}
     written = {
@@ -191,7 +199,7 @@ def browser_project(
         "tsconfig.json": json.dumps(TSCONFIG, indent=2) + "\n",
         "eslint.config.js": ESLINT,
         "vite.config.ts": VITE,
-        **(FILES if files is None else files),
+        **({**FILES, MANIFEST: manifest(name)} if files is None else files),
     }
     write(directory, written)
     shutil.copyfile(SEED, directory / "package-lock.json")

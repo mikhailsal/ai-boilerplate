@@ -72,10 +72,11 @@ class BuildRequest:
 
 @dataclass(frozen=True, slots=True)
 class BuildOutcome:
-    """The findings of one build and its output when the build succeeded."""
+    """The findings of one build, and its output and resolved `base` when it succeeded."""
 
     diagnostics: list[Diagnostic]
     output: bundle.Output | None = None
+    base: str = "/"
 
 
 def _place(snapshot: Path, name: str) -> str:
@@ -158,5 +159,6 @@ def production_build(node: Node, script: Path, request: BuildRequest) -> BuildOu
     report = _report(request.run / buildconfig.REPORT)
     found = list(_violations(request, report))
     output = bundle.collect(request.run / "dist", request.identity)
-    found += bundle.check_output(component, output, FIELDS.text(report, "base"))
-    return BuildOutcome(found, output)
+    base = FIELDS.text(report, "base")
+    found += bundle.check_output(component, output, base)
+    return BuildOutcome(found, output, base)

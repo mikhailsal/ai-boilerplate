@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from quality.testkit import greetfixture, notesfixture
-from quality.testkit.scratch import Project, create_project, dart, output, php, typescript
+from quality.testkit.scratch import Project, browser, create_project, dart, output, php, typescript
 
 # Each of these runs several whole gates, so they go to the workers first
 # instead of finishing last; the sort is stable, so every worker agrees.
@@ -32,6 +32,15 @@ def hooked(project: Project) -> Project:
 def web(tmp_path: Path) -> Project:
     """Return a bootstrapped project with one TypeScript component, `web`."""
     created = create_project(tmp_path / "project", typescript("web"))
+    result = created.quality("bootstrap")
+    assert result.returncode == 0, output(result)
+    return created
+
+
+@pytest.fixture(scope="module")
+def counter(tmp_path_factory: pytest.TempPathFactory) -> Project:
+    """Return a bootstrapped project with the browser counter `web`, shared by a module."""
+    created = create_project(tmp_path_factory.mktemp("counter") / "project", browser())
     result = created.quality("bootstrap")
     assert result.returncode == 0, output(result)
     return created

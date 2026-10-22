@@ -80,4 +80,19 @@ tests = [
     "tests.acceptance.test_template::test_changing_a_dormant_helper_runs_its_own_checks",
     "tests.acceptance.test_template::test_a16_a_clean_four_language_project_passes_the_hook",
 ]
+
+[[scenarios]]
+id = "browser-gate"
+summary = "A browser build proves its Chromium scenarios, and each broken page, scan, or test is found for its own reason."
+capability = "cli"
+level = "acceptance"
+stage = "merge"
+requirements = ["cli.flows"]
+tests = [
+    "tests.acceptance.test_browser_scenarios::test_the_built_counter_proves_its_scenarios_in_every_viewport",
+    "tests.acceptance.test_browser_scenarios::test_each_broken_scenario_is_found_for_its_own_reason*",
+    "tests.acceptance.test_browser_runs::test_scenarios_without_their_browser_cannot_be_verified",
+    "tests.acceptance.test_browser_runs::test_a_run_leaves_no_process_or_temporary_file",
+    "tests.acceptance.test_browser_runs::test_the_gate_keeps_the_native_evidence_of_the_scenarios",
+]
 # maintainer-only:end

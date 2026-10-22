@@ -65,6 +65,7 @@ READY = Rule(
 )
 RULES = (LIBRARIES, VERSION, READY)
 
+TOOL = "chromium"
 # The packages through which a component's Playwright Test loads its playwright-core.
 PLAYWRIGHT = ("@playwright/test", "playwright", "playwright-core")
 BROWSERS = "browsers.json"
@@ -128,27 +129,38 @@ class Chromium:
             executable = self.locate() if offline else self.install()
         except ToolFailedError as error:
             return [error.diagnostic]
+        return [self._checked(executable, component, expected)]
+
+    def executable(self, component: str, expected: str) -> Path:
+        """Locate the browser a run drives; raise ToolFailedError unless it is ready."""
+        executable = self.locate()
+        finding = self._checked(executable, component, expected)
+        if finding.rule != READY.id:
+            raise ToolFailedError(finding)
+        return executable
+
+    def _checked(self, executable: Path, component: str, expected: str) -> Diagnostic:
         with tempfile.TemporaryDirectory(prefix="quality-chromium-") as scratch:
             home = Path(scratch)
             missing = self._missing(executable, home)
             if missing:
                 found = ", ".join(missing)
                 message = f"{executable} cannot start: the libraries {found} are not found"
-                return [LIBRARIES.diagnostic(message, component=component)]
+                return LIBRARIES.diagnostic(message, component=component)
             status, out, err = _run((str(executable), "--version"), home, home)
         if status != 0:
             detail = err or f"exit status {status}"
             message = f"{executable} does not start: {detail}"
-            return [LIBRARIES.diagnostic(message, component=component)]
+            return LIBRARIES.diagnostic(message, component=component)
         version = (out.split() or [""])[-1]
         if version != expected:
             message = (
                 f"the locked Playwright expects Chromium {expected}, "
                 f"but the pinned browser is {version!r}"
             )
-            return [VERSION.diagnostic(message, component=component)]
+            return VERSION.diagnostic(message, component=component)
         message = f"Chromium {version} starts and matches the locked Playwright: {executable}"
-        return [READY.diagnostic(message, component=component)]
+        return READY.diagnostic(message, component=component)
 
     def _missing(self, executable: Path, home: Path) -> list[str]:
         """Name the libraries the dynamic loader cannot find; none when `ldd` cannot tell."""

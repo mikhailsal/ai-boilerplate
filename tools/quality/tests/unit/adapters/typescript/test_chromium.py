@@ -158,3 +158,13 @@ def test_a_browser_that_is_not_installed_is_its_finding(fake: FakeChromium) -> N
 
     (found,) = Chromium(locate, locate, fake.ldd).ready("web", CHROMIUM, offline=True)
     assert found == missing.diagnostic
+
+
+def test_a_run_drives_the_located_browser_only_when_it_is_ready(fake: FakeChromium) -> None:
+    calls: list[str] = []
+    assert fake.chromium(calls).executable("web", CHROMIUM) == fake.executable
+    assert calls == ["locate chromium"]
+    script(fake.executable, "echo 'Chrome 155.0.1'\n")
+    with pytest.raises(native.ToolFailedError) as raised:
+        fake.chromium([]).executable("web", CHROMIUM)
+    assert raised.value.diagnostic.rule == "typescript.browser-version"

@@ -1,9 +1,10 @@
 # 0018 Browser builds, scenarios, and CI
 
-Status: proposed (F00, 2026-10-22); the production build is implemented as
-an adapter (F03), which the browser suites run once serving exists. It
-continues [decision 0017](0017-browser-frontend-profile.md) with what a
-browser component needs at the merge stage.
+Status: proposed (F00, 2026-10-22); the production build (F03), serving,
+the browser scenarios, and accessibility (F05) are implemented, and the CI
+job is not yet. It continues
+[decision 0017](0017-browser-frontend-profile.md) with what a browser
+component needs at the merge stage.
 
 ## Production build
 
@@ -38,10 +39,13 @@ or a `data:` URL; a reference to another origin is reported too.
 
 The gate serves exactly that output with its own static server on
 `127.0.0.1` and a port the kernel assigns, so an occupied port or another
-application cannot answer for it. Unknown paths without an extension fall
-back to the entry point for client routing; a missing file is a 404 and is
-recorded. The server stops when the suite ends, also on failure or
-interruption, and the gate never stops a process it did not start.
+application cannot answer for it. A directory without an index, or a path
+without an extension, that names no file falls back to the first entry
+point for client routing; any other missing file is a 404 and is recorded
+before it is answered. The server stops when the suite ends, also on failure
+or interruption. Playwright runs in a session of its own, whose remaining
+processes are killed when it exits, and the gate never stops a process it
+did not start.
 
 ## Browser scenarios
 
@@ -59,11 +63,14 @@ decides the verdict:
   core reads console errors, page errors, and failed requests from them.
 
 Case names are `file::title path[viewport]`, and a scenario selector of a
-browser component must pass in every declared viewport. Skipped, focused,
-expected-failure, flaky, empty, and stale results keep their base meaning
+browser component must pass in every declared viewport. Skipped, focused
+(`tests.focused`), expected-failure, flaky, empty, and stale results keep
+their base meaning
 ([decision 0014](0014-behavioral-scenarios.md#what-runners-may-not-hide)).
-An unexpected console error, page error, or failed same-origin request is an
-error; an exception names the rule, the test file, and the exact message.
+A console or page error is a `typescript.browser-console` error, and a
+same-origin request that the build cannot answer is a
+`typescript.browser-resource` error; an exception names the rule, the test
+file, and the exact message or path.
 
 ### Requirements
 
@@ -76,8 +83,9 @@ A browser component's `ui` capability requires, at the merge stage:
 | `ui.accessibility` | Axe scans of the declared rendered states |
 | `ui.keyboard` | Keyboard operation and focus handling of critical controls |
 
-Each scenario of a browser component names its tested `boundary`, such as a
-browser network route that simulates the backend; the reports repeat it, and
+Only a browser component may declare `ui.accessibility` or `ui.keyboard`.
+Each of its scenarios names its tested `boundary`, such as a browser network
+route that simulates the backend; the check and the reports repeat it, and
 it proves nothing about a real backend's contracts. A component that also
 declares backend or database capabilities keeps their real-boundary tests.
 
@@ -85,13 +93,17 @@ declares backend or database capabilities keeps their real-boundary tests.
 
 A test proves accessibility by asserting that the required interface is
 present and then attaching the raw results of an `@axe-core/playwright`
-scan. The gate checks each attachment: the axe version is the locked one,
-the tags are the policy's (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa` by
-default), and the page had content. Serious and critical violations are
+scan named `accessibility-scan`. The gate checks each attachment: the axe
+version is the locked one, the scan ran at least the tags of the
+component's `accessibility_tags` (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`
+by default) and turned off no rule, and it checked a page of the gate's
+server that had content; otherwise it is a `typescript.accessibility-scan`
+error. Serious and critical violations are `typescript.accessibility`
 errors, moderate and minor ones warnings, and incomplete results are
 reported for manual review. An exception names the axe rule, the test file,
-and the target. A scenario of `ui.accessibility` without a scan fails. Scans
-are evidence for the selected rules, not a conformance claim.
+and the target. A scenario of `ui.accessibility` whose test lacks a valid
+scan in any viewport fails with `scenarios.evidence`. Scans are evidence for
+the selected rules, not a conformance claim.
 
 Visual, bundle-size, and performance budgets are not part of this baseline;
 they would be enhanced capabilities with their own measurement and blocking

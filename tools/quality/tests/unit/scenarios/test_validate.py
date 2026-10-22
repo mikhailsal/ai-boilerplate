@@ -80,6 +80,58 @@ def test_a_requirement_must_exist_belong_to_the_capability_and_fit_the_level() -
     ]
 
 
+UI = ("ui.smoke", "ui.flows", "ui.accessibility", "ui.keyboard")
+
+
+def ui(identifier: str, *requirements: str, boundary: str | None = "a routed API") -> ScenarioSpec:
+    return ScenarioSpec(
+        identifier, (f"e::{identifier}",), "ui", "e2e", requirements=requirements, boundary=boundary
+    )
+
+
+def test_a_browser_component_proves_accessibility_and_keyboard_use() -> None:
+    owner = scenario_component("ui", browser=True)
+    assert findings(manifest_subject(owner, ui("all", *UI))) == []
+    assert findings(manifest_subject(owner, ui("some", *UI[:2]))) == [
+        (
+            "scenarios.uncovered",
+            (
+                "no scenario proves 'ui.accessibility': accessibility scans of the declared "
+                "rendered states"
+            ),
+        ),
+        (
+            "scenarios.uncovered",
+            (
+                "no scenario proves 'ui.keyboard': keyboard operation and focus handling of the "
+                "critical controls"
+            ),
+        ),
+    ]
+
+
+def test_every_scenario_of_a_browser_component_names_its_tested_boundary() -> None:
+    owner = scenario_component("ui", browser=True)
+    found = manifest_subject(owner, ui("all", *UI), ui("bare", boundary=None))
+    assert findings(found) == [
+        (
+            "scenarios.reference",
+            "scenario 'bare' names no tested boundary; every scenario of a browser component does",
+        )
+    ]
+
+
+def test_only_a_browser_component_proves_the_browser_requirements() -> None:
+    found = manifest_subject(scenario_component("ui"), ui("ui", *UI))
+    assert findings(found) == [
+        (
+            "scenarios.reference",
+            f"scenario 'ui' proves '{identifier}', which only a browser component proves",
+        )
+        for identifier in UI[2:]
+    ]
+
+
 def test_a_scenario_must_fit_its_component() -> None:
     owner = scenario_component(extra='enhanced = ["performance"]')
     found = manifest_subject(

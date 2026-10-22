@@ -93,10 +93,13 @@ def rules(found: list[Diagnostic]) -> list[str]:
 def test_the_profile_reports_its_rules(setup: Setup) -> None:
     assert setup.profile.rules == RULES
     assert {rule.id for rule in RULES} == {
+        "typescript.accessibility",
+        "typescript.accessibility-scan",
         "typescript.boundaries",
-        "typescript.browser-incomplete",
+        "typescript.browser-console",
         "typescript.browser-libraries",
         "typescript.browser-ready",
+        "typescript.browser-resource",
         "typescript.browser-version",
         "typescript.build",
         "typescript.build-output",

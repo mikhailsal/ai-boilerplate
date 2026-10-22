@@ -7,12 +7,11 @@ from quality.adapters.typescript.browser import (
     HOOKS,
     TEST_RULES,
     browser_files,
-    incomplete,
+    browser_sources,
     server_module,
-    unsupported,
 )
 from quality.testing import StaticRequest
-from quality.testkit.nodefakes import browser_component, typescript_component
+from quality.testkit.nodefakes import browser_component
 
 SERVER = '[components.browser]\nserver_modules = ["src/server/**", "src/*.server.ts"]'
 WEB = browser_component(extra=SERVER)
@@ -52,11 +51,6 @@ def test_the_files_are_sorted_for_the_browser_gates(tmp_path: Path) -> None:
     }
 
 
-def test_only_a_browser_component_is_incomplete() -> None:
-    assert unsupported(typescript_component()) == []
-    (finding,) = unsupported(WEB)
-    assert finding.message == (
-        "'web' targets the browser; this build lacks the production build in the gate, "
-        "the Chromium scenarios, the accessibility scans"
-    )
-    assert incomplete(WEB).diagnostic == finding
+def test_browser_sources_leave_out_tests_server_modules_and_other_files() -> None:
+    files = ("web/src/App.tsx", "web/src/server/db.ts", "web/tests/a.test.tsx", "web/src/a.css")
+    assert browser_sources(WEB, files) == ("web/src/App.tsx",)

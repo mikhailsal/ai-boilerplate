@@ -55,8 +55,18 @@
     },
     "BrowserSettings": {
       "additionalProperties": false,
-      "description": "HTML entry points, public build values, server-only modules, and viewports.\n\n`entries` are relative to the component root. `public_env` holds the only\nvalues the production build exposes to the client; they are not secret.\nBrowser source may import neither `server_modules` (globs relative to the\nroot) nor `server_packages`. Every browser scenario runs in each viewport.",
+      "description": "HTML entry points, public build values, server-only modules, viewports, and scans.\n\n`entries` are relative to the component root. `public_env` holds the only\nvalues the production build exposes to the client; they are not secret.\nBrowser source may import neither `server_modules` (globs relative to the\nroot) nor `server_packages`. Every browser scenario runs in each viewport,\nand every accessibility scan runs at least the axe `accessibility_tags`.",
       "properties": {
+        "accessibility_tags": {
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[a-z0-9][a-z0-9.-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Accessibility Tags",
+          "type": "array"
+        },
         "entries": {
           "items": {
             "type": "string"

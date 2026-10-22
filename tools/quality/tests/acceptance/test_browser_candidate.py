@@ -5,9 +5,7 @@ source, a test, the Vite configuration, a stylesheet, or an asset. The bad
 version fails a gate. Whichever version is staged decides the check, the
 other one stays in the work tree untouched, and each kind of change runs the
 unit suite again. A first commit and the index Git prepares for a commit of
-named paths are candidates in the same way. Until the production build and
-the Chromium scenarios are in the gate, every check of the component also
-fails as incomplete.
+named paths are candidates in the same way.
 """
 
 from collections.abc import Mapping
@@ -16,10 +14,8 @@ from pathlib import Path
 import pytest
 
 from quality.testkit.browserproject import APP, ICON, INDEX, STYLES, TESTS, VITE
-from quality.testkit.policies import browser_spec
-from quality.testkit.scratch import Project, create_project, output, rules_of
+from quality.testkit.scratch import Project, browser, create_project, output, rules_of
 
-INCOMPLETE = {"typescript.browser-incomplete", "scenarios.manifest"}
 SOURCE = "web/src/App.tsx"
 TEST = "web/tests/App.test.tsx"
 WEB = "unit coverage of web: line 100.00% (7/7), branch 100.00% (2/2)"
@@ -38,6 +34,8 @@ LINKED = INDEX.replace(
 TOUCH_ICON = ICON.replace('<circle r="1"/>', '<rect width="2" height="2"/>')
 FAILING = TESTS.replace('toBe("Count 1")', 'toBe("Count 2")')
 RENAMED = APP.replace("<h1>Counter</h1>", "<h1>Clicks</h1>")
+STYLESHEET = "web/src/App.module.css"
+MISSPELLED = STYLES.replace("  margin", "  colr: red;\n  margin")
 Files = Mapping[str, str | None]
 # Each pair: the files both versions share, the good and the bad version, and
 # the rules the bad one adds. `None` is a file the version does not have.
@@ -63,8 +61,8 @@ PAIRS: dict[str, tuple[Files, Files, Files, set[str]]] = {
     ),
     "stylesheet": (
         {},
-        {"web/src/App.module.css": STYLES.replace("40rem", "48rem")},
-        {"web/src/App.module.css": STYLES.replace("  margin", "  colr: red;\n  margin")},
+        {STYLESHEET: STYLES.replace("40rem", "48rem")},
+        {STYLESHEET: MISSPELLED},
         {"typescript.styles"},
     ),
     "asset": (
@@ -91,65 +89,71 @@ def contents(project: Project, files: Files) -> dict[str, str | None]:
 
 def check(project: Project) -> tuple[set[str], str]:
     result = project.quality("check")
-    # The missing scenario manifest is a policy error, which sets the exit code.
-    assert result.returncode == 2, output(result)
-    return rules_of(result), output(result)
+    rules = rules_of(result)
+    assert result.returncode == (1 if rules else 0), output(result)
+    return rules, output(result)
 
 
 @pytest.fixture
-def browser(tmp_path: Path) -> Project:
-    """Return a project with the browser component `web`, bootstrapped as far as it goes."""
-    created = create_project(tmp_path / "project", browser_spec())
+def web(tmp_path: Path) -> Project:
+    """Return a bootstrapped project with the browser component `web`."""
+    created = create_project(tmp_path / "project", browser())
     result = created.quality("bootstrap")
-    assert result.returncode == 3, output(result)
+    assert result.returncode == 0, output(result)
     return created
 
 
 @pytest.mark.parametrize("staged", ["good", "bad"])
 @pytest.mark.parametrize("kind", PAIRS)
-def test_only_the_staged_version_decides(browser: Project, kind: str, staged: str) -> None:
+def test_only_the_staged_version_decides(web: Project, kind: str, staged: str) -> None:
     shared, good, bad, added = PAIRS[kind]
     index, worktree = (good, bad) if staged == "good" else (bad, good)
-    write(browser, {**shared, **index})
-    browser.repo.git("add", "-A")
-    write(browser, worktree)
-    rules, printed = check(browser)
+    write(web, {**shared, **index})
+    web.repo.git("add", "-A")
+    write(web, worktree)
+    rules, printed = check(web)
     if staged == "good":
-        assert rules == INCOMPLETE, printed
+        assert rules == set(), printed
         assert WEB in printed, printed
     else:
-        assert rules == INCOMPLETE | added, printed
-    assert contents(browser, worktree) == dict(worktree)
+        assert rules == added, printed
+    assert contents(web, worktree) == dict(worktree)
 
 
-def test_a_first_commit_is_checked_from_the_index(browser: Project) -> None:
-    browser.repo.git("update-ref", "-d", "HEAD")
-    rules, printed = check(browser)
-    assert rules == INCOMPLETE, printed
+def test_a_first_commit_is_checked_from_the_index(web: Project) -> None:
+    web.repo.git("update-ref", "-d", "HEAD")
+    rules, printed = check(web)
+    assert rules == set(), printed
     assert f"{WEB}, changed lines 100.00% (7/7)" in printed
-    browser.write(TEST, FAILING)
-    browser.repo.git("add", "-A")
-    browser.write(TEST, TESTS)
-    rules, printed = check(browser)
-    assert rules == INCOMPLETE | {"tests.failed"}, printed
+    web.write(TEST, FAILING)
+    web.repo.git("add", "-A")
+    web.write(TEST, TESTS)
+    rules, printed = check(web)
+    assert rules == {"tests.failed"}, printed
 
 
-def test_a_commit_of_named_paths_checks_the_index_git_prepares(browser: Project) -> None:
-    before = browser.head()
-    browser.write(TEST, FAILING)
-    browser.repo.git("add", "-A")
-    staged = browser.index_tree()
-    browser.write(SOURCE, RENAMED)
+def staged_paths(project: Project) -> list[str]:
+    return project.repo.git("diff", "--cached", "--name-only").split()
+
+
+def test_a_commit_of_named_paths_checks_the_index_git_prepares(web: Project) -> None:
+    before = web.head()
+    web.write(TEST, FAILING)
+    web.repo.git("add", "-A")
+    web.write(SOURCE, RENAMED)
     # The hook checks HEAD plus the named source; the staged failing test is not part of it.
-    result = browser.git("commit", "-q", "-m", "rename the page", "--", SOURCE)
-    assert result.returncode != 0
-    assert rules_of(result) == INCOMPLETE, output(result)
+    result = web.git("commit", "-q", "-m", "rename the page", "--", SOURCE)
+    assert result.returncode == 0, output(result)
     assert WEB in output(result), output(result)
-    assert (browser.head(), browser.index_tree()) == (before, staged)
-    browser.repo.git("reset", "-q", "--hard")
-    browser.write(SOURCE, RENAMED)
-    browser.repo.git("add", "-A")
-    browser.write(TEST, FAILING)
-    result = browser.git("commit", "-q", "-m", "change the test", "--", TEST)
+    assert web.head() != before
+    assert staged_paths(web) == [TEST]
+    web.repo.git("reset", "-q", "--hard")
+    web.write(STYLESHEET, MISSPELLED)
+    web.repo.git("add", "-A")
+    staged = web.index_tree()
+    web.write(TEST, FAILING)
+    # Now the named test is part of the candidate, and the staged stylesheet is not.
+    result = web.git("commit", "-q", "-m", "change the test", "--", TEST)
     assert result.returncode != 0
-    assert rules_of(result) == INCOMPLETE | {"tests.failed"}, output(result)
+    assert rules_of(result) == {"tests.failed"}, output(result)
+    assert web.index_tree() == staged

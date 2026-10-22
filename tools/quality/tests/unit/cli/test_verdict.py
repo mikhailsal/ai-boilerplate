@@ -87,14 +87,28 @@ def test_coverage_is_reported_as_json_counters() -> None:
 def test_scenario_counts_are_described_per_component() -> None:
     summaries = (
         ScenarioSummary("a", 3, 2, suspended=1, deferred=4),
-        ScenarioSummary("b", 1, 1),
+        ScenarioSummary("b", 1, 1, boundaries=("the static build", "a routed API")),
     )
     assert scenarios_text(summaries) == (
         "scenarios of a: 2 of 3 proved, 1 suspended, 4 not required by this run\n"
-        "scenarios of b: 1 of 1 proved\n"
+        "scenarios of b: 1 of 1 proved; tested boundaries: the static build; a routed API\n"
     )
     assert scenarios_text(()) == ""
     assert scenarios_json(summaries) == [
-        {"component": "a", "required": 3, "proved": 2, "suspended": 1, "deferred": 4},
-        {"component": "b", "required": 1, "proved": 1, "suspended": 0, "deferred": 0},
+        {
+            "component": "a",
+            "required": 3,
+            "proved": 2,
+            "suspended": 1,
+            "deferred": 4,
+            "boundaries": [],
+        },
+        {
+            "component": "b",
+            "required": 1,
+            "proved": 1,
+            "suspended": 0,
+            "deferred": 0,
+            "boundaries": ["the static build", "a routed API"],
+        },
     ]

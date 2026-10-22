@@ -137,5 +137,12 @@ def test_the_scenarios_of_the_suites_that_ran_are_proved(
     assert main(["test", "--suite", "e2e", "--json"]) == 0
     report = json.loads(capsys.readouterr().out)
     assert report["scenarios"] == [
-        {"component": "app", "required": 2, "proved": 2, "suspended": 0, "deferred": 0}
+        {
+            "component": "app",
+            "required": 2,
+            "proved": 2,
+            "suspended": 0,
+            "deferred": 0,
+            "boundaries": [],
+        }
     ]

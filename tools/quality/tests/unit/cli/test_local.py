@@ -19,10 +19,10 @@ from quality.cli.local import (
     local_tools,
     local_uv,
     node_environments,
-    node_step,
     npm_cache,
     npm_pins,
     pinned,
+    tool_step,
     worktree_files,
 )
 from quality.policy import Profile
@@ -169,7 +169,7 @@ def test_node_is_located_or_installed_only_when_used() -> None:
         called.append((name, tool, cache))
         return cache / name
 
-    step = node_step(found)
+    step = tool_step(local.NODE, found)
     assert called == []
     assert step() == cache_root() / "node"
     assert called == [("node", pinned("node"), cache_root())]
@@ -178,7 +178,7 @@ def test_node_is_located_or_installed_only_when_used() -> None:
         raise ToolchainError(MISSING.diagnostic(f"{name} {tool.version} is not installed"))
 
     with pytest.raises(ToolFailedError, match=r"node .* is not installed") as raised:
-        node_step(absent)()
+        tool_step(local.NODE, absent)()
     assert raised.value.diagnostic.rule == MISSING.id
 
 
