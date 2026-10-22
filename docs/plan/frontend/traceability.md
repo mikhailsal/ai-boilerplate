@@ -1,0 +1,62 @@
+# Frontend requirement traceability (FR01–FR05)
+
+Every requirement of the frontend extension has an owner phase and a planned
+proof; the `Proof` column names tests once they exist. Continued in
+[FR06–FR10 and the affected base requirements](traceability-fr06-fr10.md).
+The base matrix ([R01–R05](../traceability.md),
+[R06–R10](../traceability-r06-r10.md)) stays as P12 left it.
+
+Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`.
+
+## FR01 Component model
+
+| ID | Requirement | Phases | Proof | Status |
+| --- | --- | --- | --- | --- |
+| FR01.1 | Language, target, framework, bundler, ownership, and capabilities explicit in the existing schema | F01 | Planned: `policy/test_load.py`, `policy/test_validate.py`, the regenerated schema | TODO |
+| FR01.2 | React rules, DOM globals, transforms, and test environments only in browser components | F01, F03, F04 | Planned: unit tests of the wrappers per target; a mixed acceptance repository | TODO |
+| FR01.3 | React/Vite recognized from manifests, configuration, and explicit registration; ambiguity and unsupported frameworks reported | F01, F02 | Planned: `cli/test_component_cmd.py` cases | TODO |
+| FR01.4 | Discovery separate from the core, dormant adapters, and fixtures; a shipped example activates nothing; active or modified helpers are checked | F01 | Planned: `discovery/test_activation.py`, `engine/test_setup.py` | TODO |
+| FR01.5 | Existing configurations keep their meaning; no rewrite of user scripts or tsconfigs | F01 | Planned: the existing policy and acceptance suites unchanged | TODO |
+
+## FR02 Setup and startup
+
+| ID | Requirement | Phases | Proof | Status |
+| --- | --- | --- | --- | --- |
+| FR02.1 | Compatible pins incl. the browser revision; peer compatibility proven | F00, F02 | [Decision 0017](../../decisions/0017-browser-frontend-profile.md#versions); planned: lock checks | IN_PROGRESS |
+| FR02.2 | Vitest, jsdom, Testing Library, user-event; Playwright Test with Chromium | F02, F04, F05 | Planned: the reference application's suites | TODO |
+| FR02.3 | Bootstrap and doctor provision and report the profile, browser, and Linux libraries during preparation only | F02 | Planned: `engine/test_setup.py`, `cli/test_doctor_cmd.py` | TODO |
+| FR02.4 | Missing Chromium fails a required browser gate; non-frontend projects need no browser | F02, F05 | Planned: unit and acceptance cases | TODO |
+| FR02.5 | Registration operation and a tested Quick start from a fresh template copy; the first CLI invocation | F02, F07 | Planned: `acceptance/test_template.py` frontend case | TODO |
+
+## FR03 Static checks
+
+| ID | Requirement | Phases | Proof | Status |
+| --- | --- | --- | --- | --- |
+| FR03.1 | Prettier, typed ESLint, strict tsc, and structure over source, tests, and Node configuration; an empty solution tsconfig skips nothing | F03 | Planned: helper and adapter tests | TODO |
+| FR03.2 | A real type check separate from the bundler; a transpilable type error fails; aliases and references consistent | F03 | Planned: acceptance case | TODO |
+| FR03.3 | React Hooks and selected JSX accessibility rules with explicit scopes | F03 | Planned: helper `eslint-config` tests | TODO |
+| FR03.4 | Browser/server import boundaries through real resolution, incl. aliases and transitive dependencies | F03, F05 | Planned: helper and build plugin tests | TODO |
+| FR03.5 | Base limits and counting unchanged; JSX depth is not nesting | F03 | Planned: helper structure tests | TODO |
+| FR03.6 | CSS formatting and Stylelint; HTML entry points and production asset references; Sass and others unsupported | F03 | Planned: adapter and acceptance cases | TODO |
+| FR03.7 | Precise classification of HTML, CSS, SVG, images, public files, bundles, and source maps; asset checks without coverage counters | F03 | Planned: `discovery/test_classify.py` | TODO |
+
+## FR04 Unit tests and coverage
+
+| ID | Requirement | Phases | Proof | Status |
+| --- | --- | --- | --- | --- |
+| FR04.1 | Meaningful logic, hook, and isolated component tests through observable interactions | F04 | Planned: the reference application's unit suite | TODO |
+| FR04.2 | Awaited interactions; unawaited user-event rejected by typed lint; conditional-JSX branch mapping | F04 | Planned: acceptance cases | TODO |
+| FR04.3 | Level by boundary; counted component tests run in the commit gate without services or network | F04 | Planned: runner tests, network isolation | TODO |
+| FR04.4 | 80/70/90 per frontend component; a new uncovered TS/TSX file fails | F04 | Planned: acceptance cases | TODO |
+| FR04.5 | Expected sources independent of imports; original files only; one owner; data combined, not averaged | F04 | Planned: coverage and runner tests | TODO |
+| FR04.6 | Result success, freshness, completeness, counters, and floors are a conjunction; end-to-end output never raises the unit numerator | F04 | Planned: engine tests | TODO |
+
+## FR05 Snapshots, builds, and isolation
+
+| ID | Requirement | Phases | Proof | Status |
+| --- | --- | --- | --- | --- |
+| FR05.1 | The complete candidate index; unstaged fixes do not rescue it; alternate index and concurrent-change protection kept | F04 | Planned: staged-good/worktree-bad acceptance cases | TODO |
+| FR05.2 | Changes to CSS, assets, configuration, pins, or locks invalidate their scope | F04 | Planned: scope tests | TODO |
+| FR05.3 | Isolated build with a declared environment; the exact fresh output is served; identity and digest in the evidence | F03, F05 | Planned: build tests and evidence checks | TODO |
+| FR05.4 | No `.env.local`, stale `dist/`, ambient source, or inherited Git variables; only declared public values | F03, F05 | Planned: build isolation cases | TODO |
+| FR05.5 | Caches distinct from results; built entry and assets usable; results checked independently | F03, F05 | Planned: build validation tests | TODO |

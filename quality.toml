@@ -164,7 +164,12 @@ unscored = "error"
 # What `quality template export` leaves out of a new project, and the files
 # whose maintainer-only regions it removes (decision 0016).
 [template]
-exclude = ["PLAN.md", "docs/plan/**", "tools/quality/tests/acceptance/**"]
+exclude = [
+    "PLAN.md",
+    "FRONTEND_PLAN.md",
+    "docs/plan/**",
+    "tools/quality/tests/acceptance/**",
+]
 fenced = [
     "quality.toml",
     "tools/quality/scenarios.toml",
