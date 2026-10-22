@@ -26,7 +26,7 @@ Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`.
 | FR02.2 | Vitest, jsdom, Testing Library, user-event; Playwright Test with Chromium | F02, F04, F05 | [F04](F04.md): Vitest, jsdom, Testing Library, and user-event in `acceptance/test_browser_units.py`; Playwright Test with Chromium: [F05](F05.md), `acceptance/test_browser_scenarios.py` | DONE |
 | FR02.3 | Bootstrap and doctor provision and report the profile, browser, and Linux libraries during preparation only | F02 | [F02](F02.md): `typescript/test_chromium.py`, `typescript/test_provision.py`, `engine/test_setup.py`, a real bootstrap and doctor | DONE |
 | FR02.4 | Missing Chromium fails a required browser gate; non-frontend projects need no browser | F02, F05 | [F02](F02.md): bootstrap and doctor fail without the browser, a Node component needs none; [F05](F05.md): the gate without the browser in `acceptance/test_browser_runs.py` | DONE |
-| FR02.5 | Registration operation and a tested Quick start from a fresh template copy; the first CLI invocation | F02, F07 | Planned: `acceptance/test_template.py` frontend case | TODO |
+| FR02.5 | Registration operation and a tested Quick start from a fresh template copy; the first CLI invocation | F02, F07 | [F07](F07.md): the README's Quick start run as written by `acceptance/test_frontend_start.py`; `./quality` is the first invocation | DONE |
 
 ## FR03 Static checks
 

@@ -19,7 +19,7 @@ Continued from [FR01–FR05](traceability.md), with the same status values.
 | FR07.1 | Static JSX accessibility rules plus axe scans of declared states and keyboard/focus scenarios | F03, F05 | [F03](F03.md): the `jsx-a11y-x` rules; [F05](F05.md): `typescript/test_scans.py`, the counter's and the example's scans and keyboard scenarios | DONE |
 | FR07.2 | Serious and critical block; moderate, minor, and incomplete reported; tags and exceptions recorded; a missing scan or empty page fails | F05 | [F05](F05.md): `typescript/test_scans.py`, `policy/test_browser.py` (`accessibility_tags`), `scenarios/test_reconcile.py` (`scenarios.evidence`); the empty-page and low-contrast cases | DONE |
 | FR07.3 | Names and labels, keyboard operation, focus on form errors; a failing fixture and its control | F05 | [F05](F05.md): the example's keyboard scenario (tab order, focus on the first problem, accessible descriptions); the low-contrast control of the example and of the counter | DONE |
-| FR07.4 | Budgets only as explicit enhanced capabilities; nothing claimed when not run | F05, F07 | [Decision 0018](../../decisions/0018-browser-builds-and-scenarios.md#accessibility): no budget is part of the baseline; the F07 documentation keeps it so | IN_PROGRESS |
+| FR07.4 | Budgets only as explicit enhanced capabilities; nothing claimed when not run | F05, F07 | [Decision 0018](../../decisions/0018-browser-builds-and-scenarios.md#accessibility): no budget is part of the baseline; [F07](F07.md): the profile matrix lists budgets as unsupported | DONE |
 
 ## FR08 Stages and CI
 
@@ -37,15 +37,15 @@ Continued from [FR01–FR05](traceability.md), with the same status values.
 | --- | --- | --- | --- | --- |
 | FR09.1 | New orchestration, server, report, and helper code under the base rules and coverage | All | Planned: each phase's hook run | TODO |
 | FR09.2 | Unit tests for failure paths and real native acceptance; invalid fixtures generated or bounded | All | Planned: each phase's tests | TODO |
-| FR09.3 | No recursive harness; exported fixtures get a new Git repository with a test identity | F07 | Planned: template acceptance | TODO |
+| FR09.3 | No recursive harness; exported fixtures get a new Git repository with a test identity | F07 | [F07](F07.md): the `export` fixture of `acceptance/conftest.py` exports into a new repository whose root commit has the scratch identity, and the export leaves out the acceptance harness | DONE |
 | FR09.4 | A regression for every defect found; logs, traces, and screenshots outside tracked source, redacted | All | Planned: phase records | TODO |
 
 ## FR10 Compatibility and readiness
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| FR10.1 | Startup for frontend-only, Node-only, and mixed projects and for adding a frontend; fresh history; repeated bootstrap; no browser for other projects | F07 | Planned: template acceptance | TODO |
-| FR10.2 | Documentation limits, English, links, exceptions, the blob limit, dependency checks; supported versus unsupported variants | F07 | Planned: the docs gates | TODO |
+| FR10.1 | Startup for frontend-only, Node-only, and mixed projects and for adding a frontend; fresh history; repeated bootstrap; no browser for other projects | F07 | [F07](F07.md): `acceptance/test_frontend_start.py` (fresh export, Node project then a frontend, two frontends) and `test_template.py` (repeated bootstrap, a16 without Chromium) | DONE |
+| FR10.2 | Documentation limits, English, links, exceptions, the blob limit, dependency checks; supported versus unsupported variants | F07 | [F07](F07.md): `quality check` and the hook (page limits, links, the blob limit), `quality links`, `quality audit` with the dated exceptions; the profile matrix | DONE |
 | FR10.3 | A handoff with SHAs, contracts, versions, commands, evidence, regressions, limitations, and hosting; no readiness claim while anything is unverified | F08 | Planned: the frontend handoff | TODO |
 
 ## Affected base requirements
@@ -65,9 +65,9 @@ proof unchanged.
 | R02.2 | Generated Vite and Playwright wrappers override what decides the verdict | F03, F05 | DONE |
 | R03.1–R03.11 | Snapshot and revision semantics proven with frontend files | F04, F05 | DONE |
 | R04.1–R04.7 | Limits unchanged; formatter and lint sets extend to CSS and HTML; asset blob and secret checks; browser/server boundaries | F03, F04 | DONE |
-| R05.1–R05.7 | Frontend documentation within the limits | F07 | TODO |
+| R05.1–R05.7 | Frontend documentation within the limits | F07 | DONE |
 | R06.1–R06.11 | Per browser component, unchanged floors and evidence rules | F04 | DONE |
 | R07.1 | Compatible versions from primary sources: [decision 0017](../../decisions/0017-browser-frontend-profile.md#versions) | F00 | DONE |
 | R08.1–R08.7 | The `ui` capability of a browser component, the scenario boundary, and viewports | F05 | DONE |
 | R09.1–R09.8 | The `browser` job in the wrappers and the aggregate | F06 | DONE |
-| R10.1–R10.7 | Export, documentation, regressions, and the handoff | F07, F08 | TODO |
+| R10.1–R10.7 | Export, documentation, regressions, and the handoff | F07, F08 | IN_PROGRESS |
