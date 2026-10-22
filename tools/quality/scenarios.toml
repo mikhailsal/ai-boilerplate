@@ -95,4 +95,13 @@ tests = [
     "tests.acceptance.test_browser_runs::test_a_run_leaves_no_process_or_temporary_file",
     "tests.acceptance.test_browser_runs::test_the_gate_keeps_the_native_evidence_of_the_scenarios",
 ]
+
+[[scenarios]]
+id = "browser-lanes"
+summary = "While one browser scenario is skipped, the main lane passes and leaves it to the browser lane, which fails, and so does the verdict."
+capability = "cli"
+level = "acceptance"
+stage = "merge"
+requirements = ["cli.flows"]
+tests = ["tests.acceptance.test_browser_runs::test_the_lanes_and_the_verdict_stay_red_while_a_scenario_fails"]
 # maintainer-only:end

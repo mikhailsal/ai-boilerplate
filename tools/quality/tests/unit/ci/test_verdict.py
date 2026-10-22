@@ -74,3 +74,18 @@ def test_unparsable_results_are_usage_errors() -> None:
 def test_oversized_results_are_refused_before_parsing() -> None:
     with pytest.raises(ResultsError, match="exceed"):
         parse_results(b" " * (RESULTS_LIMIT + 1))
+
+
+@pytest.mark.parametrize("result", ["failure", "cancelled", "skipped"])
+def test_a_browser_job_that_did_not_succeed_fails_the_aggregate(result: str) -> None:
+    results = parse_results(needs(gate="success", browser=result, audit="success"))
+    assert [(d.rule, d.message) for d in job_verdict(results, ["gate", "browser", "audit"])] == [
+        ("ci.job-failed", f"required job 'browser' finished with '{result}'")
+    ]
+
+
+def test_a_browser_job_left_out_of_the_needs_fails_the_aggregate() -> None:
+    results = parse_results(needs(gate="success", audit="success"))
+    assert [d.rule for d in job_verdict(results, ["gate", "browser", "audit"])] == [
+        "ci.job-missing"
+    ]

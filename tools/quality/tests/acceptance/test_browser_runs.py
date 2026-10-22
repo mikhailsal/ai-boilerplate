@@ -1,8 +1,11 @@
-"""FR06.2 and FR06.3: what the Chromium scenarios of a browser component need and leave.
+"""FR06.2, FR06.3, and FR08: what the Chromium scenarios of a browser component need and leave.
 
 Without the pinned browser the scenarios cannot be verified. A run starts
 Node and Chromium and leaves neither a process nor a temporary file, and the
-merge gate keeps the native evidence of the build and of every scenario.
+merge gate keeps the native evidence of the build and of every scenario. It
+runs without provider variables, and with this template's workflow and `[ci]`
+table the two lanes of the gate and the verdict over their jobs stay red
+while a scenario fails.
 """
 
 import json
@@ -12,8 +15,14 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from pathlib import Path
 
-from quality.testkit.browserscenarios import BOUNDARY
+from quality.process import Completed
+from quality.testkit.browserscenarios import BOUNDARY, SCENARIOS, SCENARIOS_FILE
 from quality.testkit.scratch import Project, output, rules_of, shared_caches
+
+TEMPLATE = Path(__file__).resolve().parents[4]
+CI_FILES = (".github/workflows/quality.yml", ".github/CODEOWNERS")
+PROVIDER = ("CI", "GITHUB_", "GITLAB_", "CI_", "RUNNER_")
+SKIPPED = SCENARIOS.replace('test("the counter counts', 'test.skip("the counter counts')
 
 
 def merge_check(project: Project) -> tuple[int, set[str], str]:
@@ -88,6 +97,7 @@ def test_the_gate_keeps_the_native_evidence_of_the_scenarios(
         result = counter.quality("gate", "--stage", "merge", *revisions, "--reports", str(reports))
     finally:
         counter.repo.git("checkout", "-q", "-")
+    assert [name for name in counter.environ() if name.startswith(PROVIDER)] == []
     assert result.returncode == 0, output(result)
     native = reports / "native" / "web" / "e2e"
     assert sorted(path.name for path in native.iterdir()) == [
@@ -109,3 +119,51 @@ def test_the_gate_keeps_the_native_evidence_of_the_scenarios(
     ]
     report = json.loads((reports / "report.json").read_text())
     assert BOUNDARY in json.dumps(report)
+
+
+def ci_table() -> str:
+    """Return the `[ci]` table of this template's policy."""
+    policy = (TEMPLATE / "quality.toml").read_text()
+    start = policy.index("\n[ci]\n")
+    return policy[start : policy.index("\n[", start + 1)] + "\n"
+
+
+def lanes(project: Project, base: str, needs: Path) -> tuple[Completed, Completed, Completed]:
+    """Run both lanes of the merge gate over the new commit, then the verdict over their jobs."""
+    revisions = ("--stage", "merge", "--base", base, "--head", project.head())
+    main = project.quality("gate", *revisions, "--lane", "main")
+    browser = project.quality("gate", *revisions, "--lane", "browser")
+    jobs = {"gate": main.returncode, "browser": browser.returncode, "audit": 0}
+    results = {job: {"result": "failure" if code else "success"} for job, code in jobs.items()}
+    needs.write_text(json.dumps(results))
+    return main, browser, project.quality("ci", "verdict", "--needs", str(needs))
+
+
+def test_the_lanes_and_the_verdict_stay_red_while_a_scenario_fails(
+    counter: Project, tmp_path: Path
+) -> None:
+    base = counter.head()
+    needs = tmp_path / "needs.json"
+    counter.repo.git("checkout", "-q", "--detach")
+    try:
+        for path in CI_FILES:
+            counter.write(path, (TEMPLATE / path).read_text())
+        counter.write("quality.toml", (counter.path / "quality.toml").read_text() + ci_table())
+        counter.repo.git("add", "-A")
+        counter.repo.git("commit", "-q", "--no-verify", "-m", "add the template's workflow")
+        passing = lanes(counter, base, needs)
+        counter.write(f"web/{SCENARIOS_FILE}", SKIPPED)
+        counter.repo.git("commit", "-q", "--no-verify", "-am", "skip a scenario")
+        failing = lanes(counter, base, needs)
+    finally:
+        counter.repo.git("checkout", "-q", "-")
+    main, browser, verdict = passing
+    assert [run.returncode for run in passing] == [0, 0, 0], [output(run) for run in passing]
+    assert "lane main: the browser lane checks web" in output(main), output(main)
+    assert "scenarios of web: 2 of 2 proved" in output(browser), output(browser)
+    main, browser, verdict = failing
+    assert main.returncode == 0, output(main)
+    found = (browser.returncode, rules_of(browser))
+    assert found == (1, {"gate.lane", "tests.skipped", "scenarios.skipped"}), output(browser)
+    assert (verdict.returncode, rules_of(verdict)) == (1, {"ci.job-failed"}), output(verdict)
+    assert "required job 'browser' finished with 'failure'" in output(verdict)

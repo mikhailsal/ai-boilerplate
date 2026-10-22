@@ -55,7 +55,9 @@ request, and accessibility evidence
 Bootstrap installs that Chromium for an active browser component, and
 bootstrap and doctor report whether it starts and matches the locked
 Playwright; it needs system libraries such as NSS and GLib, and
-`typescript.browser-libraries` names the missing ones.
+`typescript.browser-libraries` names the missing ones. CI checks browser
+components in a lane of the gate of their own, `quality gate --lane
+browser`, which the aggregate status requires like the main lane.
 
 ## Several components
 

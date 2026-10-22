@@ -166,7 +166,7 @@ scenarios = "scenarios.toml"
 [ci]
 workflow = ".github/workflows/quality.yml"
 aggregate_job = "required"
-required_jobs = ["gate", "audit"]
+required_jobs = ["gate", "browser", "audit"]
 codeowners = ".github/CODEOWNERS"
 control = ["ci/**"]
 

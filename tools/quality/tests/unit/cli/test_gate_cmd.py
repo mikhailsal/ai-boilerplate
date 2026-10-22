@@ -81,6 +81,7 @@ def test_a_pull_request_owns_only_its_lines(
     tree = project.git("rev-parse", f"{tested}^{{tree}}").strip()
     assert report["candidate"] == {
         "stage": "merge",
+        "lane": None,
         "base": base,
         "head": head,
         "tested": tested,
@@ -167,6 +168,32 @@ def test_the_commit_stage_checks_the_index_or_a_new_branch(
     assert (code, rules(report)) == (0, [])
     code, report = gate(capsys, "--stage", "commit", "--base", "0" * 40, "--head", "HEAD")
     assert (code, report["candidate"]["base"]) == (0, "0" * 40)
+
+
+def test_a_lane_checks_its_part_and_says_so(
+    project: GitRepo, capsys: pytest.CaptureFixture[str]
+) -> None:
+    project.write("src/app/staged.py", "x = 1  # noqa\n")
+    project.git("add", "-A")
+    code, report = gate(capsys, "--stage", "commit", "--lane", "browser")
+    assert (code, rules(report), report["tested"]) == (0, ["gate.lane"], [])
+    assert report["candidate"]["lane"] == "browser"
+    assert report["diagnostics"][0]["message"] == (
+        "lane browser: no active component runs in a browser, so nothing to check"
+    )
+    code, report = gate(capsys, "--stage", "commit", "--lane", "main")
+    assert (code, sorted(rules(report)), report["tested"]) == (
+        1,
+        ["gate.lane", "suppressions.inline"],
+        ["app"],
+    )
+
+
+def test_an_unknown_lane_is_a_usage_error(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as raised:
+        main(["gate", "--stage", "commit", "--lane", "everything"])
+    assert raised.value.code == 2
+    assert "invalid choice: 'everything'" in capsys.readouterr().err
 
 
 def test_reports_are_written_once_into_a_fresh_directory(

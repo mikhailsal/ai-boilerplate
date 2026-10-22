@@ -9,8 +9,9 @@ from quality.catalog import build_registry
 from quality.cli.main import command_table
 from quality.diagnostics import Diagnostic, Severity
 from quality.engine import Report, Settings, check_candidate
-from quality.engine.check import UNAVAILABLE, ran_rules
+from quality.engine.check import UNAVAILABLE
 from quality.engine.common import MEASURED_RULES
+from quality.engine.ran import ran_rules
 from quality.gitio import staged
 from quality.metrics import FileMetrics, FunctionMetrics, Measurements, StructureError
 from quality.policy import Profile

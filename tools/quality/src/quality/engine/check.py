@@ -4,24 +4,21 @@ The common gates and the static scenario checks cover the whole candidate, and
 the new commits of a candidate that carries them. Profile gates, unit suites
 with their coverage floors, and the suites of the scenarios mandatory at the
 stage cover the components the change affects, or every active component when
-asked; a component whose profile has no adapter fails.
+asked; a component whose profile has no adapter fails. A lane of the gate
+checks only its components, and only the main lane runs the common gates.
 """
 
 from __future__ import annotations
 
 import tempfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from pathlib import Path
 
-from quality.ci import changed_control
+from quality.ci import Lane, changed_control, in_lane
 from quality.diagnostics import Diagnostic, Rule
 from quality.engine.common import (
-    COMMON_MEASURED,
-    COMMON_RULES,
-    MEASURED_RULES,
-    TOOL_RULES,
     Commands,
     Tools,
     candidate_files,
@@ -29,8 +26,10 @@ from quality.engine.common import (
     measured_gates,
     tool_findings,
 )
+from quality.engine.gate import lane_note
 from quality.engine.history import check_history
 from quality.engine.profiles import ProfileAdapter
+from quality.engine.ran import ran_rules
 from quality.engine.runs import SuiteFindings, suite_findings
 from quality.engine.scenarios import load_manifests, reconciled, required_at, stage_suites
 from quality.engine.scope import (
@@ -65,7 +64,8 @@ class Settings:
     """What a check needs besides the candidate.
 
     `reports` is a prepared directory that receives the exports and native
-    reports of the suites while the snapshot exists.
+    reports of the suites while the snapshot exists; `lane` is one lane of the
+    gate, None the complete check.
     """
 
     tools: Tools
@@ -76,6 +76,7 @@ class Settings:
     everything: bool = False
     stage: Stage = Stage.COMMIT
     reports: Path | None = None
+    lane: Lane | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,36 +89,6 @@ class Report:
     tested: tuple[str, ...] = ()
     coverage: tuple[ComponentCoverage, ...] = ()
     scenarios: tuple[ScenarioSummary, ...] = ()
-
-
-def _own_rules(profile: Profile, adapter: ProfileAdapter | None) -> frozenset[str]:
-    """Return the rules that run over a component's files only when it is checked."""
-    rules = adapter.rules if adapter is not None else ()
-    measured = () if profile in COMMON_MEASURED else MEASURED_RULES
-    return frozenset(rule.id for rule in (*rules, *measured))
-
-
-def ran_rules(
-    active: Iterable[Component], checked: Iterable[Component], profiles: Adapters
-) -> exceptions.Ran:
-    """Return the rules that ran and where, so unused exceptions are reliable.
-
-    The common gates run everywhere, and they measure every Python component. A
-    component's adapter rules, and the structure rules of profiles whose adapter
-    measures, ran only over the files of components that were checked.
-    """
-    active = tuple(active)
-    ran = {rule.id for rule in (*COMMON_RULES, *TOOL_RULES)}
-    if any(component.profile in COMMON_MEASURED for component in active):
-        ran.update(rule.id for rule in MEASURED_RULES)
-    done = {component.id for component in checked}
-    skipped: dict[str, frozenset[str]] = {}
-    for component in active:
-        own = _own_rules(component.profile, profiles.get(component.profile))
-        if component.id in done:
-            ran.update(own)
-        skipped[component.root] = frozenset() if component.id in done else own
-    return exceptions.Ran(frozenset(ran), skipped)
 
 
 def _static(component: Component, adapter: ProfileAdapter, scope: Scope) -> list[Diagnostic]:
@@ -172,26 +143,45 @@ def control_changes(scope: Scope, stage: Stage) -> list[Diagnostic]:
     return list(changed_control(scope.policy, ci, scope.inventory.files, scope.changes.paths))
 
 
+def lane_scope(scope: Scope, lane: Lane | None) -> Scope:
+    """Return the scope narrowed to the components a lane checks."""
+    active = tuple(component for component in scope.active if in_lane(component, lane))
+    selected = tuple(component for component in scope.selected if in_lane(component, lane))
+    return replace(scope, active=active, selected=selected)
+
+
+def candidate_gates(
+    repo: Repository, candidate: Candidate, scope: Scope, settings: Settings
+) -> tuple[list[Diagnostic], int]:
+    """Return the findings of the gates over the whole candidate and how many files they read.
+
+    The browser lane runs none of them, and counts the files of its components.
+    """
+    if settings.lane is Lane.BROWSER:
+        owned = {component.id for component in scope.active if component.in_browser}
+        return [], sum(1 for record in scope.inventory.files if record.component in owned)
+    snapshot, policy = scope.snapshot, scope.policy
+    limit = policy.thresholds.blob_bytes
+    found = candidate_files(snapshot.root, snapshot.entries, scope.inventory, limit)
+    common = common_gates(scope, found, tools=settings.tools, commands=settings.commands)
+    history = history_gates(repo, candidate, snapshot, settings.tools, limit)
+    _, expired = quarantine.current(policy.quarantine, settings.today)
+    control = control_changes(scope, settings.stage)
+    return [*scope.inventory.diagnostics, *common, *history, *control, *expired], len(found)
+
+
 def _inspect(repo: Repository, candidate: Candidate, settings: Settings) -> Report:
     with materialize(repo, candidate.tree) as snapshot:
         policy = checked_policy(snapshot.root, settings.rules)
         if isinstance(policy, tuple):
             return Report(policy)
-        scope = candidate_scope(repo, candidate, snapshot, policy, everything=settings.everything)
-        limit = policy.thresholds.blob_bytes
-        found = candidate_files(snapshot.root, snapshot.entries, scope.inventory, limit)
-        common = common_gates(scope, found, tools=settings.tools, commands=settings.commands)
-        history = history_gates(repo, candidate, snapshot, settings.tools, limit)
+        whole = candidate_scope(repo, candidate, snapshot, policy, everything=settings.everything)
+        scope = lane_scope(whole, settings.lane)
+        gates, files = candidate_gates(repo, candidate, whole, settings)
         manifests = load_manifests(repo, candidate.base_tree, scope)
-        held, expired = quarantine.current(policy.quarantine, settings.today)
-        gates = [
-            *scope.inventory.diagnostics,
-            *common,
-            *history,
-            *control_changes(scope, settings.stage),
-            *manifests.diagnostics,
-            *expired,
-        ]
+        held, _ = quarantine.current(policy.quarantine, settings.today)
+        browsers = (component.id for component in whole.active if component.in_browser)
+        gates.extend((*manifests.diagnostics, *lane_note(settings.lane, browsers)))
 
         def plan(component: Component) -> tuple[Suite, ...]:
             return stage_suites(manifests.subjects.get(component.id), settings.stage)
@@ -201,17 +191,18 @@ def _inspect(repo: Repository, candidate: Candidate, settings: Settings) -> Repo
         if settings.reports is not None:
             proved.extend(write_evidence(settings.reports, snapshot.root, findings.evidence))
         checked = [component for component, _ in ready]
+        common = settings.lane is not Lane.BROWSER
         applied = exceptions.apply_exceptions(
             [*gates, *profiled, *proved],
             policy.exceptions,
             rules=settings.rules,
-            ran=ran_rules(scope.active, checked, settings.profiles),
+            ran=ran_rules(whole.active, checked, settings.profiles, common=common),
             today=settings.today,
         )
     tested = tuple(component.id for component in checked)
     return Report(
         applied.diagnostics,
-        len(found),
+        files,
         applied.excepted,
         tested,
         tuple(findings.coverage),

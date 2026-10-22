@@ -23,7 +23,7 @@ its tests, the stdlib launcher, and locked development tooling.
 | `src/quality/scenarios` | Capability catalog, scenario manifests, static validation, proof from test results, and capability suggestions |
 | `src/quality/toolchain` | Pinned standalone tool manifest, verified installation, and `tools update` from vendor checksum files |
 | `src/quality/hooks` | Text, installation, and status of the managed Git hooks |
-| `src/quality/ci` | CI wrapper rules: workflow trust, the aggregate job, CODEOWNERS, control files, and the job-result verdict |
+| `src/quality/ci` | CI wrapper rules: workflow trust, the aggregate job, the lanes of the gate, CODEOWNERS, control files, and the job-result verdict |
 | `src/quality/template` | Template export: maintainer-only fences, left-out paths, and the new project's root commit |
 | `src/quality/engine` | Orchestration of `check`, `gate`, `audit`, history ranges, external links, test suites, fixes, bootstrap, and doctor |
 | `src/quality/catalog.py` | The registry of every rule the core can report |

@@ -1,8 +1,8 @@
 # 0018 Browser builds, scenarios, and CI
 
-Status: proposed (F00, 2026-10-22); the production build (F03), serving,
-the browser scenarios, and accessibility (F05) are implemented, and the CI
-job is not yet. It continues
+Status: accepted (F06, 2026-10-22); proposed in F00, with the production
+build implemented in F03, serving, the browser scenarios, and accessibility
+in F05, and the CI lanes in F06. It continues
 [decision 0017](0017-browser-frontend-profile.md) with what a browser
 component needs at the merge stage.
 
@@ -116,14 +116,43 @@ rules.
   unit suites with the floors, over the candidate index.
 - Merge stage: all of that again, plus the build, the Chromium scenarios,
   accessibility, the dependency audit, and the history checks.
-- `quality gate --stage merge` runs the whole path on any Linux machine.
+- `quality gate --stage merge` runs the whole path on any Linux machine; it
+  reads no provider variable.
 
-The workflow gets a `browser` job, and the aggregate requires it with `gate`
-and `audit`. The CLI, not the workflow, decides whether the candidate
-affects a browser component; the job always runs, installs the browser's
-system libraries only when the CLI says so, and passes with nothing to do
-otherwise, so a skipped or missing job still fails the aggregate. The GitLab
-wrapper mirrors it. Hosting settings are prepared, not applied.
+### Lanes
+
+CI runs the gate of one candidate in two required jobs, one lane each
+(`quality gate --lane main|browser`):
+
+| Lane | Checks |
+| --- | --- |
+| `main` | The common gates, the history checks, the changed control files, expired quarantine, and every active component that does not run in a browser |
+| `browser` | Every active browser component: its static checks, unit suites, build, end-to-end suites, and scenarios |
+
+Each component is in exactly one lane, and the gate without `--lane` is
+both. A lane names what it leaves to the other as `gate.lane` information,
+and `ci.lanes` fails a workflow whose required jobs run one lane but not the
+other. The browser lane judges exceptions only by the rules it ran, so an
+exception that only the main lane uses is not reported as unused there.
+
+The workflow's `browser` job always runs, without an `if`: the CLI, not the
+workflow, decides which components it checks, and without a browser
+component it passes with nothing to check. The aggregate requires `gate`,
+`browser`, and `audit`, so a failed, cancelled, skipped, or missing browser
+job fails it
+([decision 0015](0015-ci-wrappers-and-merge-gates.md#the-required-status)).
+Its reports are a separate artifact and its coverage baseline a separate
+cache key; neither decides the verdict.
+
+Chromium's system libraries are a host prerequisite, like PHP
+([decision 0002](0002-installation-strategy.md#prerequisites-documented-not-promised-away)):
+bootstrap checks them and fails with `typescript.browser-libraries`, but
+does not install them, because the system packages belong to the wrapper's
+environment. GitHub's Ubuntu 24.04 runners have them. The GitLab wrapper
+installs the set verified in its pinned Ubuntu 24.04 image for every job,
+and mirrors the lanes with one hidden job and a `QUALITY_LANE` variable.
+Neither wrapper's browser job has run on its host yet; hosting settings are
+prepared, not applied.
 
 ## Alternatives rejected
 

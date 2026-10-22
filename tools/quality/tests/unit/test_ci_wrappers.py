@@ -9,6 +9,7 @@ from typing import cast
 import pytest
 import yaml
 
+from quality.ci import job_verdict
 from quality.ci.aggregate import check_required
 from quality.ci.workflow import check_workflow, jobs, mapping, steps
 from quality.policy import load_policy
@@ -34,8 +35,15 @@ def lines(value: object) -> list[str]:
 
 
 def gitlab_jobs(document: Mapping[str, object]) -> dict[str, Mapping[str, object]]:
+    """Return the jobs GitLab runs, each merged over the hidden job it extends."""
     found = {name: mapping(job) for name, job in document.items()}
-    return {name: job for name, job in found.items() if job is not None and "script" in job}
+    tables = {name: job for name, job in found.items() if job is not None}
+    resolved: dict[str, Mapping[str, object]] = {}
+    for name, job in tables.items():
+        base = tables.get(str(job.get("extends")), {})
+        if not name.startswith(".") and "script" in {**base, **job}:
+            resolved[name] = {**base, **job}
+    return resolved
 
 
 def scripts(path: str) -> str:
@@ -47,7 +55,7 @@ def scripts(path: str) -> str:
     default = cast(Mapping[str, object], document["default"])
     found = lines(default.get("before_script"))
     for job in gitlab_jobs(document).values():
-        found.extend(lines(job.get("script")))
+        found.extend(line for line in lines(job.get("script")) if line not in found)
     return "\n".join(found)
 
 
@@ -65,14 +73,47 @@ def test_both_wrappers_call_the_same_entry_points(path: str) -> None:
     text = scripts(path)
     for entry in ENTRY_POINTS:
         assert entry in text, (path, entry)
-    # Each gate call names its revisions; the CLI reads no provider variable.
-    assert text.count('./quality gate "$@" --reports reports') == 1
+    # Each gate call names its revisions and lane; the CLI reads no provider variable.
+    calls = [line.strip() for line in text.splitlines() if "./quality gate" in line]
+    if path == GITHUB:
+        assert sorted(calls) == [
+            f'./quality gate "$@" --lane {lane} --reports reports' for lane in ("browser", "main")
+        ]
+    else:
+        assert calls == ['./quality gate "$@" --lane "$QUALITY_LANE" --reports reports']
+        lanes = {
+            name: cast(Mapping[str, object], job.get("variables", {})).get("QUALITY_LANE")
+            for name, job in gitlab_jobs(load(GITLAB)).items()
+        }
+        assert lanes == {"gate": "main", "browser": "browser", "audit": None}
+
+
+@pytest.mark.parametrize("result", ["failure", "cancelled", "skipped", None])
+def test_a_browser_job_that_did_not_succeed_fails_the_required_status(
+    result: str | None,
+) -> None:
+    policy = load_policy(TEMPLATE).policy
+    assert policy is not None
+    assert policy.ci is not None
+    required = jobs(load(GITHUB))[policy.ci.aggregate_job]
+    results = dict.fromkeys(cast(list[str], required["needs"]), "success")
+    assert "browser" in results
+    assert list(job_verdict(results, policy.ci.required_jobs)) == []
+    if result is None:
+        del results["browser"]
+    else:
+        results["browser"] = result
+    [finding] = job_verdict(results, policy.ci.required_jobs)
+    assert (finding.rule, finding.data["symbol"]) == (
+        "ci.job-missing" if result is None else "ci.job-failed",
+        "browser",
+    )
 
 
 def test_the_gitlab_wrapper_has_no_optional_job_and_a_pinned_image() -> None:
     document = load(GITLAB)
     found = gitlab_jobs(document)
-    assert set(found) == {"gate", "audit"}
+    assert set(found) == {"gate", "browser", "audit"}
     for job in found.values():
         assert "allow_failure" not in job
         assert "rules" not in job

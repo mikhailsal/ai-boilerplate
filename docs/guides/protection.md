@@ -10,14 +10,16 @@ and what it cannot protect against. The mechanics are in
 
 | File | Role |
 | --- | --- |
-| [`.github/workflows/quality.yml`](../../.github/workflows/quality.yml) | Runs `gate` and `audit`; its job `required` is the one status to require |
+| [`.github/workflows/quality.yml`](../../.github/workflows/quality.yml) | Runs both lanes of `gate`, in the jobs `gate` and `browser`, and `audit`; its job `required` is the one status to require |
 | [`.github/CODEOWNERS`](../../.github/CODEOWNERS) | Owners of every file, with the control files listed last |
 | [`.github/rulesets/main.json`](../../.github/rulesets/main.json) | A branch ruleset for the default branch, ready to import |
 | [`quality.toml`](../../quality.toml) `[ci]` | The workflow, the aggregate job, and the jobs it requires |
 | [`ci/gitlab/quality.gitlab-ci.yml`](../../ci/gitlab/quality.gitlab-ci.yml) | The GitLab reference wrapper |
 
 `quality check` keeps these consistent: the workflow must satisfy the `ci.*`
-rules, and every control file needs a code owner. A derived repository
+rules, and every control file needs a code owner. A browser component's
+build, test, lint, and TypeScript configuration, its package manifest and
+lockfile, and its scenario manifest are control files too. A derived repository
 replaces `@mikhailsal` in CODEOWNERS with its own users or teams.
 
 ## The ruleset
@@ -66,8 +68,8 @@ gh api repos/OWNER/REPO/rulesets
 ```
 
 Then prove it: a direct push to `main` must be rejected, and a pull request
-whose `gate` job fails must show `required` as failed and the merge button
-blocked. Until someone has observed this, record the protection as
+whose `gate` or `browser` job fails must show `required` as failed and the
+merge button blocked. Until someone has observed this, record the protection as
 unverified.
 
 ## GitLab
