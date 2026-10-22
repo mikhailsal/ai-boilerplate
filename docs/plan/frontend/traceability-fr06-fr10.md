@@ -25,11 +25,11 @@ Continued from [FR01–FR05](traceability.md), with the same status values.
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| FR08.1 | Commit stage: common gates, static checks, type check, unit suites with 80/70/90 over the index | F04, F06 | [F04](F04.md): `acceptance/test_browser_units.py`, `test_browser_candidate.py` (the hook of a commit of named paths); the stage matrix: planned (F06) | IN_PROGRESS |
-| FR08.2 | Merge stage: all of that again, build, Chromium scenarios, accessibility, audit, history | F05, F06 | [F05](F05.md): `quality gate --stage merge` in `acceptance/test_browser_runs.py` with its native evidence; the stage matrix: planned (F06) | IN_PROGRESS |
+| FR08.1 | Commit stage: common gates, static checks, type check, unit suites with 80/70/90 over the index | F04, F06 | [F04](F04.md): `acceptance/test_browser_units.py`, `test_browser_candidate.py` (the hook of a commit of named paths); [F06](F06.md): both lanes at the commit stage in `engine/test_lanes.py`, the stage table of decision 0018 | DONE |
+| FR08.2 | Merge stage: all of that again, build, Chromium scenarios, accessibility, audit, history | F05, F06 | [F05](F05.md): `quality gate --stage merge` in `acceptance/test_browser_runs.py` with its native evidence; [F06](F06.md): the browser lane at the merge stage on the host and in the pinned Ubuntu image | DONE |
 | FR08.3 | Maintainer validation: helper gates, frontend acceptance, and regression acceptance of the base profiles | F06, F08 | Planned: the F08 merge gate | TODO |
-| FR08.4 | Full validation outside CI; thin wrappers; a failed, cancelled, missing, or skipped frontend job fails the aggregate | F06 | Planned: `ci/test_verdict.py`, wrapper tests | TODO |
-| FR08.5 | Browser jobs only for relevant scopes; the maintainer repository exercises them; control files cover the new settings; hosting prepared only | F06 | Planned: wrapper and control tests | TODO |
+| FR08.4 | Full validation outside CI; thin wrappers; a failed, cancelled, missing, or skipped frontend job fails the aggregate | F06 | [F06](F06.md): `ci/test_verdict.py`, `ci/test_lanes.py`, `test_ci_wrappers.py` (the real policy and workflow with each result of the `browser` job), scenario `browser-lanes` without provider variables, the container run | DONE |
+| FR08.5 | Browser jobs only for relevant scopes; the maintainer repository exercises them; control files cover the new settings; hosting prepared only | F06 | [F06](F06.md): the browser lane checks only active browser components, here `example-web`; `ci/test_control.py` (the browser settings), `ci.lanes`; hosting prepared, not observed | DONE |
 
 ## FR09 Quality of the extension
 
@@ -69,5 +69,5 @@ proof unchanged.
 | R06.1–R06.11 | Per browser component, unchanged floors and evidence rules | F04 | DONE |
 | R07.1 | Compatible versions from primary sources: [decision 0017](../../decisions/0017-browser-frontend-profile.md#versions) | F00 | DONE |
 | R08.1–R08.7 | The `ui` capability of a browser component, the scenario boundary, and viewports | F05 | DONE |
-| R09.1–R09.8 | The `browser` job in the wrappers and the aggregate | F06 | TODO |
+| R09.1–R09.8 | The `browser` job in the wrappers and the aggregate | F06 | DONE |
 | R10.1–R10.7 | Export, documentation, regressions, and the handoff | F07, F08 | TODO |

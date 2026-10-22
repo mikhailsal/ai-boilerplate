@@ -12,9 +12,9 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 - Base: `BASE_COMPLETE_SHA` is
   `dfb232208b41f8423bd74c5e1724865f199aa455` (see the
   [F00 record](docs/plan/frontend/F00.md#base))
-- Current phase: F06
-- Next action: the stage matrix and the `browser` job of the CI wrappers
-  (F06)
+- Current phase: F07
+- Next action: the frontend Quick start from a fresh export and the
+  repository variants (F07)
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`
 - A box is checked only after its implementation commit exists and its checks
   ran; the phase record holds the SHA and the evidence.
@@ -29,7 +29,7 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 | [x] | F03 Implement static checks and production building | DONE | [F03](docs/plan/frontend/F03.md) |
 | [x] | F04 Implement component unit coverage in the strict commit gate | DONE | [F04](docs/plan/frontend/F04.md) |
 | [x] | F05 Implement production browser scenarios and accessibility | DONE | [F05](docs/plan/frontend/F05.md) |
-| [ ] | F06 Integrate the existing CLI and portable CI | TODO | |
+| [x] | F06 Integrate the existing CLI and portable CI | DONE | [F06](docs/plan/frontend/F06.md) |
 | [ ] | F07 Prove reuse and publish bounded local documentation | TODO | |
 | [ ] | F08 Complete regression verification and handoff | TODO | |
 
@@ -86,8 +86,8 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 
 ### F06
 
-- [ ] Stage matrix, reports, the `browser` job, and the aggregate
-- [ ] GitHub and GitLab wrappers and control files; verdict tests
+- [x] Stage matrix, reports, the `browser` job, and the aggregate
+- [x] GitHub and GitLab wrappers and control files; verdict tests
 
 ### F07
 
