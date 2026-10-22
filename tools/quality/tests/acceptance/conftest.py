@@ -1,6 +1,6 @@
 import os
 import shutil
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Generator, Iterable, Mapping
 from pathlib import Path
 
 import pytest
@@ -17,11 +17,15 @@ from quality.testkit.scratch import (
     shared_caches,
     typescript,
 )
+from quality.testkit.slots import held
 from quality.toolchain import load_manifest
 
 # Each of these runs several whole gates, so they go to the workers first
 # instead of finishing last; the sort is stable, so every worker agrees.
 LONGEST = frozenset({"test_template.py", "test_frontend_start.py"})
+# Their gates run nested suites on every CPU, so at most one runs per two CPUs;
+# seven at once on eight CPUs let a commit outlast the scratch timeout.
+WHOLE_GATES = max(1, (os.cpu_count() or 1) // 2)
 TEMPLATE = Path(__file__).resolve().parents[4]
 # What a clone of the template leaves out: Git data and installed packages.
 INSTALLED = shutil.ignore_patterns(
@@ -31,6 +35,18 @@ INSTALLED = shutil.ignore_patterns(
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     items.sort(key=lambda item: item.path.name not in LONGEST)
+
+
+@pytest.fixture(autouse=True)
+def _whole_gate_slot(
+    request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
+) -> Generator[None]:
+    """Hold a slot shared by the pytest-xdist workers while a test of `LONGEST` runs."""
+    if "PYTEST_XDIST_WORKER" not in os.environ or request.path.name not in LONGEST:
+        yield
+        return
+    with held(tmp_path_factory.getbasetemp().parent / "whole-gates", WHOLE_GATES):
+        yield
 
 
 def _link_or_copy(source: str, target: str) -> None:
