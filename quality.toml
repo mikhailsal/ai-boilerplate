@@ -216,3 +216,21 @@ symbol = "noqa: A002 - argparse keyword"
 reason = "The protocol mirrors argparse's add_parser keyword argument named `help`."
 owner = "quality-core maintainers"
 review = 2027-04-20
+
+# No braces release fixes GHSA-vfj7-8cjw-p6xm yet. Stylelint's micromatch is
+# the only package that loads braces, with the repository's own lint globs.
+[[exceptions]]
+rule = "dependencies.vulnerable"
+path = "examples/web/package-lock.json"
+symbol = "GHSA-vfj7-8cjw-p6xm"
+reason = "No fixed braces exists; only Stylelint expands braces, in globs that the repository writes."
+owner = "quality-core maintainers"
+expires = 2027-01-22
+
+[[exceptions]]
+rule = "dependencies.vulnerable"
+path = "tools/quality/src/quality/testkit/browserseed/package-lock.json"
+symbol = "GHSA-vfj7-8cjw-p6xm"
+reason = "No fixed braces exists; only Stylelint expands braces, in globs that the repository writes."
+owner = "quality-core maintainers"
+expires = 2027-01-22

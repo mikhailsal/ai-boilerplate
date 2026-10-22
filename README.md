@@ -80,7 +80,10 @@ listed in the
 The commit runs the static checks and the unit suites with their coverage
 floors; the last command, like the merge stage, also builds the application
 and proves its scenarios in Chromium. Then replace the pages, tests, and
-scenarios with your own.
+scenarios with your own. The `audit` job of CI matches the copied lockfile
+against current advisories; one without a fixed release needs a dated
+exception for your copy too, like those in [`quality.toml`](quality.toml)
+for the reference application ([exceptions guide](docs/guides/exceptions.md)).
 
 The same commands add a frontend to a project that already has components,
 such as a TypeScript Node service registered like the library above, and
