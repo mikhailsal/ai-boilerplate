@@ -12,11 +12,11 @@ Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`.
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| FR01.1 | Language, target, framework, bundler, ownership, and capabilities explicit in the existing schema | F01 | Planned: `policy/test_load.py`, `policy/test_validate.py`, the regenerated schema | TODO |
+| FR01.1 | Language, target, framework, bundler, ownership, and capabilities explicit in the existing schema | F01 | [F01](F01.md): `policy/test_browser.py`, the regenerated schema | DONE |
 | FR01.2 | React rules, DOM globals, transforms, and test environments only in browser components | F01, F03, F04 | Planned: unit tests of the wrappers per target; a mixed acceptance repository | TODO |
-| FR01.3 | React/Vite recognized from manifests, configuration, and explicit registration; ambiguity and unsupported frameworks reported | F01, F02 | Planned: `cli/test_component_cmd.py` cases | TODO |
-| FR01.4 | Discovery separate from the core, dormant adapters, and fixtures; a shipped example activates nothing; active or modified helpers are checked | F01 | Planned: `discovery/test_activation.py`, `engine/test_setup.py` | TODO |
-| FR01.5 | Existing configurations keep their meaning; no rewrite of user scripts or tsconfigs | F01 | Planned: the existing policy and acceptance suites unchanged | TODO |
+| FR01.3 | React/Vite recognized from manifests, configuration, and explicit registration; ambiguity and unsupported frameworks reported | F01, F02 | [F01](F01.md): `discovery/test_frontend.py`, `cli/test_component_cmd.py` | DONE |
+| FR01.4 | Discovery separate from the core, dormant adapters, and fixtures; a shipped example activates nothing; active or modified helpers are checked | F01 | [F01](F01.md): `discovery/test_activation.py`, `engine/test_setup.py`, `ci/test_control.py` | DONE |
+| FR01.5 | Existing configurations keep their meaning; no rewrite of user scripts or tsconfigs | F01 | [F01](F01.md): the existing policy and acceptance suites passed unchanged | DONE |
 
 ## FR02 Setup and startup
 

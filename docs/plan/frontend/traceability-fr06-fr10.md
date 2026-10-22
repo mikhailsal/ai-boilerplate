@@ -57,11 +57,11 @@ proof unchanged.
 | IDs | Effect of the extension | Phases | Status |
 | --- | --- | --- | --- |
 | R01.1, R07.3, R07.4, R07.9 | The TypeScript profile gains the browser target; the four Tier 1 profiles are proven again | F03–F05, F08 | TODO |
-| R01.2 | Unsupported frontend frameworks and variants are reported like Flutter | F01 | TODO |
-| R01.4 | The `example` role and activation by target | F01 | TODO |
+| R01.2 | Unsupported frontend frameworks and variants are reported like Flutter | F01 | DONE |
+| R01.4 | The `example` role and activation by target | F01 | DONE |
 | R01.6 | The core adds no package manager or framework; Vite, Playwright Test, and Stylelint are the ecosystem's tools that FR02 requires, installed by npm from the lock | F02 | TODO |
 | R01.7, R01.8 | New helper and core code at the component floors; mocked unit tests plus real acceptance | All | TODO |
-| R02.1, R02.4, R02.5 | `component add --target`; the pinned browser with checksums, set up only for active browser components | F01, F02 | TODO |
+| R02.1, R02.4, R02.5 | `component add --target`; the pinned browser with checksums, set up only for active browser components | F01, F02 | IN_PROGRESS |
 | R02.2 | Generated Vite and Playwright wrappers override what decides the verdict | F03, F05 | TODO |
 | R03.1–R03.11 | Snapshot and revision semantics proven with frontend files | F04, F05 | TODO |
 | R04.1–R04.7 | Limits unchanged; formatter and lint sets extend to CSS and HTML; asset blob and secret checks; browser/server boundaries | F03 | TODO |

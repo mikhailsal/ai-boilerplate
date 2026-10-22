@@ -12,9 +12,9 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 - Base: `BASE_COMPLETE_SHA` is
   `dfb232208b41f8423bd74c5e1724865f199aa455` (see the
   [F00 record](docs/plan/frontend/F00.md#base))
-- Current phase: F01
-- Next action: commit the policy schema, activation of examples,
-  `component add --target`, and the explicit browser finding (F01)
+- Current phase: F02
+- Next action: commit the browser package pins, the pinned Chromium, and
+  its provisioning and report in bootstrap and doctor (F02)
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`
 - A box is checked only after its implementation commit exists and its checks
   ran; the phase record holds the SHA and the evidence.
@@ -24,7 +24,7 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 | Done | Phase | Status | Record |
 | --- | --- | --- | --- |
 | [x] | F00 Verify the completed base and establish the extension plan | DONE | [F00](docs/plan/frontend/F00.md) |
-| [ ] | F01 Extend the schema and register the browser variant | TODO | |
+| [x] | F01 Extend the schema and register the browser variant | DONE | [F01](docs/plan/frontend/F01.md) |
 | [ ] | F02 Prepare the frontend environment and startup operations | TODO | |
 | [ ] | F03 Implement static checks and production building | TODO | |
 | [ ] | F04 Implement component unit coverage in the strict commit gate | TODO | |
@@ -46,20 +46,18 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 
 ### F01
 
-- [ ] `target`, `framework`, `bundler`, the browser table, and the `example`
+- [x] `target`, `framework`, `bundler`, the browser table, and the `example`
   role in the policy schema, with validation and no migration
-- [ ] Activation and discovery tests: browser versus Node, ambiguity,
+- [x] Activation and discovery tests: browser versus Node, ambiguity,
   ownership, dormant and modified examples and helpers
-- [ ] `component add --target` with React/Vite recognition, ambiguity, and
+- [x] `component add --target` with React/Vite recognition, ambiguity, and
   unsupported frameworks
-- [ ] A browser component fails explicitly until its checks exist
+- [x] A browser component fails explicitly until its checks exist
 
 ### F02
 
 - [ ] Browser package pins and the pinned Chromium; bootstrap and doctor
   report the browser and its Linux libraries
-- [ ] The registration steps of the frontend Quick start, before the CLI is
-  on `PATH`
 - [ ] Tests: idempotence, missing prerequisites, browser mismatch, preserved
   user configuration and hooks
 
@@ -93,6 +91,8 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 
 - [ ] Fresh export, frontend Quick start, repeated bootstrap, adding a
   frontend; Node-only, frontend-only, two frontends, mixed
+- [ ] The registration steps of the frontend Quick start, before the CLI is
+  on `PATH`
 - [ ] Documentation within the limits
 
 ### F08
