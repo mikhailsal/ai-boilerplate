@@ -1,4 +1,5 @@
-// The `structure` command: function metrics and resolved imports per file.
+// The `structure` command: function metrics and resolved imports per file;
+// the `imports` command: the resolved imports alone.
 
 import { readFileSync } from "node:fs";
 import type * as ts from "typescript";
@@ -28,6 +29,10 @@ export interface FileReport {
 
 export interface StructureResponse {
   readonly files: readonly FileReport[];
+}
+
+export interface ImportsResponse {
+  readonly files: readonly Omit<FileReport, "functions">[];
 }
 
 type OptionsOf = (file: string) => ts.CompilerOptions;
@@ -120,4 +125,11 @@ export function runStructure(request: JsonObject): StructureResponse {
   const files = pathList(request, "files");
   const optionsOf = optionsLookup(api, tsconfig);
   return { files: files.map((file) => report(api, file, optionsOf)) };
+}
+
+export function runImports(request: JsonObject): ImportsResponse {
+  const { files } = runStructure(request);
+  return {
+    files: files.map(({ file, imports, error }) => ({ file, imports, error })),
+  };
 }

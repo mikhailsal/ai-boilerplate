@@ -5,6 +5,7 @@ import {
   field,
   isRecord,
   optionalPath,
+  optionalStrings,
   parseRequest,
   pathList,
   RequestError,
@@ -42,6 +43,17 @@ test("a path list holds absolute paths only", () => {
     '"files" is not a list of absolute paths',
   );
   expect(() => pathList({ files: ["/a", "b"] }, "files")).toThrow(RequestError);
+});
+
+test("an optional string list may be left out", () => {
+  expect(optionalStrings({ rules: ["a", "b"] }, "rules")).toEqual(["a", "b"]);
+  expect(optionalStrings({}, "rules")).toEqual([]);
+  expect(() => optionalStrings({ rules: "a" }, "rules")).toThrow(
+    '"rules" is not a list of strings',
+  );
+  expect(() => optionalStrings({ rules: ["a", 1] }, "rules")).toThrow(
+    RequestError,
+  );
 });
 
 test("records, fields, and error messages", () => {

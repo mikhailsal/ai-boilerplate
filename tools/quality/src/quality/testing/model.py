@@ -107,7 +107,9 @@ class StaticRequest:
 
     `files` are the component's source and test files; `configs` are its
     configuration files written in a programming language, such as
-    `eslint.config.js`, which formatters check too. Paths are repository paths.
+    `eslint.config.js`, which formatters check too; `resources` are its other
+    files except generated ones, such as stylesheets, HTML, images, and data.
+    Paths are repository paths.
     """
 
     component: Component
@@ -115,6 +117,7 @@ class StaticRequest:
     work: Path
     files: tuple[str, ...]
     configs: tuple[str, ...] = ()
+    resources: tuple[str, ...] = ()
 
     @property
     def directory(self) -> Path:

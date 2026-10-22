@@ -1,8 +1,9 @@
 # 0017 Browser frontend profile
 
-Status: proposed (F00, 2026-10-22). The phases of the frontend extension
-implement it; until a section says it is implemented, a component that needs
-it fails with an explicit finding instead of passing.
+Status: proposed (F00, 2026-10-22); the static checks are implemented (F03).
+The phases of the frontend extension implement it; until a section says it is
+implemented, a component that needs it fails with an explicit finding instead
+of passing.
 
 ## Scope
 
@@ -141,30 +142,58 @@ its path.
 
 ## Static checks
 
-- Prettier formats TS/TSX, CSS, and the HTML entry points; typed ESLint
-  runs as for Node components.
-- The helper verifies that every browser source file has
-  `react-hooks/rules-of-hooks`, `react-hooks/exhaustive-deps`, and the
-  selected `jsx-a11y-x` rules enabled, and every test file
-  `@typescript-eslint/no-floating-promises`, which rejects an unawaited
-  user-event call.
-- `tsc` runs through the helper over the solution `tsconfig.json` and its
-  references, so an empty solution file cannot skip the app or test
-  projects; a type error that Vite would still transpile fails.
+Implemented. They run in every check of a browser component, and the
+component still fails with `typescript.browser-incomplete` beside their
+findings.
+
+- Prettier checks the TS/TSX files, the configuration scripts, the CSS
+  files, and the declared HTML entry points; a page Prettier cannot parse is
+  a `typescript.format` finding. `quality fix` formats them too; it reads no
+  policy, so it also formats the CSS of a component nested below the root.
+  Stylelint findings are left to the check.
+- Typed ESLint runs as for Node components. The helper's `eslint-config`
+  command also returns the severity of each requested rule for each file, so
+  every browser source file must enable `react-hooks/rules-of-hooks` and
+  `react-hooks/exhaustive-deps`, every TSX/JSX source file the 18
+  `jsx-a11y-x` rules of `ACCESSIBILITY` in
+  `tools/quality/src/quality/adapters/typescript/browser.py`, and every test
+  file `@typescript-eslint/no-floating-promises`, which rejects an unawaited
+  user-event call. Warning or error enables a rule, because the gate fails on
+  every ESLint message.
+- `tsc` runs through the helper over `tsconfig.json` and its references,
+  as for Node components, so a type error that Vite would still transpile
+  fails `typescript.types`.
 - The base structure limits apply unchanged. JSX element depth is not
   control-flow nesting, and render functions are measured like any other.
-- Import boundaries: browser source files may not import Node builtins or the
-  declared server-only modules and packages, resolved through the
-  component's tsconfig paths; the build adds the transitive check.
-  Configuration files such as `vite.config.ts` keep their Node environment.
-- Stylelint with the standard and CSS Modules configurations checks authored
-  CSS; a `stylelint-disable` comment is an inline suppression like any other.
-  A Sass, Less, or Stylus file is an unsupported variant.
-- Declared HTML entry points must exist, and their scripts, styles, and
-  icons must resolve to files of the candidate.
-- CSS, HTML, SVG, images, and `public/` files are assets: they keep the blob,
-  secret, and path checks and get no coverage counters. Source maps and build
-  output are generated files.
+- Import boundaries (`typescript.boundaries`): the helper's `imports`
+  command resolves every import of the browser source files with the
+  component's tsconfig, `paths` included, and marks Node builtins and
+  type-only imports. A browser source file may not import a Node builtin, a
+  file that matches `server_modules` (globs relative to the component root),
+  or a package in `server_packages`. `import type` and `export type` load
+  nothing and are allowed; `import { type X }` is a runtime import. Tests,
+  configuration scripts such as `vite.config.ts`, and the server modules
+  keep their Node environment; what packages import is the build's check.
+- Stylelint (`typescript.styles`) checks every CSS file with a configuration
+  the gate writes into the work area: it extends
+  `stylelint-config-standard`, `stylelint-config-css-modules`, and then the
+  component's `.stylelintrc*` or `stylelint.config.*`, so the baseline cannot
+  be left out. A `stylelint` field in `package.json` is a finding instead of
+  being ignored. Ignore files do not apply, an ignored file, an invalid option,
+  and a needless or invalid-scope disable comment fail, and every warning is
+  an error. A `stylelint-disable` or `prettier-ignore` comment in CSS, and a
+  `prettier-ignore` comment in HTML, is a `suppressions.inline` finding like
+  any other marker. A Sass, Less, or Stylus file is an unsupported variant.
+- Entry points (`typescript.entries`): each declared entry must be a file of
+  the candidate, and each script `src` and stylesheet, icon, manifest, and
+  preload `href` must resolve to a file of the component as Vite resolves
+  it: `/path` from the root or `public/`, other paths from the page's
+  directory. A `data:` URL is inline; another origin fails, and so does a
+  `%VITE_*%` value that `public_env` does not declare.
+- Classification: `dist/` at a browser component's root is generated output
+  and `public/` holds assets, outside its source and test roots; source maps
+  are generated everywhere. CSS, HTML, SVG, and images are assets: they keep
+  the blob, secret, and path checks and get no coverage counters.
 
 ## Unit tests and coverage
 

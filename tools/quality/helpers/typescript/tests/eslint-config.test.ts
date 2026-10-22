@@ -58,6 +58,7 @@ test("each file is described by the configuration ESLint computes for it", async
       ignored,
       typed,
       parser,
+      rules: [],
     })),
   );
 });
@@ -77,5 +78,39 @@ test("the default parser of a JavaScript file has no meta name", async () => {
     ignored: false,
     typed: false,
     parser: null,
+    rules: [],
   });
+});
+
+const RULES = `const rule = { create: () => ({}) };
+const plugin = { rules: { a: rule, b: rule, c: rule, d: rule } };
+
+export default [
+  {
+    files: ["**/*.ts"],
+    plugins: { p: plugin },
+    rules: { "p/a": "error", "p/b": ["warn"], "p/c": "off", "p/d": 2 },
+  },
+  { files: ["tests/**"], rules: { "p/a": "off" } },
+];
+`;
+
+test("each requested rule is reported with the severity the file gets", async () => {
+  const root = project({ "eslint.config.js": RULES });
+  const files = [join(root, "src/a.ts"), join(root, "tests/a.ts")];
+  const rules = ["p/a", "p/b", "p/c", "p/d", "p/missing"];
+  const response = await runEslintConfig({
+    protocol: 1,
+    eslint: HELPER,
+    cwd: root,
+    files,
+    rules,
+  });
+  const severities = response.files.map((file) =>
+    file.rules.map(({ rule, severity }) => `${rule}=${String(severity)}`),
+  );
+  expect(severities).toEqual([
+    ["p/a=2", "p/b=1", "p/c=0", "p/d=2", "p/missing=0"],
+    ["p/a=0", "p/b=1", "p/c=0", "p/d=2", "p/missing=0"],
+  ]);
 });

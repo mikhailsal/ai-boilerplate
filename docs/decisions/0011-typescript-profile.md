@@ -125,7 +125,9 @@ like the Python runner.
 `./quality fix` runs `prettier --write` and `eslint --fix` in a temporary copy
 of the component with an offline install, over the same files as the check,
 then copies back each changed file whose working-tree content is still the
-copied one. It never stages anything.
+copied one. It never stages anything. For a browser component it also
+formats the CSS files and HTML entry points
+([decision 0017](0017-browser-frontend-profile.md#static-checks)).
 
 ## Residual risks
 

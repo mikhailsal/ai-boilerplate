@@ -10,7 +10,7 @@ import {
   RequestError,
   type JsonObject,
 } from "./protocol.ts";
-import { runStructure } from "./structure.ts";
+import { runImports, runStructure } from "./structure.ts";
 import { runTypes } from "./typecheck.ts";
 
 export interface Io {
@@ -22,6 +22,7 @@ type Command = (request: JsonObject) => object | Promise<object>;
 
 const COMMANDS = new Map<string, Command>([
   ["structure", runStructure],
+  ["imports", runImports],
   ["types", runTypes],
   ["eslint-config", runEslintConfig],
 ]);

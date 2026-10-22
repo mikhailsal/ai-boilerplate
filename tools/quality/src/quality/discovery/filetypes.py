@@ -19,6 +19,7 @@ class FileKind(StrEnum):
     DOC = "doc"
     CONFIG = "config"
     ASSET = "asset"
+    GENERATED = "generated"
     UNKNOWN = "unknown"
 
 
@@ -83,8 +84,16 @@ CONFIG_NAME_PATTERN = re.compile(r"^(?:requirements|constraints)[\w.-]*\.(?:txt|
 ASSET_EXTENSIONS = frozenset(
     {".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp", ".bmp", ".tif", ".tiff", ".avif"}
     | {".woff", ".woff2", ".ttf", ".otf", ".eot", ".mp3", ".mp4", ".wav", ".ogg", ".webm"}
-    | {".pdf", ".csv", ".tsv", ".css", ".scss", ".sass", ".less", ".html", ".htm"}
+    | {".pdf", ".csv", ".tsv", ".css", ".scss", ".sass", ".less", ".styl", ".html", ".htm"}
 )
+# Source maps are written by compilers and bundlers only.
+GENERATED_EXTENSIONS = frozenset({".map"})
+# The extension sets are disjoint, so one table holds the kinds without a language.
+SUFFIX_KINDS = {
+    **dict.fromkeys(CONFIG_EXTENSIONS, FileKind.CONFIG),
+    **dict.fromkeys(ASSET_EXTENSIONS, FileKind.ASSET),
+    **dict.fromkeys(GENERATED_EXTENSIONS, FileKind.GENERATED),
+}
 INTERPRETERS = {
     "python": "python",
     "node": "javascript",
@@ -135,11 +144,8 @@ def _by_name(name: str) -> FileType | None:
         return FileType(FileKind.CODE, CODE_EXTENSIONS[suffix])
     if suffix in DOC_EXTENSIONS or (not suffix and name.upper() in DOC_STEMS):
         return FileType(FileKind.DOC)
-    if suffix in CONFIG_EXTENSIONS:
-        return FileType(FileKind.CONFIG)
-    if suffix in ASSET_EXTENSIONS:
-        return FileType(FileKind.ASSET)
-    return None
+    kind = SUFFIX_KINDS.get(suffix)
+    return None if kind is None else FileType(kind)
 
 
 def detect(path: str, head: bytes = b"") -> FileType:

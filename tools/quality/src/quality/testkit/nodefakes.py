@@ -15,7 +15,7 @@ from pathlib import Path
 
 from quality.adapters.typescript.environment import NPM_CLI, Node
 from quality.policy import Component
-from quality.testkit.policies import ComponentSpec, build_policy
+from quality.testkit.policies import ComponentSpec, browser_spec, build_policy
 
 PINS = {
     "typescript": "6.0.3",
@@ -37,13 +37,9 @@ def typescript_component(root: str = "app") -> Component:
     return found
 
 
-def browser_component(root: str = "web") -> Component:
+def browser_component(root: str = "web", extra: str = "") -> Component:
     """Return a React + Vite browser component `web` rooted at `root` (decision 0017)."""
-    stack = 'target = "browser"\nframework = "react"\nbundler = "vite"'
-    spec = ComponentSpec(
-        id="web", root=root, profile="typescript", capabilities=("ui",), extra=stack
-    )
-    (found,) = build_policy(spec).components
+    (found,) = build_policy(browser_spec(root=root, extra=extra)).components
     return found
 
 

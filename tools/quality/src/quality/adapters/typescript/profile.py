@@ -3,7 +3,11 @@
 Every tool runs on the pinned Node with the packages the component locks, which
 `prepare` installs offline once per lockfile directory and work area. The gates
 run on the TypeScript files of the inventory; Prettier also checks the
-component's configuration scripts. One failing tool does not stop the others.
+component's configuration scripts. A browser component gets the browser gates
+as well (decision 0017): its CSS and HTML entry points are formatted, its
+ESLint configuration must enable the browser rules, and its imports,
+stylesheets, and entry points are checked. One failing tool does not stop the
+others.
 """
 
 from __future__ import annotations
@@ -14,7 +18,18 @@ from pathlib import Path
 
 from quality.adapters import native
 from quality.adapters.target import Target
-from quality.adapters.typescript import browser, chromium, config, eslint, prettier, typecheck
+from quality.adapters.typescript import (
+    boundaries,
+    browser,
+    chromium,
+    config,
+    entries,
+    eslint,
+    prettier,
+    stylelint,
+    typecheck,
+)
+from quality.adapters.typescript.browser import BrowserFiles, browser_files
 from quality.adapters.typescript.config import NativeConfig, check_config, typescript_files
 from quality.adapters.typescript.environment import Environments, Node, tool_script
 from quality.adapters.typescript.helper import HELPER
@@ -31,6 +46,9 @@ RULES = (
     *prettier.RULES,
     *eslint.RULES,
     *typecheck.RULES,
+    *boundaries.RULES,
+    *stylelint.RULES,
+    *entries.RULES,
     *browser.RULES,
     *chromium.RULES,
 )
@@ -69,9 +87,6 @@ class TypeScriptProfile:
 
     def prepare(self, component: Component, snapshot: Path, work: Path) -> list[Diagnostic]:
         """Check the configuration; only an accepted one gets its packages installed."""
-        incomplete = browser.unsupported(component)
-        if incomplete:
-            return incomplete
         settings, report = check_config(component, snapshot, self.pins)
         if settings is None or report.found:
             return report.found
@@ -90,12 +105,14 @@ class TypeScriptProfile:
         return tool_script(name, directory, top, self.pins[name])
 
     def static(self, request: StaticRequest) -> list[Diagnostic]:
-        """Run the formatter, linter, and type checker on the component's TypeScript files."""
+        """Run the formatter, linter, and type checker, and a browser component's own gates."""
         component, work = request.component, request.work
         prepared = self._ready(component, work)
+        web = browser_files(request) if component.in_browser else None
         found = config.javascript(component, request.files)
         checked = Target(component, request.snapshot, typescript_files(request.files))
-        formatted = Target(component, request.snapshot, (*checked.files, *request.configs))
+        pages = () if web is None else (*web.styles, *(p for p in web.entries if p in web.owned))
+        formatted = Target(component, request.snapshot, (*checked.files, *request.configs, *pages))
         node, home = prepared.node, work / "typescript-home" / component.id
 
         def formatting() -> list[Diagnostic]:
@@ -104,7 +121,11 @@ class TypeScriptProfile:
 
         def linting() -> list[Diagnostic]:
             problems = eslint.eslint_configuration(
-                checked, node=node, work=work, program=self.helper
+                checked,
+                node=node,
+                work=work,
+                program=self.helper,
+                required=None if web is None else web.required_rules(),
             )
             script = self._script("eslint", prepared, request.directory)
             return problems + eslint.eslint_lint(checked, node=node, script=script, work=home)
@@ -118,7 +139,34 @@ class TypeScriptProfile:
                     checked, node=node, work=work, program=self.helper
                 )
             )
+        if web is not None:
+            found += self._browser(request, prepared, web)
         return found
+
+    def _browser(
+        self, request: StaticRequest, prepared: Prepared, web: BrowserFiles
+    ) -> list[Diagnostic]:
+        component, snapshot, work = request.component, request.snapshot, request.work
+        node = prepared.node
+        found = stylelint.unsupported_variants(component, web.variants)
+        found += entries.check_entries(component, snapshot, web.entries, web.owned)
+
+        def styles() -> list[Diagnostic]:
+            script = self._script("stylelint", prepared, request.directory)
+            styled = Target(component, snapshot, web.styles)
+            home = work / "typescript-home" / component.id
+            return stylelint.stylelint_styles(styled, node=node, script=script, work=home)
+
+        if web.sources:
+            sources = Target(component, snapshot, web.sources)
+            found += _findings(
+                lambda: boundaries.import_boundaries(
+                    sources, node=node, work=work, program=self.helper
+                )
+            )
+        if web.styles:
+            found += _findings(styles)
+        return [*found, *browser.unsupported(component)]
 
     def measure(self, request: StaticRequest) -> Measurements:
         """Measure the component's TypeScript files with the helper."""
@@ -134,7 +182,9 @@ class TypeScriptProfile:
         return expected(path)
 
     def run(self, request: SuiteRequest) -> SuiteRun:
-        """Run one suite with the component's locked Vitest."""
+        """Run one suite with the component's locked Vitest; a browser suite cannot run yet."""
+        if request.component.in_browser:
+            raise browser.incomplete(request.component)
         prepared = self._ready(request.component, request.work)
         script = self._script("vitest", prepared, request.directory)
         return run_vitest(prepared.node, script, request)

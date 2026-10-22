@@ -48,6 +48,11 @@ COMMENTED = {
     "dart": (DART_MARKERS, re.compile(r"//|/\*|^\s*\*")),
     "php": (PHP_MARKERS, re.compile(r"//|#|/\*|^\s*\*")),
 }
+# The stylesheets and HTML of a browser component, which Stylelint and Prettier check.
+STYLED = {
+    ".css": (re.compile(r"(?:stylelint-disable|prettier-ignore)"), re.compile(r"/\*|^\s*\*")),
+    ".html": (re.compile(r"prettier-ignore"), re.compile(r"<!--")),
+}
 PYTHON_FALLBACK = (PYTHON_MARKERS, re.compile(r"#"))
 MARKDOWN_MARKERS = (re.compile(r"pyml\s+disable", re.IGNORECASE), re.compile(r"<!--"))
 # A character class keeps this line from carrying the marker that the scanner honors.
@@ -89,24 +94,39 @@ def _fingerprints(text: str) -> Iterator[tuple[int, str]]:
             yield number, entry
 
 
-def markers(file: CandidateFile) -> Iterator[tuple[int, str]]:
+def _syntax(
+    file: CandidateFile, language: str | None, *, styled: bool
+) -> tuple[re.Pattern[str], re.Pattern[str]] | None:
+    """Return the marker and comment patterns of a file that is not Python."""
+    if language in COMMENTED:
+        return COMMENTED[language]
+    if file.category is Category.DOCS and is_markdown(file.path):
+        return MARKDOWN_MARKERS
+    return STYLED.get(PurePosixPath(file.path).suffix.lower()) if styled else None
+
+
+def _tool_markers(file: CandidateFile, data: bytes, *, styled: bool) -> Iterator[tuple[int, str]]:
+    language = file.record.language if file.category in CHECKED_CATEGORIES else None
+    if language == "python":
+        yield from _python(data)
+    elif (syntax := _syntax(file, language, styled=styled)) is not None:
+        yield from _commented(data.decode("utf-8", errors="replace"), syntax)
+
+
+def markers(file: CandidateFile, *, styled: bool = False) -> Iterator[tuple[int, str]]:
     """Yield the line and symbol of each suppression marker in one file.
 
-    Tool markers count in code that tools check (source, tests, configuration) and,
-    for the Markdown linter, in documentation; secret scanner markers count everywhere,
-    because other scanner runs honor them everywhere. Scanner ignore files are
-    lists of suppressed findings, so each entry counts too.
+    Tool markers count in code that tools check (source, tests, configuration),
+    for the Markdown linter in documentation, and, when the file is `styled`
+    because a browser component owns it, for Stylelint and Prettier in CSS and
+    HTML. Secret scanner markers count everywhere, because other scanner runs
+    honor them everywhere. Scanner ignore files are lists of suppressed
+    findings, so each entry counts too.
     """
     if file.data is None:
         return
-    language = file.record.language if file.category in CHECKED_CATEGORIES else None
+    yield from _tool_markers(file, file.data, styled=styled)
     text = file.data.decode("utf-8", errors="replace")
-    if language == "python":
-        yield from _python(file.data)
-    elif language in COMMENTED:
-        yield from _commented(text, COMMENTED[language])
-    elif file.category is Category.DOCS and is_markdown(file.path):
-        yield from _commented(text, MARKDOWN_MARKERS)
     if PurePosixPath(file.path).name == SCANNER_IGNORE_FILE:
         yield from _fingerprints(text)
     for number, line in enumerate(text.split("\n"), start=1):
@@ -114,11 +134,16 @@ def markers(file: CandidateFile) -> Iterator[tuple[int, str]]:
             yield number, found.group(0)
 
 
-def check_suppressions(files: Iterable[CandidateFile]) -> Iterator[Diagnostic]:
-    """Report every inline suppression marker; exceptions remove the registered ones."""
+def check_suppressions(
+    files: Iterable[CandidateFile], styled: frozenset[str] = frozenset()
+) -> Iterator[Diagnostic]:
+    """Report every inline suppression marker; exceptions remove the registered ones.
+
+    `styled` names the browser components, whose CSS and HTML carry markers too.
+    """
     for file in files:
         seen: set[tuple[int, str]] = set()
-        for line, symbol in markers(file):
+        for line, symbol in markers(file, styled=file.record.component in styled):
             if (line, symbol) in seen:
                 continue
             seen.add((line, symbol))

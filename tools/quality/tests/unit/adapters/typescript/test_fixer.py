@@ -4,16 +4,21 @@ from pathlib import Path
 
 import pytest
 
+from quality.adapters.typescript.browser import TEST_RULES
 from quality.adapters.typescript.environment import Environments
 from quality.adapters.typescript.fixer import (
     TypeScriptFixer,
+    browser_pages,
     config_scripts,
     copy_back,
     copy_tree,
 )
+from quality.policy import Component
+from quality.testkit.browserfakes import ALL_PINS, write_browser_component
 from quality.testkit.nodefakes import (
     PINS,
     FakeNode,
+    browser_component,
     install_tools,
     script,
     typescript_component,
@@ -43,7 +48,7 @@ echo '[]'
 for arg; do case "$arg" in --write) write=1 ;; esac; done
 for arg; do
   case "$arg" in
-    /*.ts|/*.js)
+    /*.ts|/*.js|/*.css|/*.html)
       if [ -n "$write" ]; then sed -i 's/messy/tidy/' "$arg"; elif grep -q messy "$arg"; then
         echo "$arg"; listed=1
       fi ;;
@@ -62,22 +67,25 @@ class Fixture:
     fake: FakeNode
 
 
-@pytest.fixture
-def fixture(fake_node: FakeNode, tmp_path: Path) -> Fixture:
+def build(fake_node: FakeNode, tmp_path: Path, component: Component = APP) -> Fixture:
     root = tmp_path / "worktree"
-    directory = write_component(root / "app")
+    browser = component.in_browser
+    pins = ALL_PINS if browser else PINS
+    directory = (write_browser_component if browser else write_component)(root / "app")
     (directory / "src" / "a.ts").write_text("export const a = 'messy';\n")
     (directory / "tests" / "a.test.ts").write_text("export const t = 1;\n")
     (directory / "eslint.config.js").write_text("export default [/* messy */];\n")
     (directory / "node_modules" / "left").mkdir(parents=True)
     template = tmp_path / "packages"
-    install_tools(template, TOOLS)
+    install_tools(template, TOOLS, pins)
     fake_node.npm(f"cp -R '{template / 'node_modules'}' \"$PWD\"/\n")
     answer = tmp_path / "eslint-config.json"
     body = f"""printf '{{"protocol": 1, "files": [' > '{answer}'
-sed -n 's/.*"files": \\[\\(.*\\)\\].*/\\1/p' "$2" | tr ',' '\\n' | while read -r name; do
-  printf '%s{{"file": %s, "configured": true, "ignored": false, "typed": true, "parser": "x"}}' \\
-    "$sep" "$name" >> '{answer}'
+sed -n 's/.*"files": \\[\\([^]]*\\)\\].*/\\1/p' "$2" | tr ',' '\\n' |
+while read -r name || [ -n "$name" ]; do
+  printf '%s{{"file": %s, "configured": true, "ignored": false, "typed": true, ' "$sep" "$name" \\
+    >> '{answer}'
+  printf '"parser": "x", "rules": []}}' >> '{answer}'
   sep=,
 done
 echo ']}}' >> '{answer}'
@@ -89,13 +97,25 @@ cat '{answer}'
     def listing(where: Path) -> list[str]:
         return sorted(p.relative_to(where).as_posix() for p in where.rglob("*") if p.is_file())
 
-    return Fixture(TypeScriptFixer(environments, PINS, listing, helper=helper), root, fake_node)
+    return Fixture(TypeScriptFixer(environments, pins, listing, helper=helper), root, fake_node)
+
+
+@pytest.fixture
+def fixture(fake_node: FakeNode, tmp_path: Path) -> Fixture:
+    return build(fake_node, tmp_path)
 
 
 def test_configuration_scripts_at_the_component_root_are_formatted() -> None:
     listed = ["app/eslint.config.js", "app/sub/vite.config.ts", "app/src/a.ts", "other.config.js"]
     assert config_scripts(APP, listed) == ("app/eslint.config.js",)
     assert config_scripts(typescript_component("."), listed) == ("other.config.js",)
+
+
+def test_a_browser_component_formats_its_styles_and_entry_points() -> None:
+    web = browser_component(root="app")
+    listed = ["app/index.html", "app/src/a.CSS", "app/b.html", "other/c.css", "app/src/a.ts"]
+    assert browser_pages(web, listed) == ("app/index.html", "app/src/a.CSS")
+    assert browser_pages(APP, listed) == ()
 
 
 def test_the_copy_leaves_out_installed_packages_links_and_missing_files(tmp_path: Path) -> None:
@@ -169,3 +189,26 @@ def test_a_rejected_configuration_fixes_nothing(fixture: Fixture) -> None:
     assert [d.rule for d in found] == ["typescript.config"]
     assert "messy" in (fixture.root / "app" / "src" / "a.ts").read_text()
     assert fixture.fake.calls() == []
+
+
+def test_browser_styles_and_entry_points_are_formatted_and_the_rules_required(
+    fake_node: FakeNode, tmp_path: Path
+) -> None:
+    web = browser_component(root="app")
+    fixture = build(fake_node, tmp_path, web)
+    directory = fixture.root / "app"
+    for name in ("src/app.css", "index.html", "other.html"):
+        (directory / name).write_text("/* messy */\n")
+    found = fixture.fixer.fix(web, fixture.root, ("app/src/a.ts", "app/tests/a.test.ts"))
+    assert [(directory / name).read_text() for name in ("src/app.css", "index.html")] == [
+        "/* tidy */\n"
+    ] * 2
+    assert (directory / "other.html").read_text() == "/* messy */\n"
+    hooks, promises = "react-hooks/rules-of-hooks, react-hooks/exhaustive-deps", TEST_RULES[0]
+    assert [(d.location.path if d.location else None, d.message) for d in found] == [
+        ("app/src/a.ts", f"the browser target requires {hooks}, which ESLint does not enable here"),
+        (
+            "app/tests/a.test.ts",
+            f"the browser target requires {promises}, which ESLint does not enable here",
+        ),
+    ]

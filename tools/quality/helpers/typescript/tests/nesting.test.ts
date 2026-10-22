@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { functionOf } from "./fixtures.ts";
+import { functionOf, functionsOf } from "./fixtures.ts";
 
 const CHAIN = `
 function chain(n: number) {
@@ -127,4 +127,34 @@ test("a nested function starts at zero and does not deepen its parent", () => {
   expect(functionOf(SCOPES, "scopes.<anonymous>.run").nesting).toBe(2);
   expect(functionOf("const f = () => () => 1;", "f").nesting).toBe(0);
   expect(functionOf("function e() {}", "e").nesting).toBe(0);
+});
+
+const VIEW = `
+export function View({ items, on }: { items: string[]; on: boolean }) {
+  return (
+    <main>
+      <section>
+        <div>
+          <ul>
+            {items.map((item) => (
+              <li key={item}>
+                <span>{on ? <b>{item}</b> : <i>{item}</i>}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+    </main>
+  );
+}
+`;
+
+test("JSX element depth is not control-flow nesting", () => {
+  const [view, item] = functionsOf(VIEW, "view.tsx");
+  expect([view?.name, view?.nesting, view?.complexity]).toEqual(["View", 0, 1]);
+  expect([item?.name, item?.nesting, item?.complexity]).toEqual([
+    "View.<anonymous>",
+    0,
+    2,
+  ]);
 });

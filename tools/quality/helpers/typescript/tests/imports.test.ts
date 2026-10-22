@@ -1,6 +1,13 @@
 import { join } from "node:path";
 import { expect, test } from "vitest";
-import { json, linkPackages, project, structureOf } from "./fixtures.ts";
+import { runImports } from "../src/structure.ts";
+import {
+  HELPER,
+  json,
+  linkPackages,
+  project,
+  structureOf,
+} from "./fixtures.ts";
 
 const MAIN = `import { one } from "../lib/util.ts";
 import type { Two } from "@lib/types.ts";
@@ -43,20 +50,23 @@ test("every import form is listed with its line and resolved file", () => {
     join(root, "tsconfig.json"),
   );
   const util = join(root, "lib/util.ts");
+  const plain = { builtin: false, typeOnly: false };
   expect(report.imports).toEqual([
-    { specifier: "../lib/util.ts", line: 1, resolved: util },
+    { specifier: "../lib/util.ts", line: 1, resolved: util, ...plain },
     {
       specifier: "@lib/types.ts",
       line: 2,
       resolved: join(root, "lib/types.ts"),
+      builtin: false,
+      typeOnly: true,
     },
-    { specifier: "../lib/util.ts", line: 3, resolved: util },
-    { specifier: "./missing.ts", line: 6, resolved: null },
-    { specifier: "typescript", line: 7, resolved: null },
-    { specifier: "../lib/util.ts", line: 8, resolved: util },
-    { specifier: "../lib/util.ts", line: 9, resolved: util },
-    { specifier: "vitest", line: 13, resolved: null },
-    { specifier: "../lib/util.ts", line: 14, resolved: util },
+    { specifier: "../lib/util.ts", line: 3, resolved: util, ...plain },
+    { specifier: "./missing.ts", line: 6, resolved: null, ...plain },
+    { specifier: "typescript", line: 7, resolved: null, ...plain },
+    { specifier: "../lib/util.ts", line: 8, resolved: util, ...plain },
+    { specifier: "../lib/util.ts", line: 9, resolved: util, ...plain },
+    { specifier: "vitest", line: 13, resolved: null, ...plain },
+    { specifier: "../lib/util.ts", line: 14, resolved: util, ...plain },
   ]);
 });
 
@@ -115,4 +125,44 @@ test("the module format of the file decides how a specifier resolves", () => {
   expect(legacy.imports[0]?.resolved).toBe(join(root, "src/dep.ts"));
   const modern = structureOf(join(root, "src/modern.mts"), tsconfig);
   expect(modern.imports[0]?.resolved).toBeNull();
+});
+
+const NODE = `import fs from "node:fs";
+import { join } from "path";
+import type { Stats } from "fs";
+export type { Stats as Info } from "node:fs";
+import { type Dirent } from "node:fs";
+import type os = require("node:os");
+import system = require("os");
+const loaded = await import("node:fs/promises");
+import "react";
+`;
+
+test("builtins are named, and only erased imports are type-only", () => {
+  const root = project({ "src/main.ts": NODE });
+  const { files } = runImports({
+    protocol: 1,
+    typescript: HELPER,
+    tsconfig: null,
+    files: [join(root, "src/main.ts")],
+  });
+  expect(files).toHaveLength(1);
+  expect(files[0]?.error).toBeNull();
+  expect(Object.keys(files[0] ?? {})).toEqual(["file", "imports", "error"]);
+  const flags = files[0]?.imports.map(({ specifier, builtin, typeOnly }) => [
+    specifier,
+    builtin,
+    typeOnly,
+  ]);
+  expect(flags).toEqual([
+    ["node:fs", true, false],
+    ["path", true, false],
+    ["fs", true, true],
+    ["node:fs", true, true],
+    ["node:fs", true, false],
+    ["node:os", true, true],
+    ["os", true, false],
+    ["node:fs/promises", true, false],
+    ["react", false, false],
+  ]);
 });

@@ -24,6 +24,7 @@ from pathlib import Path
 import quality
 from quality.engine.provenance import BOOT
 from quality.process import Command, Completed, run
+from quality.testkit.browserproject import browser_project
 from quality.testkit.dartproject import dart_project
 from quality.testkit.gitrepo import GitRepo
 from quality.testkit.phpproject import php_project
@@ -218,7 +219,8 @@ def create_project(
     repo.write(".gitignore", IGNORED)
     for spec in specs:
         if spec.profile == "typescript":
-            typescript_project(repo.path / spec.root, name=spec.id)
+            writer = browser_project if spec.browser else typescript_project
+            writer(repo.path / spec.root, name=spec.id)
             continue
         if spec.profile == "dart":
             dart_project(repo.path / spec.root, name=spec.id)
