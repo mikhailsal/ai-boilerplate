@@ -51,6 +51,8 @@
 - [Quality core](../tools/quality/README.md): layout, exit codes, and native
   development commands.
 - [Agent instructions](../AGENTS.md): setup and the everyday commands.
+- [Reference browser application](../examples/web/README.md): the React +
+  Vite example component and the scenarios it proves.
 
 <!-- maintainer-only:begin -->
 

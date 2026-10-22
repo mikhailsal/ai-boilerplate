@@ -143,6 +143,22 @@ tests = { unit = ["tests"] }
 capabilities = []
 no_boundary_reason = "Internal helper run by its profile adapter; the core's acceptance suites drive it."
 
+# The reference browser application (decision 0017): checked in maintainer
+# mode and when the candidate changes it, never because an application uses
+# its profile.
+[[components]]
+id = "example-web"
+role = "example"
+profile = "typescript"
+target = "browser"
+framework = "react"
+bundler = "vite"
+root = "examples/web"
+source = ["src"]
+tests = { unit = ["tests"], e2e = ["e2e"] }
+capabilities = ["ui"]
+scenarios = "scenarios.toml"
+
 # The CI wrapper contract (decision 0015): `required` is the one status that
 # hosting protection requires, and it fails unless every job below succeeded.
 # Control files (derived from this policy, plus `control`) need an owner in
