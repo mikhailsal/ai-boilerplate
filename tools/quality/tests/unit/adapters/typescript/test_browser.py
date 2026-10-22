@@ -56,7 +56,7 @@ def test_only_a_browser_component_is_incomplete() -> None:
     assert unsupported(typescript_component()) == []
     (finding,) = unsupported(WEB)
     assert finding.message == (
-        "'web' targets the browser; this build lacks the production build, the jsdom unit "
-        "suite, the Chromium scenarios, the accessibility scans"
+        "'web' targets the browser; this build lacks the production build in the gate, "
+        "the Chromium scenarios, the accessibility scans"
     )
     assert incomplete(WEB).diagnostic == finding

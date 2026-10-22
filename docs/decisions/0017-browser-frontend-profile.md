@@ -1,6 +1,7 @@
 # 0017 Browser frontend profile
 
-Status: proposed (F00, 2026-10-22); the static checks are implemented (F03).
+Status: proposed (F00, 2026-10-22); the static checks (F03) and the unit
+tests and coverage (F04) are implemented.
 The phases of the frontend extension implement it; until a section says it is
 implemented, a component that needs it fails with an explicit finding instead
 of passing.
@@ -12,8 +13,9 @@ second execution target: single-page **React + Vite + TypeScript** browser
 applications on Linux (x86_64 and aarch64, glibc), built to static production
 output. The baseline test stack is fixed:
 
-- unit and integration suites: Vitest with jsdom, React Testing Library, and
-  user-event, with V8 coverage remapped to the original TS/TSX;
+- unit, integration, contract, and acceptance suites: Vitest with jsdom,
+  React Testing Library, and user-event, with V8 coverage of unit suites
+  remapped to the original TS/TSX;
 - end-to-end suites: Playwright Test with a pinned Chromium headless shell
   against the production build, and `@axe-core/playwright` scans.
 
@@ -197,13 +199,19 @@ findings.
 
 ## Unit tests and coverage
 
-Browser unit and integration suites run Vitest with the jsdom environment
-and `expect.requireAssertions`, through the generated wrapper of decision
-0011. The expected sources are every TS/TSX file of the source roots except
-`.d.ts` files, imported or not, so an untested entry point fails. Coverage
-is the V8 data remapped to the original files, with the base floors of
-`quality.toml` per component; end-to-end suites measure no coverage, so they
-cannot raise the unit numerator.
+Every suite of a browser component except end-to-end runs Vitest with the
+jsdom environment and `expect.requireAssertions`, through the generated wrapper of decision
+0011, so a test that asserts nothing fails; a test file's own
+`@vitest-environment` comment still applies. They run in the commit gate on
+the candidate snapshot like any unit suite: without services, with network
+access limited to loopback. The expected sources are every TS/TSX file of the
+source roots except `.d.ts` files, imported or not, so an untested entry
+point fails. Coverage is the V8 data remapped to the original files, where a
+conditional in JSX is a branch of its line, with the base floors of
+`quality.toml` per component. A file another component owns counts only in
+its owner's suite, even when this component's tests run it. End-to-end
+suites measure no coverage, so they cannot raise the unit numerator; until
+the Chromium scenarios exist, running one fails as incomplete.
 
 The production build, the browser scenarios, accessibility, and CI are in
 [decision 0018](0018-browser-builds-and-scenarios.md).

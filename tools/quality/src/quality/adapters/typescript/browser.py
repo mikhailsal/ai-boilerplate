@@ -3,11 +3,12 @@
 A component with `target = "browser"` gets the Node gates and the browser
 static gates: the React Hooks and JSX accessibility rules in its ESLint
 configuration, import boundaries, Stylelint and Prettier for its CSS, and its
-HTML entry points. It passes only when every browser gate of the decisions ran
-on it. Until this build implements them all, its static gates, its suites,
-bootstrap, and doctor report the gates it lacks, so no browser component can
-pass on the gates that exist. Like a profile without an adapter, the finding
-cannot be excepted.
+HTML entry points. Its suites except end-to-end run in jsdom. It passes
+only when every browser gate of the decisions ran on it. Until this build
+implements them all, its static gates, its end-to-end suites, bootstrap, and
+doctor report the gates it lacks, so no browser component can pass on the
+gates that exist. Like a profile without an adapter, the finding cannot be
+excepted.
 """
 
 from __future__ import annotations
@@ -26,8 +27,7 @@ from quality.policy import Component
 from quality.testing import StaticRequest
 
 MISSING = (
-    "the production build",
-    "the jsdom unit suite",
+    "the production build in the gate",
     "the Chromium scenarios",
     "the accessibility scans",
 )

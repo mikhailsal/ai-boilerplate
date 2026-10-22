@@ -1,17 +1,18 @@
-"""FR04: the static gates of a browser component, run by `quality check` with the real tools.
+"""FR03: the static gates of a browser component, run by `quality check` with the real tools.
 
-Until the production build, the jsdom suite, and the Chromium scenarios exist,
-every check of a browser component fails with `typescript.browser-incomplete`,
-and the component cannot name a scenario manifest yet; each case adds exactly
-the finding of one gate to those two.
+Until the production build and the Chromium scenarios are in the gate, every
+check of a browser component fails with `typescript.browser-incomplete`, and
+the component cannot name a scenario manifest yet; each case adds exactly the
+finding of one gate to those two, and its unit suite still passes.
 """
 
+import hashlib
 from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
 
-from quality.testkit.browserproject import APP, ESLINT, INDEX, STYLES, TESTS
+from quality.testkit.browserproject import APP, ESLINT, ICON, INDEX, STYLES, TESTS
 from quality.testkit.policies import browser_spec
 from quality.testkit.scratch import Project, create_project, output, rules_of
 
@@ -22,7 +23,8 @@ STATE = "  const [count, setCount] = useState(0);\n"
 HEADING = "      <h1>Counter</h1>\n"
 COUNT = "        Count {count}\n"
 STYLE_IMPORT = 'import styles from "./App.module.css";\n'
-CONDITIONAL = APP.replace(STATE, "  if (Math.random() > 1) {\n    return null;\n  }\n" + STATE)
+# One line, so the return nothing runs leaves no changed line uncovered.
+CONDITIONAL = APP.replace(STATE, "  if (Math.random() > 1) return null;\n" + STATE)
 IMAGE = APP.replace(HEADING, HEADING + '      <img src="/icon.svg" />\n')
 SERVER_IMPORT = APP.replace(
     STYLE_IMPORT, STYLE_IMPORT + 'import { rows } from "./server/db.ts";\n'
@@ -33,7 +35,7 @@ TYPE_IMPORT = APP.replace(
 BUILTIN = APP.replace(
     'import { useState } from "react";\n',
     'import { sep } from "node:path";\nimport { useState } from "react";\n',
-).replace(COUNT, COUNT + "        {sep}\n")
+).replace(HEADING, HEADING + "      <p>{sep}</p>\n")
 WRONG_TYPE = APP.replace(HEADING, HEADING.replace("Counter", "{title}")).replace(
     "export function App() {\n", 'const title: number = "Counter";\n\nexport function App() {\n'
 )
@@ -43,6 +45,10 @@ DISABLED = STYLES.replace(
     "  /* stylelint-disable-next-line property-no-unknown */\n  colr: red;\n  margin: 0 auto;\n",
 )
 UNFORMATTED = "error: the file is not formatted"
+# Built at run time, so no secret is ever committed.
+TOKEN = "ghp" + "_" + hashlib.sha256(b"browser").hexdigest()[:36]
+# Assets keep the blob limit of `quality.toml`, 1048576 bytes in the scratch policy.
+LARGE = f"<!-- {'0' * (1048600 - len(ICON) - 10)} -->\n{ICON}"
 # Each case: the changed files of `web`, the rules it adds, and a line of their output.
 CASES: dict[str, tuple[Mapping[str, str], set[str], str]] = {
     "hooks-rules-disabled": (
@@ -60,9 +66,10 @@ CASES: dict[str, tuple[Mapping[str, str], set[str], str]] = {
         {"typescript.lint"},
         "jsx-a11y-x/alt-text: ",
     ),
+    # The assertion runs before the click, so the test fails as well.
     "unawaited-interaction": (
         {"tests/App.test.tsx": TESTS.replace("  await userEvent", "  userEvent")},
-        {"typescript.lint"},
+        {"typescript.lint", "tests.failed"},
         "@typescript-eslint/no-floating-promises: ",
     ),
     "transpilable-type-error": (
@@ -105,6 +112,16 @@ CASES: dict[str, tuple[Mapping[str, str], set[str], str]] = {
         {"src/theme.scss": ".page {\n  color: red;\n}\n"},
         {"typescript.styles"},
         "web/src/theme.scss: error: Sass is not supported in a browser component",
+    ),
+    "secret-in-stylesheet": (
+        {"src/App.module.css": f"{STYLES}\n/* {TOKEN} */\n"},
+        {"secrets.detected"},
+        "web/src/App.module.css:6:",
+    ),
+    "oversized-asset": (
+        {"public/large.svg": LARGE},
+        {"files.blob-size"},
+        "web/public/large.svg: error: blob is 1048600 bytes; the limit is 1048576 bytes",
     ),
     "missing-script": (
         {"index.html": INDEX.replace("/src/main.tsx", "/src/missing.tsx")},

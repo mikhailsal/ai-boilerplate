@@ -136,6 +136,30 @@ test("the button counts its clicks", async () => {
   expect(button.textContent).toBe("Count 1");
 });
 """
+# The entry point runs on import, so each test imports a fresh copy.
+MAIN_TESTS = """\
+import { act, screen } from "@testing-library/react";
+import { beforeEach, expect, test, vi } from "vitest";
+
+beforeEach(() => {
+  vi.resetModules();
+});
+
+test("the page renders the counter into its root", async () => {
+  document.body.innerHTML = '<div id="root"></div>';
+  await act(async () => {
+    await import("../src/main.tsx");
+  });
+  expect(screen.getByRole("button").textContent).toBe("Count 0");
+});
+
+test("a page without a root element does not start", async () => {
+  document.body.innerHTML = "";
+  await expect(import("../src/main.tsx")).rejects.toThrow(
+    "the page has no #root element",
+  );
+});
+"""
 FILES = {
     "index.html": INDEX,
     "public/icon.svg": ICON,
@@ -143,6 +167,7 @@ FILES = {
     "src/App.tsx": APP,
     "src/App.module.css": STYLES,
     "tests/App.test.tsx": TESTS,
+    "tests/main.test.tsx": MAIN_TESTS,
 }
 
 

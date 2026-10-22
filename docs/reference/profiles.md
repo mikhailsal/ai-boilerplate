@@ -48,7 +48,8 @@ supported by this build yet: a component that declares it fails every check,
 bootstrap, and doctor with `typescript.browser-incomplete`, which cannot be
 excepted. Its static checks already run and report their findings beside it:
 the React Hooks and accessibility lint rules, import boundaries, Stylelint and
-Prettier for CSS, and the HTML entry points. Bootstrap installs the pinned
+Prettier for CSS, and the HTML entry points. So do its unit suites, in jsdom
+with the base coverage floors. Bootstrap installs the pinned
 Chromium for an active browser component, and bootstrap and doctor report
 whether it starts and matches the locked Playwright.
 

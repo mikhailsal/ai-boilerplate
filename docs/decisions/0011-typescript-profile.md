@@ -109,6 +109,9 @@ roots with Vitest's default test-file pattern), retries (off), the reporters
 source roots' TypeScript files included, declaration files excluded). When the
 component sets no `oxc` options, `.cts` files are transformed too; tsconfig
 `paths` are resolved unless the component configures `resolve.tsconfigPaths`.
+The suites of a browser component, except end-to-end, also run in jsdom
+with `expect.requireAssertions`
+([decision 0017](0017-browser-frontend-profile.md#unit-tests-and-coverage)).
 
 The gate's reporter writes what JUnit cannot say: the tests marked
 `test.fails`, which JUnit reports as passing when they fail as expected and

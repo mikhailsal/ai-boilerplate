@@ -39,10 +39,16 @@ STYLELINT = (
     + '"rule": "color-named", "text": "Unexpected named color (color-named)"}]}]\' "$PWD" > "$2"\n'
     + "exit 2\n"
 )
+VITEST = (
+    'echo "<testsuites/>" > "$(dirname "$3")/junit.xml"\n'
+    """echo '{"inverted": [], "retried": [], "unhandled": 0}' """
+    '> "$(dirname "$3")/annotations.json"\n'
+)
 TOOLS = {
     "prettier": RECORD + "exit 0\n",
     "eslint": RECORD + "echo '[]'\n",
     "stylelint": STYLELINT,
+    "vitest": VITEST,
 }
 
 
@@ -132,7 +138,10 @@ def test_the_browser_gates_run_and_the_component_stays_incomplete(setup: Setup) 
     assert found[3].location == Location("web/src/App.tsx", 3)
     assert found[4].message == "Unexpected named color (color-named)"
     assert found[5].kind is Kind.ENVIRONMENT
-    assert "this build lacks the production build, the jsdom unit suite" in found[5].message
+    assert (
+        "this build lacks the production build in the gate, the Chromium scenarios"
+        in found[5].message
+    )
 
 
 def test_css_and_entry_points_are_formatted_and_only_browser_sources_are_bounded(
@@ -179,9 +188,20 @@ def test_a_browser_component_needs_the_browser_packages(setup: Setup) -> None:
         setup.profile.static(StaticRequest(plain, setup.snapshot, work, ()))
 
 
-def test_a_browser_suite_reports_the_missing_gates(setup: Setup) -> None:
-    output = setup.work / "web-unit"
-    suite = SuiteRequest(WEB, Suite.UNIT, ("tests",), setup.snapshot, output, 0.0, setup.work)
+def suite(setup: Setup, kind: Suite) -> SuiteRequest:
+    output = setup.work / f"web-{kind}"
+    output.mkdir()
+    return SuiteRequest(WEB, kind, ("tests",), setup.snapshot, output, 0.0, setup.work)
+
+
+def test_a_browser_unit_suite_runs_vitest_in_jsdom(setup: Setup) -> None:
+    unit = suite(setup, Suite.UNIT)
+    run = setup.profile.run(unit)
+    assert run.results == unit.output / "junit.xml"
+    assert '"environment": "jsdom"' in (unit.output / "vitest.quality.mjs").read_text()
+
+
+def test_a_browser_end_to_end_suite_reports_the_missing_gates(setup: Setup) -> None:
     with pytest.raises(ToolFailedError) as raised:
-        setup.profile.run(suite)
+        setup.profile.run(suite(setup, Suite.E2E))
     assert raised.value.diagnostic.rule == "typescript.browser-incomplete"

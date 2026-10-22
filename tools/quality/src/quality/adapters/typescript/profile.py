@@ -40,7 +40,7 @@ from quality.adapters.typescript.structure import measure_files
 from quality.coverage import CoverageReport, parse_lcov
 from quality.diagnostics import Diagnostic, Rule
 from quality.metrics import Measurements
-from quality.policy import Component
+from quality.policy import Component, Suite
 from quality.testing import StaticRequest, SuiteRequest, SuiteRun
 
 RULES = (
@@ -186,8 +186,12 @@ class TypeScriptProfile:
         return expected(path)
 
     def run(self, request: SuiteRequest) -> SuiteRun:
-        """Run one suite with the component's locked Vitest; a browser suite cannot run yet."""
-        if request.component.in_browser:
+        """Run one suite with the component's locked Vitest; a browser end-to-end suite cannot.
+
+        End-to-end suites of a browser component run in Chromium (decision 0018),
+        which this build does not implement yet.
+        """
+        if request.component.in_browser and request.suite is Suite.E2E:
             raise browser.incomplete(request.component)
         prepared = self._ready(request.component, request.work)
         script = self._script("vitest", prepared, request.directory)
