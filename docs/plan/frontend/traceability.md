@@ -14,7 +14,7 @@ Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`.
 | --- | --- | --- | --- | --- |
 | FR01.1 | Language, target, framework, bundler, ownership, and capabilities explicit in the existing schema | F01 | [F01](F01.md): `policy/test_browser.py`, the regenerated schema | DONE |
 | FR01.2 | React rules, DOM globals, transforms, and test environments only in browser components | F01, F03, F04 | Planned: unit tests of the wrappers per target; a mixed acceptance repository | TODO |
-| FR01.3 | React/Vite recognized from manifests, configuration, and explicit registration; ambiguity and unsupported frameworks reported | F01, F02 | [F01](F01.md): `discovery/test_frontend.py`, `cli/test_component_cmd.py` | DONE |
+| FR01.3 | React/Vite recognized from manifests, configuration, and explicit registration; ambiguity and unsupported frameworks reported | F01, F02 | [F01](F01.md): `discovery/test_frontend.py`; [F02](F02.md): `cli/test_component_target.py` | DONE |
 | FR01.4 | Discovery separate from the core, dormant adapters, and fixtures; a shipped example activates nothing; active or modified helpers are checked | F01 | [F01](F01.md): `discovery/test_activation.py`, `engine/test_setup.py`, `ci/test_control.py` | DONE |
 | FR01.5 | Existing configurations keep their meaning; no rewrite of user scripts or tsconfigs | F01 | [F01](F01.md): the existing policy and acceptance suites passed unchanged | DONE |
 
@@ -22,10 +22,10 @@ Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`.
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| FR02.1 | Compatible pins incl. the browser revision; peer compatibility proven | F00, F02 | [Decision 0017](../../decisions/0017-browser-frontend-profile.md#versions); planned: lock checks | IN_PROGRESS |
+| FR02.1 | Compatible pins incl. the browser revision; peer compatibility proven | F00, F02 | [Decision 0017](../../decisions/0017-browser-frontend-profile.md#versions); [F02](F02.md): `typescript/test_config.py`, `toolchain/test_committed_manifest.py` | DONE |
 | FR02.2 | Vitest, jsdom, Testing Library, user-event; Playwright Test with Chromium | F02, F04, F05 | Planned: the reference application's suites | TODO |
-| FR02.3 | Bootstrap and doctor provision and report the profile, browser, and Linux libraries during preparation only | F02 | Planned: `engine/test_setup.py`, `cli/test_doctor_cmd.py` | TODO |
-| FR02.4 | Missing Chromium fails a required browser gate; non-frontend projects need no browser | F02, F05 | Planned: unit and acceptance cases | TODO |
+| FR02.3 | Bootstrap and doctor provision and report the profile, browser, and Linux libraries during preparation only | F02 | [F02](F02.md): `typescript/test_chromium.py`, `typescript/test_provision.py`, `engine/test_setup.py`, a real bootstrap and doctor | DONE |
+| FR02.4 | Missing Chromium fails a required browser gate; non-frontend projects need no browser | F02, F05 | [F02](F02.md): bootstrap and doctor fail without the browser, a Node component needs none; the gate: planned (F05) | IN_PROGRESS |
 | FR02.5 | Registration operation and a tested Quick start from a fresh template copy; the first CLI invocation | F02, F07 | Planned: `acceptance/test_template.py` frontend case | TODO |
 
 ## FR03 Static checks

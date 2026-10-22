@@ -12,9 +12,9 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 - Base: `BASE_COMPLETE_SHA` is
   `dfb232208b41f8423bd74c5e1724865f199aa455` (see the
   [F00 record](docs/plan/frontend/F00.md#base))
-- Current phase: F02
-- Next action: commit the browser package pins, the pinned Chromium, and
-  its provisioning and report in bootstrap and doctor (F02)
+- Current phase: F03
+- Next action: add the reference application as an `example` component and
+  commit its static checks and the isolated production build (F03)
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`
 - A box is checked only after its implementation commit exists and its checks
   ran; the phase record holds the SHA and the evidence.
@@ -25,7 +25,7 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 | --- | --- | --- | --- |
 | [x] | F00 Verify the completed base and establish the extension plan | DONE | [F00](docs/plan/frontend/F00.md) |
 | [x] | F01 Extend the schema and register the browser variant | DONE | [F01](docs/plan/frontend/F01.md) |
-| [ ] | F02 Prepare the frontend environment and startup operations | TODO | |
+| [x] | F02 Prepare the frontend environment and startup operations | DONE | [F02](docs/plan/frontend/F02.md) |
 | [ ] | F03 Implement static checks and production building | TODO | |
 | [ ] | F04 Implement component unit coverage in the strict commit gate | TODO | |
 | [ ] | F05 Implement production browser scenarios and accessibility | TODO | |
@@ -56,9 +56,9 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 
 ### F02
 
-- [ ] Browser package pins and the pinned Chromium; bootstrap and doctor
+- [x] Browser package pins and the pinned Chromium; bootstrap and doctor
   report the browser and its Linux libraries
-- [ ] Tests: idempotence, missing prerequisites, browser mismatch, preserved
+- [x] Tests: idempotence, missing prerequisites, browser mismatch, preserved
   user configuration and hooks
 
 ### F03
