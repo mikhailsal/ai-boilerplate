@@ -12,9 +12,9 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 - Base: `BASE_COMPLETE_SHA` is
   `dfb232208b41f8423bd74c5e1724865f199aa455` (see the
   [F00 record](docs/plan/frontend/F00.md#base))
-- Current phase: F04
-- Next action: the jsdom unit suites of browser components in the commit
-  gate (F04)
+- Current phase: F05
+- Next action: the reference application as an `example` component, served
+  from its production build (F05)
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`
 - A box is checked only after its implementation commit exists and its checks
   ran; the phase record holds the SHA and the evidence.
@@ -27,7 +27,7 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 | [x] | F01 Extend the schema and register the browser variant | DONE | [F01](docs/plan/frontend/F01.md) |
 | [x] | F02 Prepare the frontend environment and startup operations | DONE | [F02](docs/plan/frontend/F02.md) |
 | [x] | F03 Implement static checks and production building | DONE | [F03](docs/plan/frontend/F03.md) |
-| [ ] | F04 Implement component unit coverage in the strict commit gate | TODO | |
+| [x] | F04 Implement component unit coverage in the strict commit gate | DONE | [F04](docs/plan/frontend/F04.md) |
 | [ ] | F05 Implement production browser scenarios and accessibility | TODO | |
 | [ ] | F06 Integrate the existing CLI and portable CI | TODO | |
 | [ ] | F07 Prove reuse and publish bounded local documentation | TODO | |
@@ -72,9 +72,9 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 
 ### F04
 
-- [ ] jsdom unit suites with the base floors; unimported files, conditional
+- [x] jsdom unit suites with the base floors; unimported files, conditional
   JSX, awaited interactions, ownership, unit/E2E separation
-- [ ] Staged versus work tree cases, first commit, alternate index
+- [x] Staged versus work tree cases, first commit, alternate index
 
 ### F05
 
