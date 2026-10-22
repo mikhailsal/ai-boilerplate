@@ -57,7 +57,8 @@ def write_component(directory: Path, pins: Mapping[str, str] = PINS) -> Path:
     """Write a valid TypeScript component into `directory` and return it."""
     (directory / "src").mkdir(parents=True, exist_ok=True)
     (directory / "tests").mkdir(exist_ok=True)
-    (directory / "package.json").write_text('{"name": "app", "type": "module"}\n')
+    manifest = {"name": "app", "type": "module", "devDependencies": dict(pins)}
+    (directory / "package.json").write_text(json.dumps(manifest) + "\n")
     (directory / "package-lock.json").write_text(lockfile(pins))
     (directory / "tsconfig.json").write_text('{"compilerOptions": {"strict": true}}\n')
     (directory / "eslint.config.js").write_text(ESLINT_CONFIG)

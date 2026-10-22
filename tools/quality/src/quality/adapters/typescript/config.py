@@ -20,6 +20,7 @@ from pathlib import Path, PurePosixPath
 
 from quality.adapters.settings import load_json_object
 from quality.adapters.typescript.lockfile import MANIFEST, Lock, check_lock
+from quality.adapters.typescript.manifests import LOCKFILE, mismatches
 from quality.boundedio import ReportError
 from quality.diagnostics import Diagnostic, Location, Rule
 from quality.policy import Component
@@ -41,7 +42,7 @@ CONFIG = Rule(
         "the pinned versions."
     ),
 )
-RULES = (CONFIG,)
+RULES = (CONFIG, LOCKFILE)
 
 TSCONFIG = "tsconfig.json"
 ESLINT_CONFIGS = tuple(f"eslint.config.{ext}" for ext in ("js", "mjs", "cjs", "ts", "mts", "cts"))
@@ -69,12 +70,10 @@ class Findings:
     component: Component
     found: list[Diagnostic] = field(default_factory=list[Diagnostic])
 
-    def add(self, file: str, message: str) -> None:
+    def add(self, file: str, message: str, *, rule: Rule = CONFIG) -> None:
         """Record a problem in a file relative to the component directory."""
         location = Location(posixpath.normpath(posixpath.join(self.component.root, file)))
-        self.found.append(
-            CONFIG.diagnostic(message, location=location, component=self.component.id)
-        )
+        self.found.append(rule.diagnostic(message, location=location, component=self.component.id))
 
 
 def _eslint(directory: Path, report: Findings) -> None:
@@ -98,6 +97,10 @@ def check_config(
         report.add(TSCONFIG, "a tsconfig.json at the component root is required")
     _eslint(directory, report)
     lock = check_lock(directory, snapshot, pins, report.add, browser=component.in_browser)
+    if lock is not None:
+        for path, message in mismatches(lock, snapshot):
+            name = posixpath.relpath(path.as_posix(), directory.as_posix())
+            report.add(name, message, rule=LOCKFILE)
     return (NativeConfig(lock) if lock is not None else None), report
 
 
