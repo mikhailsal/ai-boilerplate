@@ -42,6 +42,12 @@ Neither passes silently, and both name the file. Unsupported variants of a
 supported language also fail: Flutter and web Dart packages, and JavaScript
 sources in a TypeScript component.
 
+The browser target of the TypeScript profile, `target = "browser"`
+([decision 0017](../decisions/0017-browser-frontend-profile.md)), is not
+supported by this build yet: a component that declares it fails every check,
+bootstrap, and doctor with `typescript.browser-incomplete`, which cannot be
+excepted.
+
 ## Several components
 
 A repository may hold any mix of profiles, and several components of the

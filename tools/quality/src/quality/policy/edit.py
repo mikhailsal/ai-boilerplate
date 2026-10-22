@@ -39,6 +39,9 @@ class Draft:
     unit: tuple[str, ...]
     capabilities: tuple[str, ...] = ()
     no_boundary_reason: str | None = None
+    target: str | None = None
+    framework: str | None = None
+    bundler: str | None = None
 
 
 def _value(value: str | tuple[str, ...]) -> str:
@@ -54,6 +57,15 @@ def component_toml(draft: Draft) -> str:
         f"id = {_value(draft.id)}",
         'role = "application"',
         f"profile = {_value(draft.profile)}",
+        *(
+            f"{key} = {_value(value)}"
+            for key, value in (
+                ("target", draft.target),
+                ("framework", draft.framework),
+                ("bundler", draft.bundler),
+            )
+            if value is not None
+        ),
         f"root = {_value(draft.root)}",
         f"source = {_value(draft.source)}",
         f"tests = {{ unit = {_value(draft.unit)} }}",

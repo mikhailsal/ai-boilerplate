@@ -7,12 +7,13 @@ import pytest
 from quality.adapters.native import ToolFailedError
 from quality.adapters.typescript.environment import Environments
 from quality.adapters.typescript.profile import RULES, TypeScriptProfile
-from quality.diagnostics import Diagnostic
+from quality.diagnostics import Diagnostic, Kind
 from quality.metrics import Measurements
 from quality.testing import StaticRequest, Suite, SuiteRequest
 from quality.testkit.nodefakes import (
     PINS,
     FakeNode,
+    browser_component,
     install_tools,
     script,
     typescript_component,
@@ -93,6 +94,7 @@ def rules(found: list[Diagnostic]) -> list[str]:
 def test_the_profile_reports_its_rules(setup: Setup) -> None:
     assert setup.profile.rules == RULES
     assert {rule.id for rule in RULES} == {
+        "typescript.browser-incomplete",
         "typescript.config",
         "typescript.format",
         "typescript.lint",
@@ -116,6 +118,21 @@ def test_a_rejected_configuration_installs_nothing(
     assert fake_node.calls() == []
     with pytest.raises(ToolFailedError, match="'app' was not prepared"):
         profile.static(StaticRequest(APP, snapshot, tmp_path / "work", FILES))
+
+
+def test_a_browser_component_fails_until_its_browser_gates_exist(setup: Setup) -> None:
+    web = browser_component()
+    (found,) = setup.profile.prepare(web, setup.snapshot, setup.work)
+    assert (found.rule, found.component, found.kind) == (
+        "typescript.browser-incomplete",
+        "web",
+        Kind.ENVIRONMENT,
+    )
+    assert "this build lacks the browser lint rules," in found.message
+    assert "the Chromium scenarios, the accessibility scans" in found.message
+    assert [Path(call[0]) for call in setup.fake.calls()] == [setup.snapshot / "app"]
+    with pytest.raises(ToolFailedError, match="'web' was not prepared"):
+        setup.profile.static(StaticRequest(web, setup.snapshot, setup.work, FILES))
 
 
 def test_the_static_gates_run_on_typescript_and_configuration_files(setup: Setup) -> None:

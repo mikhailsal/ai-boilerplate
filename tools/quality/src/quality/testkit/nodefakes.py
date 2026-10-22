@@ -37,6 +37,16 @@ def typescript_component(root: str = "app") -> Component:
     return found
 
 
+def browser_component(root: str = "web") -> Component:
+    """Return a React + Vite browser component `web` rooted at `root` (decision 0017)."""
+    stack = 'target = "browser"\nframework = "react"\nbundler = "vite"'
+    spec = ComponentSpec(
+        id="web", root=root, profile="typescript", capabilities=("ui",), extra=stack
+    )
+    (found,) = build_policy(spec).components
+    return found
+
+
 def lockfile(pins: Mapping[str, str] = PINS, extra: Mapping[str, object] | None = None) -> str:
     """Render a lockfile that locks `pins` from the registry, plus `extra` entries."""
     packages: dict[str, object] = {"": {"name": "app", "devDependencies": dict(pins)}}

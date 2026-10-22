@@ -14,7 +14,7 @@ from pathlib import Path
 
 from quality.adapters import native
 from quality.adapters.target import Target
-from quality.adapters.typescript import config, eslint, prettier, typecheck
+from quality.adapters.typescript import browser, config, eslint, prettier, typecheck
 from quality.adapters.typescript.config import NativeConfig, check_config, typescript_files
 from quality.adapters.typescript.environment import Environments, Node, tool_script
 from quality.adapters.typescript.helper import HELPER
@@ -26,7 +26,7 @@ from quality.metrics import Measurements
 from quality.policy import Component
 from quality.testing import StaticRequest, SuiteRequest, SuiteRun
 
-RULES = (*config.RULES, *prettier.RULES, *eslint.RULES, *typecheck.RULES)
+RULES = (*config.RULES, *prettier.RULES, *eslint.RULES, *typecheck.RULES, *browser.RULES)
 
 
 def _findings(gate: Callable[[], list[Diagnostic]]) -> list[Diagnostic]:
@@ -62,6 +62,9 @@ class TypeScriptProfile:
 
     def prepare(self, component: Component, snapshot: Path, work: Path) -> list[Diagnostic]:
         """Check the configuration; only an accepted one gets its packages installed."""
+        incomplete = browser.unsupported(component)
+        if incomplete:
+            return incomplete
         settings, report = check_config(component, snapshot, self.pins)
         if settings is None or report.found:
             return report.found

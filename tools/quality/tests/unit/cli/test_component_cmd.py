@@ -1,9 +1,10 @@
+import json
 from pathlib import Path
 
 import pytest
 
 from quality.cli.main import main
-from quality.policy import load_policy
+from quality.policy import Bundler, Capability, Component, ExecutionTarget, Framework, load_policy
 from quality.testkit.gitrepo import GitRepo
 from quality.testkit.policies import ComponentSpec, policy_toml
 
@@ -144,3 +145,132 @@ def test_outside_a_repository_the_git_error_is_reported(
     monkeypatch.chdir(tmp_path / "loose")
     assert main(["component", "add", ".", "--capability", "cli"]) == 3
     assert "(git." in capsys.readouterr().out
+
+
+STACK = {
+    "dependencies": {"react": "19.3.1", "react-dom": "19.3.1"},
+    "devDependencies": {"vite": "8.3.5", "@vitejs/plugin-react": "6.1.2"},
+}
+APP_FILES = ("vite.config.ts", "index.html")
+
+
+def react_app(
+    repo: GitRepo, root: str, manifest: object = STACK, files: tuple[str, ...] = APP_FILES
+) -> None:
+    repo.write(f"{root}/package.json", json.dumps(manifest))
+    for name in (*files, "src/.keep", "tests/.keep"):
+        repo.write(f"{root}/{name}", "// user file\n")
+
+
+def last(repo: GitRepo) -> Component:
+    policy = load_policy(repo.path).policy
+    assert policy is not None
+    return policy.components[-1]
+
+
+def test_a_react_vite_application_registers_as_a_browser_component(
+    project: GitRepo, capsys: pytest.CaptureFixture[str]
+) -> None:
+    react_app(project, "apps/web")
+    assert main(["component", "add", "apps/web", "--target", "browser"]) == 0
+    web = last(project)
+    assert (web.id, web.target, web.framework, web.bundler, web.capabilities) == (
+        "web",
+        ExecutionTarget.BROWSER,
+        Framework.REACT,
+        Bundler.VITE,
+        [Capability.UI],
+    )
+    out = capsys.readouterr().out
+    assert (
+        'profile = "typescript"\ntarget = "browser"\nframework = "react"\nbundler = "vite"\n' in out
+    )
+    assert (project.path / "apps/web/vite.config.ts").read_text() == "// user file\n"
+    assert json.loads((project.path / "apps/web/package.json").read_text()) == STACK
+
+
+def test_the_ui_capability_comes_first_and_is_not_repeated(project: GitRepo) -> None:
+    react_app(project, "web")
+    arguments = ["--capability", "http-api", "--capability", "ui"]
+    assert main(["component", "add", "web", "--target", "browser", *arguments]) == 0
+    assert last(project).capabilities == [Capability.HTTP_API, Capability.UI]
+    react_app(project, "admin")
+    assert (
+        main(["component", "add", "admin", "--target", "browser", "--capability", "http-api"]) == 0
+    )
+    assert last(project).capabilities == [Capability.UI, Capability.HTTP_API]
+
+
+def test_an_explicit_node_target_is_recorded_whatever_the_evidence(project: GitRepo) -> None:
+    react_app(project, "ssr")
+    assert main(["component", "add", "ssr", "--target", "node", "--capability", "http-api"]) == 0
+    node = last(project)
+    assert (node.target, node.framework, node.in_browser) == (ExecutionTarget.NODE, None, False)
+
+
+@pytest.mark.parametrize(
+    ("manifest", "files", "target", "message"),
+    [
+        (
+            STACK,
+            APP_FILES,
+            [],
+            (
+                "found react, react-dom, vite, @vitejs/plugin-react, vite.config.ts, index.html, "
+                "so the target is ambiguous; name it with --target browser or --target node"
+            ),
+        ),
+        ({"devDependencies": {"vite": "8"}}, (), [], "found vite, so the target is ambiguous"),
+        ({"dependencies": {"vue": "3"}}, (), [], "found Vue, so the target is ambiguous"),
+        (
+            {"dependencies": {"react": "19.3.1"}},
+            ("index.html",),
+            ["--target", "browser"],
+            (
+                "a React + Vite application needs the react-dom package, the vite package, the "
+                "@vitejs/plugin-react package, a vite.config.* file"
+            ),
+        ),
+        (
+            {"dependencies": {"react": "19.3.1"}},
+            ("vite.config.ts",),
+            ["--target", "browser"],
+            (
+                "a React + Vite application needs the react-dom package, the vite package, the "
+                "@vitejs/plugin-react package, an index.html entry point"
+            ),
+        ),
+        (
+            {**STACK, "optionalDependencies": {"next": "16.0.0"}},
+            APP_FILES,
+            ["--target", "browser"],
+            "Next.js is not supported; the browser target supports React with Vite",
+        ),
+        ("{", APP_FILES, ["--target", "browser"], "package.json is not valid JSON"),
+    ],
+)
+def test_a_target_that_the_evidence_does_not_support_is_refused(
+    project: GitRepo,
+    capsys: pytest.CaptureFixture[str],
+    manifest: object,
+    files: tuple[str, ...],
+    target: list[str],
+    message: str,
+) -> None:
+    react_app(project, "web", manifest, files)
+    if isinstance(manifest, str):
+        project.write("web/package.json", manifest)
+    assert main(["component", "add", "web", *target, "--capability", "cli"]) == 2
+    assert capsys.readouterr().err.startswith(f"component add: {message}")
+    assert (project.path / "quality.toml").read_text() == POLICY
+
+
+def test_a_target_applies_only_to_typescript(
+    project: GitRepo, capsys: pytest.CaptureFixture[str]
+) -> None:
+    native(project, "svc", "composer.json", "src", "tests")
+    assert main(["component", "add", "svc", "--target", "node", "--capability", "cli"]) == 2
+    assert (
+        capsys.readouterr().err
+        == "component add: --target applies only to the typescript profile\n"
+    )

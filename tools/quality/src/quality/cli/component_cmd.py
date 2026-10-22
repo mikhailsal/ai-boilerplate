@@ -2,7 +2,9 @@
 
 The command only edits the policy in the work tree. It never stages, never
 creates the native project, and never downloads; `quality bootstrap` then
-installs what the new component's profile needs.
+installs what the new component's profile needs. A TypeScript project with
+React or Vite evidence must name its target, so registration never guesses
+whether its code runs in the browser (decision 0017).
 """
 
 from __future__ import annotations
@@ -16,9 +18,10 @@ from quality.catalog import build_registry
 from quality.cli import Subcommands
 from quality.diagnostics import Outcome
 from quality.diagnostics.render import render_text
-from quality.discovery.manifests import PARSERS
+from quality.discovery import frontend
+from quality.discovery.manifests import PARSERS, ManifestError
 from quality.gitio import GitioError, Repository
-from quality.policy import Profile, cross_validate
+from quality.policy import Bundler, Capability, ExecutionTarget, Framework, Profile, cross_validate
 from quality.policy.edit import Draft, EditError, add_component, component_toml
 from quality.policy.load import POLICY_FILE
 
@@ -64,6 +67,13 @@ def register(commands: Subcommands) -> None:
         "--capability", action="append", default=[], help="a declared capability (repeatable)"
     )
     add.add_argument("--no-boundary-reason", help="why the component has no capabilities")
+    add.add_argument(
+        "--target",
+        choices=[str(target) for target in ExecutionTarget],
+        help="where a typescript component runs (default: node); browser declares a React + "
+        "Vite application with the ui capability, which this build fails with "
+        "typescript.browser-incomplete until its browser gates exist",
+    )
     add.set_defaults(handler=run_add)
 
 
@@ -87,6 +97,37 @@ def _profile(directory: Path, chosen: str | None) -> Profile:
     return found.pop()
 
 
+def _target(directory: Path, profile: Profile, chosen: str | None) -> ExecutionTarget | None:
+    if profile is not Profile.TYPESCRIPT:
+        if chosen is not None:
+            msg = "--target applies only to the typescript profile"
+            raise UsageError(msg)
+        return None
+    try:
+        evidence = frontend.inspect(directory)
+    except ManifestError as error:
+        raise UsageError(str(error)) from error
+    if chosen is None:
+        if evidence.found:
+            msg = (
+                f"found {', '.join(evidence.found)}, so the target is ambiguous; "
+                "name it with --target browser or --target node"
+            )
+            raise UsageError(msg)
+        return None
+    target = ExecutionTarget(chosen)
+    if target is ExecutionTarget.BROWSER and evidence.unsupported:
+        msg = (
+            f"{', '.join(evidence.unsupported)} is not supported; "
+            "the browser target supports React with Vite"
+        )
+        raise UsageError(msg)
+    if target is ExecutionTarget.BROWSER and evidence.missing:
+        msg = f"a React + Vite application needs {', '.join(evidence.missing)}"
+        raise UsageError(msg)
+    return target
+
+
 def _directories(
     directory: Path, chosen: list[str] | None, defaults: tuple[str, ...]
 ) -> tuple[str, ...]:
@@ -102,8 +143,13 @@ def _directories(
 def _draft(args: argparse.Namespace, top: Path) -> Draft:
     directory, root = _relative_root(top, args.root)
     profile = _profile(directory, args.profile)
+    target = _target(directory, profile, args.target)
+    browser = target is ExecutionTarget.BROWSER
+    capabilities = tuple(args.capability)
+    if browser and Capability.UI not in capabilities:
+        capabilities = (Capability.UI, *capabilities)
     sources, units = CONVENTIONS[profile]
-    if not args.capability and args.no_boundary_reason is None:
+    if not capabilities and args.no_boundary_reason is None:
         msg = "declare --capability, or explain with --no-boundary-reason why there is none"
         raise UsageError(msg)
     return Draft(
@@ -112,8 +158,11 @@ def _draft(args: argparse.Namespace, top: Path) -> Draft:
         root=root,
         source=_directories(directory, args.source, sources),
         unit=_directories(directory, args.unit, units),
-        capabilities=tuple(args.capability),
+        capabilities=tuple(str(name) for name in capabilities),
         no_boundary_reason=args.no_boundary_reason,
+        target=None if target is None else str(target),
+        framework=str(Framework.REACT) if browser else None,
+        bundler=str(Bundler.VITE) if browser else None,
     )
 
 

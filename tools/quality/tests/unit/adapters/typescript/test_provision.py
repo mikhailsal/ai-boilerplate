@@ -3,7 +3,13 @@ from pathlib import Path
 
 from quality.adapters.typescript.lockfile import Lock
 from quality.adapters.typescript.provision import TypeScriptSetup, copy_manifests
-from quality.testkit.nodefakes import PINS, FakeNode, typescript_component, write_component
+from quality.testkit.nodefakes import (
+    PINS,
+    FakeNode,
+    browser_component,
+    typescript_component,
+    write_component,
+)
 
 APP = typescript_component()
 
@@ -64,6 +70,19 @@ def test_doctor_locates_node_and_installs_offline(fake_node: FakeNode, snapshot:
     assert "--offline" in flags
     listing = (fake_node.root / "listing").read_text().split()
     assert listing == ["package-lock.json", "package.json"]
+
+
+def test_a_browser_component_is_reported_instead_of_set_up(
+    fake_node: FakeNode, snapshot: Path
+) -> None:
+    write_component(snapshot / "web")
+    calls: list[str] = []
+    provisioner = setup(fake_node, calls)
+    for step in (provisioner.provision, provisioner.probe):
+        (found,) = step(browser_component(), snapshot)
+        assert (found.rule, found.component) == ("typescript.browser-incomplete", "web")
+    assert calls == []
+    assert fake_node.calls() == []
 
 
 def test_a_rejected_configuration_installs_nothing(fake_node: FakeNode, snapshot: Path) -> None:

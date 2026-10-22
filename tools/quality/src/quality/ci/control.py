@@ -26,7 +26,7 @@ CHANGED = Rule(
 RULES = (CHANGED,)
 
 FIXED = ("quality.toml", "quality", ".gitattributes", ".github/**", ".gitlab-ci.yml")
-OWNED_ROLES = frozenset({Role.TOOLING, Role.HELPER})
+OWNED_ROLES = frozenset({Role.TOOLING, Role.HELPER, Role.EXAMPLE})
 
 
 def _under(root: str, path: str) -> str:

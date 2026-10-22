@@ -5,7 +5,8 @@ network access in a throwaway copy of the package manifests, which fills the
 shared npm cache. Only the lockfile and the package.json files of the root and
 its workspace members are copied: the project's `.npmrc` is not, so the install
 uses the public registry and no credentials. Doctor locates Node without
-downloading it and repeats the install offline (decision 0010).
+downloading it and repeats the install offline (decision 0010). A browser
+component gets nothing until this build can check it.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from quality.adapters.typescript import browser
 from quality.adapters.typescript.config import check_config
 from quality.adapters.typescript.environment import Node, npm_ci
 from quality.adapters.typescript.lockfile import LOCKFILE, MANIFEST, Lock
@@ -48,6 +50,9 @@ class TypeScriptSetup:
     _done: set[tuple[bool, Path]] = field(default_factory=set[tuple[bool, Path]])
 
     def _installed(self, component: Component, root: Path, *, offline: bool) -> list[Diagnostic]:
+        incomplete = browser.unsupported(component)
+        if incomplete:
+            return incomplete
         settings, report = check_config(component, root, self.pins)
         if settings is None or report.found:
             return report.found

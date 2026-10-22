@@ -58,9 +58,18 @@ application. It is recognized only from its manifests and configuration:
 `package.json` declares `react`, `react-dom`, `vite`, and
 `@vitejs/plugin-react`, and the directory has a `vite.config.*` and the
 HTML entry point. A `.tsx` file or `package.json` alone proves nothing.
-Without `--target`, a directory with that evidence is ambiguous and is
-reported, and packages of an unsupported framework make the registration
-fail. The command never edits the project's scripts or tsconfigs.
+Without `--target`, a directory with any of that evidence, or with the
+packages of an unsupported framework, meta-framework, or bundler, is
+ambiguous and is refused. `--target browser` fails on missing evidence and
+on unsupported packages, and adds the `ui` capability; `--target node`
+records the user's choice. The command never edits the project's scripts or
+tsconfigs.
+
+Until every browser gate of this decision and of
+[decision 0018](0018-browser-builds-and-scenarios.md) exists, a browser
+component fails each check, bootstrap, and doctor with
+`typescript.browser-incomplete`. Like `profiles.unavailable`, it is an
+environment finding that no exception covers.
 
 ## Versions
 

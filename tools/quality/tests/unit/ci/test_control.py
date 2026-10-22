@@ -37,6 +37,12 @@ def test_control_patterns_cover_the_fixed_files_policy_roots_and_extras_once() -
     ]
 
 
+def test_a_shipped_example_is_owned_like_the_tooling() -> None:
+    example = ComponentSpec(id="example", root="examples/web", profile="typescript", role="example")
+    policy = build_policy(ComponentSpec(id="app", root="app"), example)
+    assert control_patterns(policy, CI)[-1] == "examples/web/**"
+
+
 def test_patterns_match_whole_paths() -> None:
     patterns = ["tools/core/**", "quality"]
     assert is_control("tools/core/src/a.py", patterns)

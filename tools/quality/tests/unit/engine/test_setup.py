@@ -138,6 +138,28 @@ def test_a_dormant_helper_is_set_up_only_once_it_is_active(repo: GitRepo, mode: 
     assert typescript.calls[-1][:2] == ("probe", "web-helper")
 
 
+EXAMPLE = ComponentSpec(id="example", root="example", profile="typescript", role="example")
+
+
+def test_a_shipped_example_waits_beside_an_application_of_its_profile(project: GitRepo) -> None:
+    project.write("quality.toml", policy_toml(APP, WEB, EXAMPLE))
+    project.write("example/src/main.ts", "")
+    project.commit_all("example")
+    python, typescript = Setup(), Setup()
+    setups = {Profile.PYTHON: python, Profile.TYPESCRIPT: typescript}
+    report = provision_components(Staged(project.repository()), setups, RULES)
+    assert report.lines == [
+        "app: the python environment is ready",
+        "web: the typescript environment is ready",
+        "example: dormant, so its typescript tools wait",
+    ]
+    assert [call[:2] for call in typescript.calls] == [("provision", "web")]
+    project.write("example/src/main.ts", "// changed\n")
+    project.git("add", "example/src/main.ts")
+    staged = probe_components(Staged(project.repository()), setups, RULES)
+    assert staged.lines[2] == "example: the typescript environment is ready"
+
+
 def test_an_alternate_index_is_the_candidate(project: GitRepo, tmp_path: Path) -> None:
     index = tmp_path / "index"
     project.git("read-tree", "HEAD", GIT_INDEX_FILE=str(index))
