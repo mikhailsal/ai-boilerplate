@@ -12,9 +12,9 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 - Base: `BASE_COMPLETE_SHA` is
   `dfb232208b41f8423bd74c5e1724865f199aa455` (see the
   [F00 record](docs/plan/frontend/F00.md#base))
-- Current phase: F08
-- Next action: the full regression of the frontend and base profiles and
-  the handoff (F08)
+- Current phase: none; F00–F08 are complete, and the
+  [frontend handoff](docs/plan/frontend/handoff.md) summarizes the result
+- Next action: none
 - Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`
 - A box is checked only after its implementation commit exists and its checks
   ran; the phase record holds the SHA and the evidence.
@@ -31,7 +31,7 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 | [x] | F05 Implement production browser scenarios and accessibility | DONE | [F05](docs/plan/frontend/F05.md) |
 | [x] | F06 Integrate the existing CLI and portable CI | DONE | [F06](docs/plan/frontend/F06.md) |
 | [x] | F07 Prove reuse and publish bounded local documentation | DONE | [F07](docs/plan/frontend/F07.md) |
-| [ ] | F08 Complete regression verification and handoff | TODO | |
+| [x] | F08 Complete regression verification and handoff | DONE | [F08](docs/plan/frontend/F08.md) |
 
 ## Tasks
 
@@ -99,7 +99,7 @@ restated in the [frontend traceability matrix](docs/plan/frontend/traceability.m
 
 ### F08
 
-- [ ] Full regression of the frontend and base profiles; the handoff; the
+- [x] Full regression of the frontend and base profiles; the handoff; the
   final progress commit
 
 ## Resumption

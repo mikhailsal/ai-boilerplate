@@ -65,5 +65,7 @@
   verification, hosting, and known limitations.
 - [Frontend extension plan](../FRONTEND_PLAN.md) with one record per phase
   and the [frontend traceability matrix](plan/frontend/traceability.md).
+- [Frontend handoff](plan/frontend/handoff.md): status, contracts,
+  versions, startup, verification, hosting, and limitations.
 
 <!-- maintainer-only:end -->
