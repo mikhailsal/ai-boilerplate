@@ -7,7 +7,7 @@ and no update needs the network once its files are committed, apart from
 
 ## Pinned tools
 
-The standalone tools, Node, the Dart SDK, and Composer are pinned in
+The standalone tools, Node, the Dart SDK, Composer, and Chromium are pinned in
 [`toolchains.toml`](../../tools/quality/toolchains.toml) with a URL and a
 SHA-256 checksum per architecture
 ([decision 0001](../decisions/0001-toolchain-pins.md)). To move one to
@@ -33,6 +33,15 @@ checksum file beside each download; `{version}` stands for the new version.
 When a vendor changes its file names, edit the tool by hand with the
 checksums from the vendor's release page.
 
+Chromium has no vendor checksum file, so `tools update` refuses it. Move it
+together with `@playwright/test`: take the headless shell version from the
+`chromium-headless-shell` entry of the new playwright-core's `browsers.json`,
+edit the version, URLs, and members by hand, and pin the SHA-256 of each
+download after its MD5 matches the `x-goog-hash` header of the bucket.
+Bootstrap and doctor fail with `typescript.browser-version` until the
+browser and the locked Playwright agree
+([decision 0017](../decisions/0017-browser-frontend-profile.md#chromium)).
+
 ## uv and CPython
 
 The pinned uv version is also the `required-version` under `[tool.uv]` of
@@ -51,7 +60,8 @@ ones.
   `./quality bootstrap`.
 - **Profile packages** that every component must lock are pinned under
   `[packages.npm]`, `[packages.pub]`, and `[packages.composer]` of
-  `toolchains.toml`. Change the pin, update each component's own lockfile
+  `toolchains.toml`; browser components also lock `[packages.npm-browser]`.
+  Change the pin, update each component's own lockfile
   with its package manager (`npm install`, `dart pub upgrade`,
   `composer update`), and update the helper bundles in
   `tools/quality/helpers` the same way. A lockfile that disagrees with the

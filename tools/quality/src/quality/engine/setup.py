@@ -15,7 +15,7 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from quality.diagnostics import Diagnostic
+from quality.diagnostics import Diagnostic, Severity
 from quality.discovery import active_components
 from quality.engine.common import tool_findings
 from quality.engine.profiles import ProfileSetup
@@ -73,7 +73,7 @@ def _components(
             lambda setup=setup, component=component: step(setup, component, root)
         )
         report.diagnostics.extend(problems)
-        if not problems:
+        if all(problem.severity is not Severity.ERROR for problem in problems):
             report.lines.append(f"{component.id}: the {component.profile} environment is ready")
     return report
 

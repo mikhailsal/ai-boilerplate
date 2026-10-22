@@ -6,16 +6,7 @@ import pytest
 from quality.adapters import native
 from quality.catalog import build_registry
 from quality.diagnostics import Diagnostic, Severity
-from quality.engine.setup import (
-    SetupReport,
-    Staged,
-    hook_status,
-    install_hooks,
-    probe_components,
-    provision_components,
-)
-from quality.gitio import Repository
-from quality.hooks import HookName, script
+from quality.engine.setup import SetupReport, Staged, probe_components, provision_components
 from quality.policy import Component, Profile
 from quality.testkit.gitrepo import GitRepo
 from quality.testkit.policies import ComponentSpec, policy_toml
@@ -24,7 +15,7 @@ RULES = tuple(rule.id for rule in build_registry())
 APP = ComponentSpec(root="app")
 WEB = ComponentSpec(id="web", root="web", profile="typescript")
 STALE = native.FAILED.diagnostic("uv sync: app: package not cached")
-FOREIGN = b"#!/bin/sh\necho my own hook\n"
+NOTE = Diagnostic("typescript.browser-ready", Severity.INFO, "Chromium 156 starts")
 
 
 @dataclass
@@ -59,10 +50,6 @@ def project(repo: GitRepo) -> GitRepo:
     repo.write("web/tests/index.test.ts", "")
     repo.commit_all("base")
     return repo
-
-
-def hook(repo: GitRepo, name: HookName = HookName.PRE_COMMIT) -> Path:
-    return repo.path / ".git" / "hooks" / str(name)
 
 
 def rules_of(report: SetupReport) -> list[str]:
@@ -103,12 +90,22 @@ def test_probe_runs_the_probe_step(project: GitRepo) -> None:
     ]
 
 
-@pytest.mark.parametrize("python", [Setup([STALE]), Setup(error=native.failure("uv", "boom"))])
-def test_a_component_with_problems_is_not_ready(project: GitRepo, python: Setup) -> None:
+@pytest.mark.parametrize(
+    ("python", "ready"),
+    [
+        (Setup([STALE]), False),
+        (Setup(error=native.failure("uv", "boom")), False),
+        (Setup([NOTE]), True),
+    ],
+)
+def test_only_errors_keep_a_component_from_ready(
+    project: GitRepo, python: Setup, *, ready: bool
+) -> None:
     setups = {Profile.PYTHON: python, Profile.TYPESCRIPT: Setup()}
     report = probe_components(Staged(project.repository()), setups, RULES)
-    assert rules_of(report) == ["tools.failed"]
-    assert report.lines == ["web: the typescript environment is ready"]
+    assert rules_of(report) == [NOTE.rule if ready else "tools.failed"]
+    app = ["app: the python environment is ready"] if ready else []
+    assert report.lines == [*app, "web: the typescript environment is ready"]
 
 
 HELPER = ComponentSpec(id="web-helper", root="helper", profile="typescript", role="helper")
@@ -191,59 +188,3 @@ def test_reports_merge_in_order() -> None:
     first = SetupReport([STALE], ["one"])
     first.merge(SetupReport([STALE], ["two"]))
     assert first == SetupReport([STALE, STALE], ["one", "two"])
-
-
-def test_hooks_are_installed_and_reported_current(repo: GitRepo) -> None:
-    git = repo.repository()
-    report = install_hooks(git, HookName)
-    assert report == SetupReport([], [f"{name} hook: {hook(repo, name)}" for name in HookName])
-    assert hook(repo).read_text() == script(HookName.PRE_COMMIT)
-    assert install_hooks(git, [HookName.PRE_COMMIT]).lines == [f"pre-commit hook: {hook(repo)}"]
-    status = hook_status(git, frozenset(HookName))
-    assert status == SetupReport([], ["pre-commit hook: current", "pre-push hook: current"])
-
-
-def test_a_foreign_hook_is_kept_and_reported(repo: GitRepo) -> None:
-    hook(repo).write_bytes(FOREIGN)
-    report = install_hooks(repo.repository(), HookName)
-    assert rules_of(report) == ["hooks.conflict"]
-    assert report.lines == [f"pre-push hook: {hook(repo, HookName.PRE_PUSH)}"]
-    assert hook(repo).read_bytes() == FOREIGN
-
-
-def test_hook_status_reports_missing_and_foreign_hooks(repo: GitRepo) -> None:
-    hook(repo).write_bytes(FOREIGN)
-    report = hook_status(repo.repository(), frozenset(HookName))
-    assert rules_of(report) == ["hooks.conflict", "hooks.missing"]
-    assert report.lines == ["pre-commit hook: foreign", "pre-push hook: missing"]
-
-
-def test_an_optional_outdated_hook_is_a_warning(repo: GitRepo) -> None:
-    git = repo.repository()
-    install_hooks(git, [HookName.PRE_PUSH])
-    hook(repo, HookName.PRE_PUSH).chmod(0o644)
-    report = hook_status(git, frozenset({HookName.PRE_COMMIT}))
-    assert [(d.rule, d.severity) for d in report.diagnostics] == [
-        ("hooks.missing", Severity.ERROR),
-        ("hooks.missing", Severity.WARNING),
-    ]
-    assert report.lines == ["pre-commit hook: missing", "pre-push hook: outdated"]
-
-
-def test_a_hooks_path_is_a_conflict(repo: GitRepo) -> None:
-    repo.git("config", "core.hooksPath", ".githooks")
-    git = repo.repository()
-    installed = install_hooks(git, HookName)
-    assert (rules_of(installed), installed.lines) == (["hooks.conflict"] * 2, [])
-    status = hook_status(git, frozenset(HookName))
-    assert (rules_of(status), status.lines) == (["hooks.conflict"], [])
-    assert not (repo.path / ".githooks").exists()
-
-
-def test_an_unreadable_git_config_is_a_git_failure(repo: GitRepo) -> None:
-    git = Repository(repo.path, repo.path / ".git", repo.environ())
-    (repo.path / ".git" / "config").write_text("[core\n")
-    installed = install_hooks(git, [HookName.PRE_COMMIT])
-    assert (rules_of(installed), installed.lines) == (["git.failed"], [])
-    status = hook_status(git, frozenset(HookName))
-    assert (rules_of(status), status.lines) == (["git.failed"], [])

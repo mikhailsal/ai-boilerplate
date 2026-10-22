@@ -9,7 +9,13 @@ from quality.adapters.typescript.config import (
     typescript_files,
 )
 from quality.diagnostics import Diagnostic
-from quality.testkit.nodefakes import PINS, typescript_component, write_component
+from quality.testkit.browserfakes import ALL_PINS
+from quality.testkit.nodefakes import (
+    PINS,
+    browser_component,
+    typescript_component,
+    write_component,
+)
 
 APP = typescript_component()
 
@@ -30,6 +36,20 @@ def test_a_complete_configuration_passes(snapshot: Path) -> None:
     assert report.found == []
     assert settings is not None
     assert settings.lock.directory == snapshot / "app"
+
+
+def test_a_browser_component_also_locks_the_browser_packages(snapshot: Path) -> None:
+    locked = {name: pin for name, pin in ALL_PINS.items() if name not in {"globals", "jsdom"}}
+    write_component(snapshot / "web", {**locked, "react": "18.3.1"})
+    _, report = check_config(browser_component(), snapshot, ALL_PINS)
+    assert located(report.found) == [
+        (
+            "web/package-lock.json",
+            "node_modules/react is locked at '18.3.1'; the profile pins react 19.3.1",
+        ),
+        ("web/package-lock.json", "the lockfile does not lock jsdom; add jsdom@30.1.3"),
+    ]
+    assert check_config(typescript_component("web"), snapshot, ALL_PINS)[1].found == []
 
 
 def test_missing_files_are_reported_at_the_component(snapshot: Path) -> None:

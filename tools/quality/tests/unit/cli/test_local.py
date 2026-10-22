@@ -127,11 +127,30 @@ def test_the_typescript_profile_uses_the_pinned_packages_and_the_npm_cache() -> 
     assert isinstance(profile, TypeScriptProfile)
     assert isinstance(setup, TypeScriptSetup)
     assert isinstance(fixer, TypeScriptFixer)
-    assert profile.pins == setup.pins == fixer.pins == load_manifest().packages["npm"]
+    packages = load_manifest().packages
+    assert (
+        profile.pins == setup.pins == fixer.pins == {**packages["npm"], **packages["npm-browser"]}
+    )
     assert npm_pins() == profile.pins
     assert npm_cache() == cache_root().parent / "npm" == setup.cache
     assert node_environments().cache == npm_cache()
     assert fixer.listing is worktree_files
+
+
+def test_browser_components_get_the_pinned_chromium(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: list[str] = []
+
+    def found(name: str, tool: Tool, cache: Path) -> Path:
+        called.append(f"{name} {tool.version}")
+        return cache / name
+
+    monkeypatch.setattr(local, "locate", found)
+    monkeypatch.setattr(local, "install", found)
+    setup = local_setups()[Profile.TYPESCRIPT]
+    assert isinstance(setup, TypeScriptSetup)
+    assert called == [f"uv {pinned('uv').version}"]
+    assert setup.chromium.locate() == setup.chromium.install() == cache_root() / "chromium"
+    assert called[1:] == ["chromium 156.0.8078.4"] * 2
 
 
 def test_the_npm_pins_need_a_valid_manifest(monkeypatch: pytest.MonkeyPatch) -> None:

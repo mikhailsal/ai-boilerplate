@@ -97,6 +97,27 @@ sha256 = "fef00bb4d36e1c50104a9775a10359beee98f162b4104dd12472c75065c6a143"
 packaging = "tree"
 member = "node-v24.22.0-linux-arm64"
 
+# The Chrome for Testing headless shell that browser scenarios run in, installed
+# with its whole tree like Node.js. Google publishes no SHA-256 for it: these
+# were computed from downloads that matched the MD5 digests of the bucket, and
+# without a vendor checksum file `quality tools update` refuses the tool. Only
+# an active browser component needs it (decision 0017).
+[tools.chromium]
+version = "156.0.8078.4"
+binary = "chrome-headless-shell"
+
+[tools.chromium.artifacts.x86_64]
+url = "https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.4/linux64/chrome-headless-shell-linux64.zip"
+sha256 = "c3e50596aef52c58f8fda3c6b3411c33d34c88b177b3ed1c2243359fd3b8ba20"
+packaging = "tree"
+member = "chrome-headless-shell-linux64"
+
+[tools.chromium.artifacts.aarch64]
+url = "https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.4/linux-arm64/chrome-headless-shell-linux-arm64.zip"
+sha256 = "81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476"
+packaging = "tree"
+member = "chrome-headless-shell-linux-arm64"
+
 [tools.dart]
 version = "3.13.6"
 binary = "dart"
@@ -142,6 +163,28 @@ packaging = "binary"
 "prettier" = "3.9.10"
 "vitest" = "5.0.5"
 "@vitest/coverage-v8" = "5.0.5"
+
+# Exact versions a browser component (`target = "browser"`) also locks in its
+# package-lock.json; a Node component needs none of them (decision 0017).
+[packages.npm-browser]
+"react" = "19.3.1"
+"react-dom" = "19.3.1"
+"@types/react" = "19.3.0"
+"@types/react-dom" = "19.3.0"
+"vite" = "8.3.5"
+"@vitejs/plugin-react" = "6.1.2"
+"jsdom" = "30.1.3"
+"@testing-library/react" = "16.3.3"
+"@testing-library/dom" = "10.4.2"
+"@testing-library/user-event" = "14.6.8"
+"eslint-plugin-react-hooks" = "7.1.1"
+"eslint-plugin-jsx-a11y-x" = "0.2.0"
+"globals" = "17.13.0"
+"stylelint" = "17.16.0"
+"stylelint-config-standard" = "40.0.0"
+"stylelint-config-css-modules" = "4.6.0"
+"@playwright/test" = "1.64.1"
+"@axe-core/playwright" = "4.14.0"
 
 # Exact versions a Dart component must lock in its pubspec.lock (decision 0012).
 [packages.pub]

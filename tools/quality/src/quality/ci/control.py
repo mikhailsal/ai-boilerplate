@@ -15,9 +15,9 @@ CHANGED = Rule(
     requirement="R09",
     explanation=(
         "At the merge stage the gate lists every changed control file: the policy, the "
-        "launcher, files under .github, GitLab entry points, the roots of tooling and "
-        "helper components, scenario manifests, native configuration, and the paths in "
-        "`[ci].control`. A hosting rule that requires code-owner review is what protects "
+        "launcher, files under .github, GitLab entry points, the roots of tooling, helper, "
+        "and example components, scenario manifests, native configuration, and the paths "
+        "in `[ci].control`. A hosting rule that requires code-owner review is what protects "
         "them; the gate only makes the change visible."
     ),
     remedy="Have a code owner review the control change.",

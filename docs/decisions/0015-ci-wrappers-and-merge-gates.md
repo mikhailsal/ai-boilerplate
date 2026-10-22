@@ -1,6 +1,6 @@
 # 0015 CI wrappers and merge gates
 
-Status: accepted (P10).
+Status: accepted (P10); amended in F02.
 
 ## Scope
 
@@ -137,8 +137,8 @@ tests run it against offline databases.
 
 Control files decide what the gate checks: `quality.toml`, the launcher,
 `.gitattributes`, everything under `.github`, `.gitlab-ci.yml`, the roots of
-tooling and helper components (the core, its hooks, bootstrap, and validator),
-scenario manifests, native configuration, and the globs in `[ci].control`.
+tooling and helper components (the core, its hooks, bootstrap, and validator)
+and of example components, scenario manifests, native configuration, and the globs in `[ci].control`.
 `ci.codeowners` requires an owner for each one in `[ci].codeowners`, including
 the CODEOWNERS file itself, and reports the lines GitHub would ignore and a
 CODEOWNERS file that GitHub reads instead. At the merge stage

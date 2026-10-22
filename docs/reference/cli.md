@@ -26,7 +26,7 @@ environment fails with `core.environment`.
 | --- | --- |
 | `bootstrap [--pre-push]` | Install the pinned tools, interpreters, and locked packages, then the managed hooks ([decision 0010](../decisions/0010-launcher-bootstrap-and-hooks.md)) |
 | `doctor [--json]` | Verify offline and read-only that checks can run here |
-| `tools install [NAME ...]` | Download, verify, and install pinned tools from `tools/quality/toolchains.toml`: gitleaks, actionlint, and osv-scanner by default, or the named ones such as `node`, `dart`, or `composer`; bootstrap installs Node only for a TypeScript component, the Dart SDK only for a Dart component, and Composer only for a PHP component |
+| `tools install [NAME ...]` | Download, verify, and install pinned tools from `tools/quality/toolchains.toml`: gitleaks, actionlint, and osv-scanner by default, or the named ones such as `node`, `dart`, `composer`, or `chromium`; bootstrap installs Node only for a TypeScript component, Chromium only for a browser component, the Dart SDK only for a Dart component, and Composer only for a PHP component |
 | `tools update NAME VERSION` | Rewrite one tool's pins in `toolchains.toml` for another release, with checksums from the vendor's checksum file that its `checksums` template names; nothing is installed or staged ([maintenance guide](../guides/maintenance.md)) |
 
 ## Project lifecycle

@@ -95,6 +95,9 @@ def test_the_profile_reports_its_rules(setup: Setup) -> None:
     assert setup.profile.rules == RULES
     assert {rule.id for rule in RULES} == {
         "typescript.browser-incomplete",
+        "typescript.browser-libraries",
+        "typescript.browser-ready",
+        "typescript.browser-version",
         "typescript.config",
         "typescript.format",
         "typescript.lint",

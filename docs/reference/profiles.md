@@ -46,7 +46,9 @@ The browser target of the TypeScript profile, `target = "browser"`
 ([decision 0017](../decisions/0017-browser-frontend-profile.md)), is not
 supported by this build yet: a component that declares it fails every check,
 bootstrap, and doctor with `typescript.browser-incomplete`, which cannot be
-excepted.
+excepted. Bootstrap already installs the pinned Chromium for an active
+browser component, and bootstrap and doctor report whether it starts and
+matches the locked Playwright.
 
 ## Several components
 

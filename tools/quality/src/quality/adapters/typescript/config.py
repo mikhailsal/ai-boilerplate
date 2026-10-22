@@ -31,8 +31,10 @@ CONFIG = Rule(
     explanation=(
         "A TypeScript component needs package.json, a package-lock.json that locks the pinned "
         "TypeScript, ESLint, typescript-eslint, Prettier, Vitest, and V8 coverage packages, "
-        "tsconfig.json, and an ESLint flat configuration at its root. Its source and test "
-        "files are TypeScript, and its lockfile installs nothing from outside the repository."
+        "tsconfig.json, and an ESLint flat configuration at its root; a browser component's "
+        "lockfile also locks the pinned React, Vite, testing, lint, and Playwright packages. "
+        "Its source and test files are TypeScript, and its lockfile installs nothing from "
+        "outside the repository."
     ),
     remedy=(
         "Fix the named file or convert it to TypeScript; `npm install --save-exact` writes "
@@ -95,7 +97,7 @@ def check_config(
     if not (directory / TSCONFIG).is_file():
         report.add(TSCONFIG, "a tsconfig.json at the component root is required")
     _eslint(directory, report)
-    lock = check_lock(directory, snapshot, pins, report.add)
+    lock = check_lock(directory, snapshot, pins, report.add, browser=component.in_browser)
     return (NativeConfig(lock) if lock is not None else None), report
 
 

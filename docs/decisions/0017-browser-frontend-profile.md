@@ -124,9 +124,20 @@ SHA-256 values are pinned:
 
 Without a vendor checksum file the tool names no `checksums`, so
 `quality tools update` refuses it and an update is a reviewed edit with the
-same proof. The gate compares the pinned version with the
-`chromium-headless-shell` entry of the `browsers.json` of the component's
-locked `playwright-core` and fails on a mismatch.
+same proof.
+
+Only an active browser component needs the browser: bootstrap installs it
+while it caches that component's packages, and doctor locates it without
+downloading. Both then probe it against the component's own offline install
+of the lockfile. `ldd` must find every library the headless shell links, or
+`typescript.browser-libraries` names the missing ones; the `deb.deps` and
+`rpm.deps` files beside the binary list the distribution packages. The
+binary must start and print its version with `--version` in a throwaway
+home. That version must equal the `chromium-headless-shell` entry of the
+`browsers.json` of the `playwright-core` that the locked `@playwright/test`
+loads, or `typescript.browser-version` fails. A browser that passes is
+reported as the information finding `typescript.browser-ready`, which names
+its path.
 
 ## Static checks
 
