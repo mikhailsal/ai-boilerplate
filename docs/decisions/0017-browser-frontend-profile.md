@@ -2,7 +2,8 @@
 
 Status: accepted (F05, 2026-10-22); proposed in F00, with the static checks
 implemented in F03, the unit tests and coverage in F04, and the browser
-scenarios of [decision 0018](0018-browser-builds-and-scenarios.md) in F05.
+scenarios of [decision 0018](0018-browser-builds-and-scenarios.md) in F05;
+amended in F07, when registration gained the end-to-end suite and manifest.
 
 ## Scope
 
@@ -63,8 +64,9 @@ HTML entry point. A `.tsx` file or `package.json` alone proves nothing.
 Without `--target`, a directory with any of that evidence, or with the
 packages of an unsupported framework, meta-framework, or bundler, is
 ambiguous and is refused. `--target browser` fails on missing evidence and
-on unsupported packages, and adds the `ui` capability; `--target node`
-records the user's choice. The command never edits the project's scripts or
+on unsupported packages, and adds the `ui` capability, the `e2e` suite,
+and the `scenarios.toml` manifest when the directory has them;
+`--target node` records the user's choice. The command never edits the project's scripts or
 tsconfigs.
 
 ## Versions

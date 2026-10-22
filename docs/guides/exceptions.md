@@ -39,6 +39,22 @@ expires = 2027-01-31
 The change to `quality.toml` is a control-file change, so code owners
 review it ([protection guide](protection.md)).
 
+### Browser findings
+
+A finding of a browser scenario points at the scenario's test file, so
+`path` is that file, and `symbol` is what the scenario observed:
+
+| Rule | `symbol` |
+| --- | --- |
+| `typescript.browser-console` | The exact console message |
+| `typescript.browser-resource` | The path of the failed request |
+| `typescript.accessibility` | The axe rule and the element's selector, separated by one space, such as `color-contrast #total` |
+
+An accessibility exception covers one element, never a whole axe rule;
+turning rules off in the scan itself fails it with
+`typescript.accessibility-scan`
+([decision 0018](../decisions/0018-browser-builds-and-scenarios.md#accessibility)).
+
 ## What cannot be excepted
 
 Rules about the policy, Git, discovery, secrets, tests, coverage, scenarios,

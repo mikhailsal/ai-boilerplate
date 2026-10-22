@@ -156,3 +156,32 @@ def test_a_target_applies_only_to_typescript(
         capsys.readouterr().err
         == "component add: --target applies only to the typescript profile\n"
     )
+
+
+def test_a_browser_application_registers_its_scenarios_when_they_exist(
+    project: GitRepo, capsys: pytest.CaptureFixture[str]
+) -> None:
+    react_app(project, "web")
+    assert main(["component", "add", "web", "--target", "browser"]) == 0
+    web = last(project)
+    assert (web.tests.e2e, web.scenarios) == ([], None)
+    react_app(project, "admin", files=(*APP_FILES, "e2e/.keep", "scenarios.toml"))
+    capsys.readouterr()
+    assert main(["component", "add", "admin", "--target", "browser"]) == 0
+    admin = last(project)
+    assert (admin.tests.e2e, admin.scenarios) == (["e2e"], "scenarios.toml")
+    out = capsys.readouterr().out
+    assert 'tests = { unit = ["tests"], e2e = ["e2e"] }\n' in out
+    assert 'capabilities = ["ui"]\nscenarios = "scenarios.toml"\n' in out
+
+
+def test_any_component_can_name_its_end_to_end_suites_and_manifest(project: GitRepo) -> None:
+    for root in ("svc", "api"):
+        project.write(f"{root}/pyproject.toml", f'[project]\nname = "{root}"\n')
+        for name in ("src/.keep", "tests/.keep", "e2e/.keep", "scenarios.toml", "s.toml"):
+            project.write(f"{root}/{name}", "")
+    assert main(["component", "add", "svc", "--capability", "cli"]) == 0
+    assert (last(project).tests.e2e, last(project).scenarios) == ([], None)
+    named = ["--capability", "cli", "--e2e", "e2e", "--scenarios", "s.toml"]
+    assert main(["component", "add", "api", *named]) == 0
+    assert (last(project).tests.e2e, last(project).scenarios) == (["e2e"], "s.toml")

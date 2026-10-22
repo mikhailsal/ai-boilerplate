@@ -31,16 +31,7 @@ installed only when a component uses that profile, or when a candidate
 changes the profile's helper bundle in `tools/quality/helpers`. The
 prerequisites are in [decision 0002](../decisions/0002-installation-strategy.md).
 
-## Unsupported source
-
-Source files are classified by extension and owner
-([decision 0006](../decisions/0006-discovery-and-classification.md)). A
-source file of another language inside a component fails with
-`discovery.language-mismatch`, and a source language that no profile
-supports, such as Go or Ruby, fails with `discovery.unsupported-language`.
-Neither passes silently, and both name the file. Unsupported variants of a
-supported language also fail: Flutter and web Dart packages, and JavaScript
-sources in a TypeScript component.
+## Browser applications
 
 The browser target of the TypeScript profile, `target = "browser"`, covers
 single-page React + Vite applications
@@ -58,6 +49,34 @@ Playwright; it needs system libraries such as NSS and GLib, and
 `typescript.browser-libraries` names the missing ones. CI checks browser
 components in a lane of the gate of their own, `quality gate --lane
 browser`, which the aggregate status requires like the main lane.
+
+| | Supported | Not supported |
+| --- | --- | --- |
+| Application | A client-rendered single-page application | Server rendering and React Server Components: Next.js, Remix, React Router framework mode, Gatsby, Astro, Vike; React Native and Expo |
+| Framework | React with `@vitejs/plugin-react` | Vue, Nuxt, Svelte, SvelteKit, Angular, Solid, Preact |
+| Bundler | Vite | webpack, Parcel, Rspack |
+| Unit tests | Vitest in jsdom, React Testing Library, user-event | Vitest Browser Mode |
+| Browser | The pinned Chromium headless shell | Firefox, WebKit, other Chromium builds |
+| Budgets | None in the baseline | Visual, bundle-size, and performance budgets |
+
+`component add --target browser` refuses a project that depends on an
+application framework, framework, or bundler of the right-hand column, and a
+TypeScript project with React or Vite must name its target. Budgets would be
+enhanced capabilities with their own measurement, so no check claims them. A browser component declares the `ui` capability; its
+scenarios prove `ui.smoke`, `ui.flows`, `ui.accessibility`, and
+`ui.keyboard` in a manifest like the one of the
+[reference application](../../examples/web/scenarios.toml).
+
+## Unsupported source
+
+Source files are classified by extension and owner
+([decision 0006](../decisions/0006-discovery-and-classification.md)). A
+source file of another language inside a component fails with
+`discovery.language-mismatch`, and a source language that no profile
+supports, such as Go or Ruby, fails with `discovery.unsupported-language`.
+Neither passes silently, and both name the file. Unsupported variants of a
+supported language also fail: Flutter and web Dart packages, and JavaScript
+sources in a TypeScript component.
 
 ## Several components
 

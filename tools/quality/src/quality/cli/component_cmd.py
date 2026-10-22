@@ -4,7 +4,8 @@ The command only edits the policy in the work tree. It never stages, never
 creates the native project, and never downloads; `quality bootstrap` then
 installs what the new component's profile needs. A TypeScript project with
 React or Vite evidence must name its target, so registration never guesses
-whether its code runs in the browser (decision 0017).
+whether its code runs in the browser (decision 0017); a browser application
+also registers its end-to-end suite and scenario manifest when they exist.
 """
 
 from __future__ import annotations
@@ -34,6 +35,9 @@ CONVENTIONS: dict[Profile, tuple[tuple[str, ...], tuple[str, ...]]] = {
     Profile.DART: (("lib", "bin"), ("test",)),
     Profile.PHP: (("src",), ("tests",)),
 }
+# The end-to-end suite and scenario manifest a browser application registers when present.
+BROWSER_E2E = "e2e"
+MANIFEST = "scenarios.toml"
 
 
 class UsageError(ValueError):
@@ -54,15 +58,26 @@ def register(commands: Subcommands) -> None:
         description="Append a [[components]] table for the native project in ROOT to "
         "quality.toml in the work tree. The profile follows from the project's manifest, the "
         "ID from the directory name, and the source and unit test directories from the "
-        "profile's conventions, unless the options name them. The edited policy is validated "
-        "before it is written; nothing is staged. Exit 0 when added, 2 when the arguments or "
-        "the resulting policy are invalid, 3 on Git errors.",
+        "profile's conventions, unless the options name them; a browser application also "
+        "registers its e2e directory and scenarios.toml when they exist. The edited policy is "
+        "validated before it is written; nothing is staged. Exit 0 when added, 2 when the "
+        "arguments or the resulting policy are invalid, 3 on Git errors.",
     )
     add.add_argument("root", help="the component's directory, relative to the current one")
     add.add_argument("--id", help="the component ID (default: the directory name)")
     add.add_argument("--profile", choices=[str(profile) for profile in Profile])
     add.add_argument("--source", action="append", help="a source directory (repeatable)")
     add.add_argument("--unit", action="append", help="a unit test directory (repeatable)")
+    add.add_argument(
+        "--e2e",
+        action="append",
+        help=f"an end-to-end test directory (repeatable; a browser component: {BROWSER_E2E} "
+        "when it exists)",
+    )
+    add.add_argument(
+        "--scenarios",
+        help=f"the scenario manifest (a browser component: {MANIFEST} when it exists)",
+    )
     add.add_argument(
         "--capability", action="append", default=[], help="a declared capability (repeatable)"
     )
@@ -139,6 +154,19 @@ def _directories(
     return present
 
 
+def _scenario_suites(
+    directory: Path, args: argparse.Namespace, *, browser: bool
+) -> tuple[tuple[str, ...], str | None]:
+    """Return the end-to-end directories and the scenario manifest of the component."""
+    e2e = tuple(args.e2e or ())
+    if not e2e and browser and (directory / BROWSER_E2E).is_dir():
+        e2e = (BROWSER_E2E,)
+    manifest = args.scenarios
+    if manifest is None and browser and (directory / MANIFEST).is_file():
+        manifest = MANIFEST
+    return e2e, manifest
+
+
 def _draft(args: argparse.Namespace, top: Path) -> Draft:
     directory, root = _relative_root(top, args.root)
     profile = _profile(directory, args.profile)
@@ -151,6 +179,7 @@ def _draft(args: argparse.Namespace, top: Path) -> Draft:
     if not capabilities and args.no_boundary_reason is None:
         msg = "declare --capability, or explain with --no-boundary-reason why there is none"
         raise UsageError(msg)
+    e2e, manifest = _scenario_suites(directory, args, browser=browser)
     return Draft(
         id=args.id or directory.name,
         profile=str(profile),
@@ -162,6 +191,8 @@ def _draft(args: argparse.Namespace, top: Path) -> Draft:
         target=None if target is None else str(target),
         framework=str(Framework.REACT) if browser else None,
         bundler=str(Bundler.VITE) if browser else None,
+        e2e=e2e,
+        scenarios=manifest,
     )
 
 

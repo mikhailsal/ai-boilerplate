@@ -104,4 +104,17 @@ level = "acceptance"
 stage = "merge"
 requirements = ["cli.flows"]
 tests = ["tests.acceptance.test_browser_runs::test_the_lanes_and_the_verdict_stay_red_while_a_scenario_fails"]
+
+[[scenarios]]
+id = "frontend-start"
+summary = "The README's browser Quick start, run as written, adds one or two frontends to a fresh export or to a Node project that never needed a browser."
+capability = "cli"
+level = "acceptance"
+stage = "merge"
+requirements = ["cli.flows"]
+tests = [
+    "tests.acceptance.test_frontend_start::test_a_fresh_export_starts_a_browser_application_from_the_quick_start",
+    "tests.acceptance.test_frontend_start::test_a_node_project_needs_no_browser_until_it_adds_a_frontend",
+    "tests.acceptance.test_frontend_start::test_two_browser_applications_pass_the_hook_and_the_browser_lane",
+]
 # maintainer-only:end

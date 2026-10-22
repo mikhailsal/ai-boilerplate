@@ -64,8 +64,10 @@ ones.
   Change the pin, update each component's own lockfile
   with its package manager (`npm install`, `dart pub upgrade`,
   `composer update`), and update the helper bundles in
-  `tools/quality/helpers` the same way. A lockfile that disagrees with the
-  pin fails the profile's configuration check.
+  `tools/quality/helpers` and the reference application in `examples/web`
+  the same way. A lockfile that disagrees with the pin fails the profile's
+  configuration check. A new `@playwright/test` pin moves Chromium with it,
+  as described under [Pinned tools](#pinned-tools).
 - **System runtimes**: `[runtimes]` names the PHP and Xdebug minor versions
   the PHP profile accepts.
 
