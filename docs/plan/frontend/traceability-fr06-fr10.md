@@ -16,7 +16,7 @@ Continued from [FR01–FR05](traceability.md), with the same status values.
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| FR07.1 | Static JSX accessibility rules plus axe scans of declared states and keyboard/focus scenarios | F03, F05 | Planned: lint and scenario cases | TODO |
+| FR07.1 | Static JSX accessibility rules plus axe scans of declared states and keyboard/focus scenarios | F03, F05 | [F03](F03.md): the `jsx-a11y-x` rules and the image-without-text acceptance case; scans and keyboard: planned (F05) | IN_PROGRESS |
 | FR07.2 | Serious and critical block; moderate, minor, and incomplete reported; tags and exceptions recorded; a missing scan or empty page fails | F05 | Planned: axe result tests | TODO |
 | FR07.3 | Names and labels, keyboard operation, focus on form errors; a failing fixture and its control | F05 | Planned: acceptance cases | TODO |
 | FR07.4 | Budgets only as explicit enhanced capabilities; nothing claimed when not run | F05, F07 | [Decision 0018](../../decisions/0018-browser-builds-and-scenarios.md#accessibility) | TODO |
@@ -64,7 +64,7 @@ proof unchanged.
 | R02.1, R02.4, R02.5 | `component add --target`; the pinned browser with checksums, set up only for active browser components | F01, F02 | DONE |
 | R02.2 | Generated Vite and Playwright wrappers override what decides the verdict | F03, F05 | TODO |
 | R03.1–R03.11 | Snapshot and revision semantics proven with frontend files | F04, F05 | TODO |
-| R04.1–R04.7 | Limits unchanged; formatter and lint sets extend to CSS and HTML; asset blob and secret checks; browser/server boundaries | F03 | TODO |
+| R04.1–R04.7 | Limits unchanged; formatter and lint sets extend to CSS and HTML; asset blob and secret checks; browser/server boundaries | F03 | IN_PROGRESS |
 | R05.1–R05.7 | Frontend documentation within the limits | F07 | TODO |
 | R06.1–R06.11 | Per browser component, unchanged floors and evidence rules | F04 | TODO |
 | R07.1 | Compatible versions from primary sources: [decision 0017](../../decisions/0017-browser-frontend-profile.md#versions) | F00 | DONE |

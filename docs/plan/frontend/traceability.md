@@ -13,7 +13,7 @@ Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`.
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
 | FR01.1 | Language, target, framework, bundler, ownership, and capabilities explicit in the existing schema | F01 | [F01](F01.md): `policy/test_browser.py`, the regenerated schema | DONE |
-| FR01.2 | React rules, DOM globals, transforms, and test environments only in browser components | F01, F03, F04 | Planned: unit tests of the wrappers per target; a mixed acceptance repository | TODO |
+| FR01.2 | React rules, DOM globals, transforms, and test environments only in browser components | F01, F03, F04 | [F03](F03.md): `typescript/test_profile_browser.py` (browser rules and gates only for the browser target), `test_typescript_layouts.py`; the test environments: planned (F04) | IN_PROGRESS |
 | FR01.3 | React/Vite recognized from manifests, configuration, and explicit registration; ambiguity and unsupported frameworks reported | F01, F02 | [F01](F01.md): `discovery/test_frontend.py`; [F02](F02.md): `cli/test_component_target.py` | DONE |
 | FR01.4 | Discovery separate from the core, dormant adapters, and fixtures; a shipped example activates nothing; active or modified helpers are checked | F01 | [F01](F01.md): `discovery/test_activation.py`, `engine/test_setup.py`, `ci/test_control.py` | DONE |
 | FR01.5 | Existing configurations keep their meaning; no rewrite of user scripts or tsconfigs | F01 | [F01](F01.md): the existing policy and acceptance suites passed unchanged | DONE |
@@ -32,20 +32,20 @@ Status values: `TODO`, `IN_PROGRESS`, `BLOCKED`, `NOT_VERIFIED`, `DONE`.
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
-| FR03.1 | Prettier, typed ESLint, strict tsc, and structure over source, tests, and Node configuration; an empty solution tsconfig skips nothing | F03 | Planned: helper and adapter tests | TODO |
-| FR03.2 | A real type check separate from the bundler; a transpilable type error fails; aliases and references consistent | F03 | Planned: acceptance case | TODO |
-| FR03.3 | React Hooks and selected JSX accessibility rules with explicit scopes | F03 | Planned: helper `eslint-config` tests | TODO |
-| FR03.4 | Browser/server import boundaries through real resolution, incl. aliases and transitive dependencies | F03, F05 | Planned: helper and build plugin tests | TODO |
-| FR03.5 | Base limits and counting unchanged; JSX depth is not nesting | F03 | Planned: helper structure tests | TODO |
-| FR03.6 | CSS formatting and Stylelint; HTML entry points and production asset references; Sass and others unsupported | F03 | Planned: adapter and acceptance cases | TODO |
-| FR03.7 | Precise classification of HTML, CSS, SVG, images, public files, bundles, and source maps; asset checks without coverage counters | F03 | Planned: `discovery/test_classify.py` | TODO |
+| FR03.1 | Prettier, typed ESLint, strict tsc, and structure over source, tests, and Node configuration; an empty solution tsconfig skips nothing | F03 | [F03](F03.md): `typescript/test_prettier.py`, `test_eslint.py`, `test_profile_browser.py`, helper tests, `acceptance/test_browser_static.py` | DONE |
+| FR03.2 | A real type check separate from the bundler; a transpilable type error fails; aliases and references consistent | F03 | [F03](F03.md): `acceptance/test_browser_static.py` (`transpilable-type-error`), `test_typescript_layouts.py` | DONE |
+| FR03.3 | React Hooks and selected JSX accessibility rules with explicit scopes | F03 | [F03](F03.md): helper `eslint-config.test.ts`, `typescript/test_eslint.py`, `test_browser.py`, the acceptance hook and accessibility cases | DONE |
+| FR03.4 | Browser/server import boundaries through real resolution, incl. aliases and transitive dependencies | F03, F05 | [F03](F03.md): helper `imports.test.ts`, `typescript/test_boundaries.py`, the acceptance server-module and builtin cases; the build plugin: pending | IN_PROGRESS |
+| FR03.5 | Base limits and counting unchanged; JSX depth is not nesting | F03 | [F03](F03.md): helper `nesting.test.ts` (JSX element depth is not control-flow nesting) | DONE |
+| FR03.6 | CSS formatting and Stylelint; HTML entry points and production asset references; Sass and others unsupported | F03 | [F03](F03.md): `typescript/test_stylelint.py`, `test_entries.py`, `rules/test_style_suppressions.py`, the acceptance CSS and entry cases; built asset references: pending | IN_PROGRESS |
+| FR03.7 | Precise classification of HTML, CSS, SVG, images, public files, bundles, and source maps; asset checks without coverage counters | F03 | [F03](F03.md): `discovery/test_browser_files.py`, `engine/test_measured.py` | DONE |
 
 ## FR04 Unit tests and coverage
 
 | ID | Requirement | Phases | Proof | Status |
 | --- | --- | --- | --- | --- |
 | FR04.1 | Meaningful logic, hook, and isolated component tests through observable interactions | F04 | Planned: the reference application's unit suite | TODO |
-| FR04.2 | Awaited interactions; unawaited user-event rejected by typed lint; conditional-JSX branch mapping | F04 | Planned: acceptance cases | TODO |
+| FR04.2 | Awaited interactions; unawaited user-event rejected by typed lint; conditional-JSX branch mapping | F03, F04 | [F03](F03.md): the unawaited-interaction acceptance case; conditional JSX: planned (F04) | IN_PROGRESS |
 | FR04.3 | Level by boundary; counted component tests run in the commit gate without services or network | F04 | Planned: runner tests, network isolation | TODO |
 | FR04.4 | 80/70/90 per frontend component; a new uncovered TS/TSX file fails | F04 | Planned: acceptance cases | TODO |
 | FR04.5 | Expected sources independent of imports; original files only; one owner; data combined, not averaged | F04 | Planned: coverage and runner tests | TODO |
