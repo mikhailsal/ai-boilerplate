@@ -1,8 +1,9 @@
 # 0018 Browser builds, scenarios, and CI
 
-Status: proposed (F00, 2026-10-22). It continues
-[decision 0017](0017-browser-frontend-profile.md) with what a browser
-component needs at the merge stage.
+Status: proposed (F00, 2026-10-22); the production build is implemented as
+an adapter (F03), which the browser suites run once serving exists. It
+continues [decision 0017](0017-browser-frontend-profile.md) with what a
+browser component needs at the merge stage.
 
 ## Production build
 
@@ -18,14 +19,20 @@ The gate builds the candidate snapshot, never the work tree, with
   `VITE_*` values;
 - the output goes to a new directory of the run with `emptyOutDir`, so a
   committed or stale `dist/` is never served;
-- a boundary plugin fails the build when browser code resolves a Node
-  builtin or a declared server-only module, which covers transitive and
-  aliased imports;
+- a boundary plugin records each Node builtin that Vite externalizes for
+  the browser, unless the importer's package maps it in its `browser` field,
+  each declared server-only module in the module graph, and each module of a
+  declared server package imported from outside it; this covers transitive
+  and aliased imports. The core reports them as `typescript.boundaries`,
+  except imports by the browser sources, which the static check reports;
 - Vite's manifest is written, and the evidence records the candidate's
   identity, every output file with its SHA-256, and their combined digest.
 
-The built entry point is validated: every script, style, icon, and asset it
-references, and every `url()` of the built CSS, must be a file of the output.
+A failed build is a `typescript.build` finding. The output is validated as a
+`typescript.build-output` finding: every declared entry point is built, and
+every script, style, icon, and asset a built page references, and every
+`url()` of the built CSS, is a file of the output below the resolved `base`
+or a `data:` URL; a reference to another origin is reported too.
 
 ## Serving
 

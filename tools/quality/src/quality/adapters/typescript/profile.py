@@ -21,6 +21,8 @@ from quality.adapters.target import Target
 from quality.adapters.typescript import (
     boundaries,
     browser,
+    build,
+    bundle,
     chromium,
     config,
     entries,
@@ -49,6 +51,8 @@ RULES = (
     *boundaries.RULES,
     *stylelint.RULES,
     *entries.RULES,
+    *build.RULES,
+    *bundle.RULES,
     *browser.RULES,
     *chromium.RULES,
 )

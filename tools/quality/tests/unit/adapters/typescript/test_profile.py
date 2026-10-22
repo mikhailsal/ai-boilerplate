@@ -98,6 +98,8 @@ def test_the_profile_reports_its_rules(setup: Setup) -> None:
         "typescript.browser-libraries",
         "typescript.browser-ready",
         "typescript.browser-version",
+        "typescript.build",
+        "typescript.build-output",
         "typescript.config",
         "typescript.entries",
         "typescript.format",
