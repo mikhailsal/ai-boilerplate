@@ -103,21 +103,25 @@ def _lines(archive: zipfile.ZipFile) -> Iterator[bytes]:
             yield from stream.read(TRACE_LIMIT + 1).splitlines()
 
 
+def _events(archive: zipfile.ZipFile, name: str) -> Iterator[dict[str, JsonValue]]:
+    """Yield the JSON objects of the trace's lines, skipping lines that are not JSON."""
+    for line in _lines(archive):
+        try:
+            event = parse_json(line, name)
+        except ReportError:
+            continue
+        if isinstance(event, dict):
+            yield event
+
+
 def read_trace(path: Path, origin: str) -> TraceEvents:
     """Read the events of one trace; `origin` is removed from the messages."""
     errors: list[str] = []
     failed: list[str] = []
     try:
         with zipfile.ZipFile(path) as archive:
-            for line in _lines(archive):
-                try:
-                    event = parse_json(line, str(path))
-                except ReportError:
-                    continue
-                found = _event(event) if isinstance(event, dict) else None
-                if found is not None:
-                    kind, text = found
-                    (errors if kind == "error" else failed).append(text.replace(origin, ""))
+            for kind, text in filter(None, map(_event, _events(archive, str(path)))):
+                (errors if kind == "error" else failed).append(text.replace(origin, ""))
     except (OSError, zipfile.BadZipFile) as error:
         msg = f"the trace {path} cannot be read: {error}"
         raise ReportError(msg) from error

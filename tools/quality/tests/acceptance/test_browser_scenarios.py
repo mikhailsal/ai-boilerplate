@@ -59,6 +59,8 @@ NARROW = SCENARIOS.replace(
     + '  test.skip(testInfo.project.name === "narrow", "not on a phone");\n',
 )
 BROKEN = 'throw new Error("the configuration is broken");\n'
+# The renderer crashes, and the scan after it finds the page gone.
+CRASHED = '  await page.goto("chrome://crash").catch(() => undefined);\n'
 
 
 class Case(NamedTuple):
@@ -76,6 +78,11 @@ CASES = {
         {"index.html": INDEX.replace('id="root"', 'id="app"')},
         {"typescript.browser-console", "tests.failed", "scenarios.failed"},
         f"{COUNTER}: uncaught Error: the page has no #root element",
+    ),
+    "the-page-crashes": Case(
+        {SCENARIOS_FILE: SCENARIOS.replace(SCANNED, CRASHED + SCANNED)},
+        {"tests.failed", "scenarios.failed"},
+        f"'{COUNTER}' failed",
     ),
     "broken-asset": Case(
         {

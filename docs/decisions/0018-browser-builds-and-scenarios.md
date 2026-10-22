@@ -67,7 +67,8 @@ browser component must pass in every declared viewport. Skipped, focused
 (`tests.focused`), expected-failure, flaky, empty, and stale results keep
 their base meaning
 ([decision 0014](0014-behavioral-scenarios.md#what-runners-may-not-hide)).
-A console or page error is a `typescript.browser-console` error, and a
+A renderer crash fails the test at its next step that needs the page; a
+crash after a test's last step goes unnoticed. A console or page error is a `typescript.browser-console` error, and a
 same-origin request that the build cannot answer is a
 `typescript.browser-resource` error; an exception names the rule, the test
 file, and the exact message or path.
