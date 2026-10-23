@@ -43,7 +43,12 @@ your components use are installed.
 
 Add each component, a directory with a `pyproject.toml`, `package.json`,
 `pubspec.yaml`, or `composer.json`, then stage it and bootstrap again so its
-tools are ready before the hook checks it:
+tools are ready before the hook checks it.
+
+For Python, registration creates a missing `.python-version` from the core's
+pinned interpreter and preserves an existing pin; stage that file with the
+component. The [Python contract](docs/decisions/0009-python-profile.md#component-contract)
+lists the other required settings and lockfile.
 
 ```sh
 ./quality component add libs/pricing --no-boundary-reason "Pure price calculations."

@@ -15,7 +15,7 @@ from pathlib import Path
 from quality.process import Completed
 from quality.testkit.dartproject import dart_project
 from quality.testkit.phpproject import php_project
-from quality.testkit.pythonproject import python_project
+from quality.testkit.pythonproject import CORE_PYTHON, python_project
 from quality.testkit.scratch import CORE, TESTS, Project, output
 from quality.testkit.typescriptproject import typescript_project
 from quality.toolchain import load_manifest
@@ -92,7 +92,10 @@ def test_the_first_commit_adds_a_python_component_through_the_hook(
     bootstrap(project)
     local_hook(project)
     python_component(project, "libs/pricing", "pricing")
+    pin = project.path / "libs/pricing/.python-version"
+    pin.unlink()
     add(project, "libs/pricing")
+    assert pin.read_text() == CORE_PYTHON.read_text()
     project.repo.git("add", "quality.toml", "libs/pricing")
     bootstrap(project)
     commit = project.commit("Add the pricing library", "quality.toml", "libs/pricing")

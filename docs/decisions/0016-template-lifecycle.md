@@ -76,6 +76,11 @@ conflicts with existing components, before the file is written; nothing is
 staged. A policy that keeps its components in an inline array is refused
 rather than rewritten.
 
+For Python, registration also creates a missing `.python-version` from the
+core's interpreter pin at `tools/quality/.python-version`. An existing file
+stays unchanged. The policy must pass validation before the pin is created;
+stage it with the component before bootstrap and the first commit.
+
 ## Updating pinned tools
 
 `./quality tools update NAME VERSION` rewrites one tool of
