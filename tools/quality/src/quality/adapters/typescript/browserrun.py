@@ -16,6 +16,7 @@ from pydantic import TypeAdapter
 from quality.adapters.native import ToolFailedError, fail, failure, suite_command
 from quality.adapters.typescript.bundle import Output
 from quality.adapters.typescript.environment import Node
+from quality.adapters.typescript.ownership import owned_processes
 from quality.adapters.typescript.playwright import SUITE_TIMEOUT, run_playwright, settings
 from quality.adapters.typescript.serve import serve
 from quality.diagnostics import Diagnostic
@@ -80,7 +81,8 @@ def main() -> None:
     """Read a JSON job from the parent and return observations or a structured tool failure."""
     job = JOB.validate_json(sys.stdin.buffer.read())
     try:
-        reply = execute(job)
+        with owned_processes():
+            reply = execute(job)
     except ToolFailedError as error:
         reply = BrowserReply(error=replace(error.diagnostic, data=dict(error.diagnostic.data)))
     sys.stdout.buffer.write(REPLY.dump_json(reply))

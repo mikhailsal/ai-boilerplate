@@ -3,6 +3,7 @@
 import http.client
 import io
 import sys
+from contextlib import nullcontext
 from dataclasses import replace
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -134,6 +135,7 @@ def test_main_returns_a_structured_reply_including_tool_diagnostics(
     monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(browserrun.JOB.dump_json(job))))
     monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(stream))
     monkeypatch.setattr(browserrun, "execute", execute)
+    monkeypatch.setattr(browserrun, "owned_processes", nullcontext)
     browserrun.main()
     assert browserrun.REPLY.validate_json(stream.getvalue()) == expected
 

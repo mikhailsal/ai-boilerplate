@@ -43,9 +43,17 @@ application cannot answer for it. A directory without an index, or a path
 without an extension, that names no file falls back to the first entry
 point for client routing; any other missing file is a 404 and is recorded
 before it is answered. The server stops when the suite ends, also on failure
-or interruption. Playwright runs in a session of its own, whose remaining
-processes are killed when it exits, and the gate never stops a process it
-did not start.
+or interruption. A dedicated Linux worker acts as a child subreaper: it owns
+Node and Chromium descendants even when they create separate sessions or
+outlive their parent. SIGTERM and SIGINT kill those descendants before the
+worker unwinds; its finalizer also kills and reaps adopted children after
+normal completion, failure, and timeout. Cleanup is bounded and an inability
+to establish ownership or stop children is an environment failure. This uses
+the existing Linux and glibc prerequisite from [decision 0002](0002-installation-strategy.md),
+with pidfd support (Linux 5.3 or later, or an equivalent backport). The worker
+probes opening and signalling a pidfd before it starts any children and fails
+explicitly if unavailable; it never falls back to signalling a reused numeric PID.
+The gate never stops a process it did not start.
 
 The server and Playwright start in the same loopback-only network namespace,
 using the unit-suite containment facility. An unavailable namespace is
