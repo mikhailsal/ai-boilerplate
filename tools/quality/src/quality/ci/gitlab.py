@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+import posixpath
+from collections.abc import Iterator, Mapping
+from typing import cast
 
 from quality.ci.lanes import GATE, LANES, check_lanes
 from quality.ci.workflow import Table, finding, items, mapping
 from quality.diagnostics import Diagnostic
 
-PATHS = frozenset({".gitlab-ci.yml", "ci/gitlab/quality.gitlab-ci.yml"})
+ROOT = ".gitlab-ci.yml"
+REFERENCE = "ci/gitlab/quality.gitlab-ci.yml"
+PATHS = frozenset({ROOT, REFERENCE})
 KEYWORDS = frozenset(
     {
         "after_script",
@@ -113,3 +117,52 @@ def check_gitlab_lanes(path: str, document: Table) -> Iterator[Diagnostic]:
         message = "the GitLab wrapper defines the gate but no required job runs it"
         yield finding(LANES, path, message, "gate")
     yield from check_lanes(path, required)
+
+
+def _includes(value: object) -> list[object]:
+    if value is None:
+        return []
+    return cast(list[object], value) if isinstance(value, list) else [value]
+
+
+def _local_path(value: object) -> str | None:
+    local = value if isinstance(value, str) else (mapping(value) or {}).get("local")
+    if not isinstance(local, str):
+        return None
+    return posixpath.normpath(local.lstrip("/"))
+
+
+def _ordinary_reference(value: object) -> bool:
+    return _local_path(value) == REFERENCE and (
+        isinstance(value, str) or set(mapping(value) or {}) == {"local"}
+    )
+
+
+def _composition_problem(root: Table, reference: Table) -> str | None:
+    if not all(_ordinary_reference(item) for item in _includes(root.get("include"))):
+        return "the known GitLab wrapper is combined with conditional or unresolved includes"
+    if _includes(reference.get("include")):
+        return "the known GitLab wrapper has unresolved nested includes"
+    return None
+
+
+def check_gitlab_documents(documents: Mapping[str, Table | None]) -> Iterator[Diagnostic]:
+    """Check a root including the known local wrapper as one merged configuration."""
+    root = documents.get(ROOT)
+    if root is not None and any(
+        _local_path(item) == REFERENCE for item in _includes(root.get("include"))
+    ):
+        reference = documents.get(REFERENCE)
+        if reference is None:
+            message = f"the included GitLab wrapper '{REFERENCE}' is missing or unreadable"
+            yield finding(LANES, ROOT, message, REFERENCE)
+            return
+        problem = _composition_problem(root, reference)
+        if problem is not None:
+            yield finding(LANES, ROOT, problem, "include")
+            return
+        yield from check_gitlab_lanes(ROOT, _merge(reference, root))
+        return
+    for path, document in documents.items():
+        if document is not None:
+            yield from check_gitlab_lanes(path, document)

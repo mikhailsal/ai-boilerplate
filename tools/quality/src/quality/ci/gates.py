@@ -13,7 +13,7 @@ from quality.ci.aggregate import check_required
 from quality.ci.codeowners import CODEOWNERS, parse_codeowners, shadowing, unowned
 from quality.ci.control import control_files
 from quality.ci.gitlab import PATHS as GITLAB_PATHS
-from quality.ci.gitlab import check_gitlab_lanes
+from quality.ci.gitlab import check_gitlab_documents
 from quality.ci.workflow import SYNTAX, Table, check_workflow, finding, is_workflow
 from quality.diagnostics import Diagnostic, Location
 from quality.policy import CiPolicy, Policy
@@ -49,13 +49,16 @@ def _codeowners(
 
 
 def _gitlab(files: Sequence[CandidateFile]) -> Iterator[Diagnostic]:
+    documents: dict[str, Table | None] = {}
     for file in files:
         if file.path in GITLAB_PATHS:
             document = _document(file)
             if isinstance(document, Diagnostic):
+                documents[file.path] = None
                 yield document
             else:
-                yield from check_gitlab_lanes(file.path, document)
+                documents[file.path] = document
+    yield from check_gitlab_documents(documents)
 
 
 def ci_gates(

@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from quality.ci import ci_gates
+from quality.ci.gitlab import REFERENCE
 from quality.policy import Category
 from quality.rules.model import CandidateFile
 from quality.testkit.candidates import candidate, pinned_tools
@@ -150,4 +151,45 @@ browser:
 def test_unreadable_gitlab_yaml_is_reported(tmp_path: Path, actionlint: Path) -> None:
     assert gates(tmp_path, [config(".gitlab-ci.yml", None)], ci=False, actionlint=actionlint) == [
         ("ci.workflow-syntax", "the workflow is not a regular file within the blob size limit")
+    ]
+
+
+def test_the_root_local_include_is_checked_after_its_variables_override_the_wrapper(
+    tmp_path: Path, actionlint: Path
+) -> None:
+    wrapper = """\
+.gate:
+  script: ./quality gate --lane "$QUALITY_LANE"
+gate:
+  extends: .gate
+  variables: {QUALITY_LANE: main}
+browser:
+  extends: .gate
+  variables: {QUALITY_LANE: browser}
+"""
+    root = f"include: {{local: {REFERENCE}}}\n"
+    files = [config(".gitlab-ci.yml", root), config(REFERENCE, wrapper)]
+    assert gates(tmp_path, files, ci=False, actionlint=actionlint) == []
+    files[0] = config(".gitlab-ci.yml", root + "browser: {variables: {QUALITY_LANE: main}}\n")
+    assert gates(tmp_path, files, ci=False, actionlint=actionlint) == [
+        ("ci.lanes", "the required jobs run the gate's lane main but not 'browser'")
+    ]
+
+
+@pytest.mark.parametrize("data", [None, "- not-a-mapping\n"])
+def test_an_unreadable_known_local_include_cannot_use_a_standalone_fragment_as_proof(
+    tmp_path: Path, actionlint: Path, data: str | None
+) -> None:
+    files = [config(".gitlab-ci.yml", f"include: {REFERENCE}\n"), config(REFERENCE, data)]
+    found = gates(tmp_path, files, ci=False, actionlint=actionlint)
+    assert [rule for rule, _ in found] == ["ci.workflow-syntax", "ci.lanes"]
+    assert "missing or unreadable" in found[-1][1]
+
+
+def test_a_missing_known_local_include_is_reported_by_the_common_gate(
+    tmp_path: Path, actionlint: Path
+) -> None:
+    files = [config(".gitlab-ci.yml", f"include: {REFERENCE}\n")]
+    assert gates(tmp_path, files, ci=False, actionlint=actionlint) == [
+        ("ci.lanes", f"the included GitLab wrapper '{REFERENCE}' is missing or unreadable")
     ]

@@ -175,6 +175,12 @@ other. The same check covers `.gitlab-ci.yml` and the reference GitLab
 wrapper in exported projects, including local `extends` chains and merged
 global/job variables. An unresolved or unknown lane blocks; a conditional,
 manual, or allowed-to-fail job cannot supply a required lane.
+When the root locally includes `ci/gitlab/quality.gitlab-ci.yml`, the check
+uses [GitLab's include merging](https://docs.gitlab.com/ci/yaml/includes/#merge-method-for-include):
+the reference wrapper first, then the root's overrides. A variables-only
+override cannot retain the included fragment's stale browser-lane proof.
+This bounded composition supports an unconditional reference include;
+additional unresolved, conditional, or nested includes block with `ci.lanes`.
 The browser lane judges exceptions only by the rules it ran, so an
 exception that only the main lane uses is not reported as unused there.
 
@@ -194,8 +200,9 @@ does not install them, because the system packages belong to the wrapper's
 environment. GitHub's Ubuntu 24.04 runners have them. The GitLab wrapper
 installs the set verified in its pinned Ubuntu 24.04 image for every job,
 and mirrors the lanes with one hidden job and a `QUALITY_LANE` variable.
-Neither wrapper's browser job has run on its host yet; hosting settings are
-prepared, not applied.
+Hosted GitHub validation is recorded in the
+[handoff](../plan/frontend/handoff.md); the GitLab wrapper has no hosted run.
+Hosting settings are prepared, not applied.
 
 ## Alternatives rejected
 
