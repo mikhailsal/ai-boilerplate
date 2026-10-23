@@ -209,7 +209,7 @@ def _policy_text(top: Path) -> str:
 
 def _pin_python(directory: Path) -> None:
     path = directory / ".python-version"
-    if path.exists():
+    if path.exists() or path.is_symlink():
         return
     try:
         version = CORE_PYTHON.read_text(encoding="utf-8").strip()

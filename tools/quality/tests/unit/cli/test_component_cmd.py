@@ -182,3 +182,15 @@ def test_an_unreadable_core_pin_leaves_the_policy_unchanged(
     assert "cannot create" in capsys.readouterr().err
     assert not (project.path / "pricing/.python-version").exists()
     assert (project.path / "quality.toml").read_text() == POLICY
+
+
+def test_python_registration_preserves_a_dangling_pin_symlink(project: GitRepo) -> None:
+    native(project, "pricing", "pyproject.toml", "src", "tests")
+    outside = project.path.parent / "outside-python-version"
+    pin = project.path / "pricing/.python-version"
+    pin.symlink_to(outside)
+    assert not outside.exists()
+    assert main(["component", "add", "pricing", "--capability", "cli"]) == 0
+    assert pin.is_symlink()
+    assert pin.readlink() == outside
+    assert not outside.exists()
