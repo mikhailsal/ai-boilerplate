@@ -24,6 +24,7 @@ from quality.adapters.typescript import (
     bundle,
     chromium,
     config,
+    endtoend,
     entries,
     eslint,
     playwright,
@@ -62,6 +63,8 @@ RULES = (
     *chromium.RULES,
     *traces.RULES,
     *scans.RULES,
+    *playwright.RULES,
+    *endtoend.RULES,
 )
 
 

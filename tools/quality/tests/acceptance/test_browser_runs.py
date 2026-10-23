@@ -104,10 +104,15 @@ def test_the_gate_keeps_the_native_evidence_of_the_scenarios(
         "build.json",
         "playwright.json",
         "playwright.log",
+        "server.json",
     ]
     build = json.loads((native / "build.json").read_text())
     assert build["base"] == "/"
     assert "index.html" in build["files"]
+    served = json.loads((native / "server.json").read_text())
+    assert served["candidate"] == build["candidate"]
+    assert served["digest"] == build["digest"]
+    assert served["documents"] >= served["passed_tests"] == 4
     results = json.loads((native / "playwright.json").read_text())
     runs = sorted(
         (test["project"], test["title"][-1], test["outcome"]) for test in results["tests"]

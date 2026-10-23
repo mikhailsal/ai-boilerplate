@@ -64,20 +64,26 @@ class SuiteResults:
         """Cases that ran to a result of their own: neither skipped nor expected to fail."""
         return len(self.cases) - self.count(Outcome.SKIPPED, Outcome.EXPECTED_FAILURE)
 
-    def annotated(self, inverted: frozenset[str], retried: frozenset[str]) -> SuiteResults:
+    def annotated(
+        self,
+        inverted: frozenset[str],
+        retried: frozenset[str],
+        invalidated: frozenset[str] = frozenset(),
+    ) -> SuiteResults:
         """Apply what a runner reports beside its results.
 
         `inverted` cases pass when they fail as expected, such as Vitest's
         `test.fails`, so their passes are expected failures. `retried` cases
         passed only on a retry, which proves them flaky, so their passes are
-        failures. Raise ReportError when a name is not a case of the results.
+        failures. `invalidated` cases lack independent runner evidence and fail
+        even when the native report says they passed. Raise ReportError for unknown names.
         """
-        unknown = sorted((inverted | retried) - {case.name for case in self.cases})
+        unknown = sorted((inverted | retried | invalidated) - {case.name for case in self.cases})
         if unknown:
             msg = f"annotated tests are not among the results: {', '.join(unknown)}"
             raise ReportError(msg)
         cases = tuple(
-            CaseResult(case.name, _annotated(case.name, inverted, retried))
+            CaseResult(case.name, _annotated(case.name, inverted, retried | invalidated))
             if case.outcome is Outcome.PASSED
             else case
             for case in self.cases
@@ -177,15 +183,16 @@ def _no_evidence() -> Mapping[str, frozenset[str]]:
 class SuiteRun:
     """What a runner reports back: its exit status and the reports it wrote.
 
-    `unisolated` says why a unit suite ran with the network; it is None when
-    the suite reached loopback only, and for other suites. `inverted` names
+    `unisolated` says why a unit or owned browser suite ran with the network;
+    it is None when the suite reached loopback only, and for other suites. `inverted` names
     the cases the runner reports as passing when they fail as expected,
     `retried` the cases that passed only on a retry, `unhandled` counts errors
     raised outside any test, and `failure_status` holds the exit statuses with
     which the runner reports failed tests. `evidence` maps case names to what
     they proved beside their outcome, `findings` are what the runner found
     beside the tests, such as console errors of a browser, and `reports` are
-    further evidence files of the run.
+    further evidence files of the run. `invalidated` cases fail because the
+    runner could not independently verify their native passing results.
     """
 
     returncode: int
@@ -200,6 +207,7 @@ class SuiteRun:
     evidence: Mapping[str, frozenset[str]] = field(default_factory=_no_evidence)
     findings: tuple[Diagnostic, ...] = ()
     reports: tuple[Path, ...] = ()
+    invalidated: frozenset[str] = frozenset()
 
 
 def suite_roots(component: Component, suite: Suite) -> tuple[str, ...]:

@@ -89,7 +89,9 @@ def run_suite(
         run = runner.run(request)
         parse = PARSERS[run.results_format]
         results = parse(read_evidence(run.results, request), "test results")
-        results = results.annotated(run.inverted, run.retried).with_evidence(run.evidence)
+        results = results.annotated(run.inverted, run.retried, run.invalidated).with_evidence(
+            run.evidence
+        )
     except ToolFailedError as error:
         return SuiteOutcome([error.diagnostic], reports=native_reports(run))
     except ReportError as error:
@@ -100,7 +102,7 @@ def run_suite(
     found.extend(quarantine.reported(held, results))
     found.extend(run.findings)
     if run.unisolated is not None:
-        found.append(testing.unisolated(component, run.unisolated))
+        found.append(testing.unisolated(component, run.unisolated, suite=request.suite))
     clean = not any(diagnostic.severity is Severity.ERROR for diagnostic in found)
     return SuiteOutcome(found, run if clean else None, results, native_reports(run))
 

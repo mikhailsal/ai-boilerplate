@@ -17,6 +17,7 @@ from __future__ import annotations
 import hashlib
 import mimetypes
 import posixpath
+import secrets
 import threading
 from collections.abc import Generator
 from contextlib import contextmanager
@@ -38,12 +39,20 @@ class Requests:
     """Each request the server answered, in order, as a path and a status."""
 
     answered: list[tuple[str, int]] = field(default_factory=list[tuple[str, int]])
+    documents: int = 0
+    tokens: list[str] = field(default_factory=list[str])
     lock: threading.Lock = field(default_factory=threading.Lock)
 
-    def add(self, path: str, status: int) -> None:
+    def add(self, path: str, status: int, *, document: bool = False) -> str | None:
         """Record one answered request."""
         with self.lock:
             self.answered.append((path, status))
+            if document and status == HTTPStatus.OK:
+                self.documents += 1
+                token = secrets.token_hex(16)
+                self.tokens.append(token)
+                return token
+        return None
 
     def missing(self) -> tuple[str, ...]:
         """Return each path the server had no file for, once, in the order first requested."""
@@ -108,8 +117,17 @@ class SiteHandler(BaseHTTPRequestHandler):
             status = HTTPStatus.NOT_FOUND
         elif data is None:
             status = HTTPStatus.INTERNAL_SERVER_ERROR
-        server.requests.add(self.path, status)
+        document = body and name is not None and name.endswith(".html")
+        token = server.requests.add(self.path, status, document=document)
         self.send_response(status)
+        self._headers(name, data, token)
+        if body and data is not None:
+            self.wfile.write(data)
+
+    def _headers(self, name: str | None, data: bytes | None, token: str | None) -> None:
+        """Send content metadata and the owned document token for one response."""
+        if token is not None:
+            self.send_header("X-Quality-Document", token)
         if data is None or name is None:
             self.send_header("Content-Length", "0")
         else:
@@ -117,8 +135,6 @@ class SiteHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(data)))
             self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        if body and data is not None:
-            self.wfile.write(data)
 
     def do_GET(self) -> None:
         """Serve a file of the build, the entry point, or a 404."""

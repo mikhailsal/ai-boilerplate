@@ -31,6 +31,12 @@ installed only when a component uses that profile, or when a candidate
 changes the profile's helper bundle in `tools/quality/helpers`. The
 prerequisites are in [decision 0002](../decisions/0002-installation-strategy.md).
 
+Before installing npm packages, the root and workspace manifest dependency
+specifications must agree with their lockfile entries. Drift is a
+`typescript.lockfile` candidate finding: run `npm install` in the lockfile
+directory and stage the lockfile. A consistent lock with missing cached
+packages remains an environment failure requiring bootstrap.
+
 ## Browser applications
 
 The browser target of the TypeScript profile, `target = "browser"`, covers
@@ -49,6 +55,20 @@ Playwright; it needs system libraries such as NSS and GLib, and
 `typescript.browser-libraries` names the missing ones. CI checks browser
 components in a lane of the gate of their own, `quality gate --lane
 browser`, which the aggregate status requires like the main lane.
+
+The component Playwright configuration accepts presentation settings only:
+`use.viewport`, `locale`, `timezoneId`, `colorScheme`, `reducedMotion`,
+`forcedColors`, `contrast`, `deviceScaleFactor`, `isMobile`, `hasTouch`,
+`actionTimeout`, `navigationTimeout`, `screenshot`, `video`, and
+`testIdAttribute`. The gate overrides browser, base URL, traces, executable,
+and project viewports. Unknown `use` keys and transport/setup substitutions
+(`proxy`, `connectOptions`, headers, storage, service workers, launch arguments,
+`globalSetup`, `globalTeardown`, `webServer`, `build`) block with
+`typescript.playwright`. The server and browser share a loopback-only
+namespace. Each passing test must have an owned document navigation in its
+network trace. `server.json` ties those matches to the build identity and digest;
+missing document fetches block with
+`typescript.browser-served`. See decision 0018 for the full contract.
 
 | | Supported | Not supported |
 | --- | --- | --- |

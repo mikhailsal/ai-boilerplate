@@ -247,3 +247,14 @@ def test_a_candidate_that_changes_during_the_run_is_rejected(project: GitRepo) -
 
     with pytest.raises(GitioError, match="changed from tree"):
         run(project, runner(Script(files=FULL), edit))
+
+
+def test_a_native_pass_without_independent_runner_proof_fails(project: GitRepo) -> None:
+    script = Script((("test_ok", Outcome.PASSED),), files=FULL)
+    tests = runner(
+        script, hook=lambda _, done: replace(done, invalidated=frozenset({"tests::test_ok"}))
+    )
+    report = run(project, tests)
+    assert rules_of(report) == ["tests.failed"]
+    assert "1 of 1 tests failed" in report.diagnostics[0].message
+    assert report.coverage == ()

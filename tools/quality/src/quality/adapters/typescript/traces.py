@@ -52,6 +52,8 @@ RULES = (CONSOLE, RESOURCE)
 
 FAILED_LOAD = "Failed to load resource:"
 TRACE_SUFFIX = ".trace"
+NETWORK_SUFFIX = ".network"
+DOCUMENT_HEADER = "x-quality-document"
 TRACE_LIMIT = 256 * 1024 * 1024
 
 
@@ -92,9 +94,9 @@ def _event(event: dict[str, JsonValue]) -> tuple[str, str] | None:
     return "error", text
 
 
-def _lines(archive: zipfile.ZipFile) -> Iterator[bytes]:
+def _lines(archive: zipfile.ZipFile, suffix: str) -> Iterator[bytes]:
     for info in archive.infolist():
-        if not info.filename.endswith(TRACE_SUFFIX):
+        if not info.filename.endswith(suffix):
             continue
         if info.file_size > TRACE_LIMIT:
             msg = f"trace member {info.filename} exceeds {TRACE_LIMIT} bytes"
@@ -103,9 +105,11 @@ def _lines(archive: zipfile.ZipFile) -> Iterator[bytes]:
             yield from stream.read(TRACE_LIMIT + 1).splitlines()
 
 
-def _events(archive: zipfile.ZipFile, name: str) -> Iterator[dict[str, JsonValue]]:
+def _events(
+    archive: zipfile.ZipFile, name: str, suffix: str = TRACE_SUFFIX
+) -> Iterator[dict[str, JsonValue]]:
     """Yield the JSON objects of the trace's lines, skipping lines that are not JSON."""
-    for line in _lines(archive):
+    for line in _lines(archive, suffix):
         try:
             event = parse_json(line, name)
         except ReportError:
@@ -126,6 +130,58 @@ def read_trace(path: Path, origin: str) -> TraceEvents:
         msg = f"the trace {path} cannot be read: {error}"
         raise ReportError(msg) from error
     return TraceEvents(tuple(errors), tuple(failed))
+
+
+def _document_headers(event: dict[str, JsonValue], origin: str) -> list[JsonValue]:
+    snapshot = _object(event, "snapshot")
+    response, request = _object(snapshot, "response"), _object(snapshot, "request")
+    if (event.get("type"), snapshot.get("_resourceType"), response.get("status")) != (
+        "resource-snapshot",
+        "document",
+        200,
+    ):
+        return []
+    if snapshot.get("_wasFulfilled") or snapshot.get("_wasAborted"):
+        return []
+    page, url = snapshot.get("pageref"), request.get("url")
+    if not isinstance(page, str) or not page:
+        return []
+    if not isinstance(url, str) or not url.startswith(f"{origin}/"):
+        return []
+    headers = response.get("headers")
+    return headers if isinstance(headers, list) else []
+
+
+def _document_tokens(event: dict[str, JsonValue], origin: str) -> Iterator[str]:
+    for header in _document_headers(event, origin):
+        if not isinstance(header, dict):
+            continue
+        name, token = header.get("name"), header.get("value")
+        if (
+            isinstance(name, str)
+            and name.lower() == DOCUMENT_HEADER
+            and isinstance(token, str)
+            and token
+        ):
+            yield token
+
+
+def served_documents(path: Path, origin: str) -> frozenset[str]:
+    """Read owned-server response tokens from this test's successful document navigations.
+
+    Network HAR snapshots identify browser document responses separately from API requests.
+    Fulfilled routes are substitutions even when their response copies a server token.
+    """
+    try:
+        with zipfile.ZipFile(path) as archive:
+            return frozenset(
+                token
+                for event in _events(archive, str(path), NETWORK_SUFFIX)
+                for token in _document_tokens(event, origin)
+            )
+    except (OSError, zipfile.BadZipFile) as error:
+        msg = f"the trace {path} cannot be read: {error}"
+        raise ReportError(msg) from error
 
 
 def request_path(target: str) -> str:

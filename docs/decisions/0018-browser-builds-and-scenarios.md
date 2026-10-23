@@ -47,20 +47,51 @@ or interruption. Playwright runs in a session of its own, whose remaining
 processes are killed when it exits, and the gate never stops a process it
 did not start.
 
+The server and Playwright start in the same loopback-only network namespace,
+using the unit-suite containment facility. An unavailable namespace is
+reported as `tests.network`; hosted gate machines must provide it. The
+server records successful GET responses for built HTML documents, excluding
+HEAD, missing files, and assets, with a fresh random response token. Every
+passing test in every viewport must have a document navigation in its network
+trace bearing a token the server issued for this build. Requests made through
+the API client and documents fulfilled or aborted by test routing cannot supply
+that proof. `server.json` retains the tokens and per-test matched counts, the
+aggregate counts, and the originating candidate and output digest alongside
+`build.json`. A missing match blocks with `typescript.browser-served`, invalidates
+the native pass for scenario reconciliation, and discards its accessibility proof.
+
 ## Browser scenarios
 
 End-to-end suites of a browser component run Playwright Test through a
 generated configuration that imports the component's own and then sets what
 decides the verdict:
 
-- `webServer` is removed and `baseURL` is the gate's server, so no
+Component configuration may set `use.viewport`, `locale`, `timezoneId`,
+`colorScheme`, `reducedMotion`, `forcedColors`, `contrast`, `deviceScaleFactor`,
+`isMobile`, `hasTouch`, `actionTimeout`, `navigationTimeout`, `screenshot`,
+`video`, and `testIdAttribute`. The declared viewports still decide the gate's
+projects. Unknown `use` keys fail with `typescript.playwright`, naming the
+configuration path and key. In particular, `proxy`, `connectOptions`,
+`extraHTTPHeaders`, `serviceWorkers`, and `storageState` are rejected.
+`launchOptions` accepts only `executablePath`, which the gate overrides;
+arguments, proxies, and `ignoreDefaultArgs` are rejected. The gate constructs
+launch options itself and blocks service workers. Top-level `globalSetup`,
+`globalTeardown`, `webServer`, and `build` are also rejected. These findings
+are candidate violations (exit 1), including when Playwright cannot write a
+test report after rejecting the configuration.
+
+The remaining forced settings are:
+
+- `baseURL` is the gate's server, so no
   development server and no reused server is tested;
 - one project per declared viewport, all Chromium with the pinned
   executable, each test in a new browser context;
 - `retries` 0, `forbidOnly`, an output directory of the run, and a gate
   reporter whose results the core parses;
-- traces without screenshots or snapshots, kept outside the repository; the
-  core reads console errors, page errors, and failed requests from them.
+- traces without screenshots or sources, kept outside the repository;
+  snapshots are enabled because Playwright's network evidence requires them.
+  The core reads document responses, console errors, page errors, and failed
+  requests from the traces.
 
 Case names are `file::title path[viewport]`, and a scenario selector of a
 browser component must pass in every declared viewport. Skipped, focused
