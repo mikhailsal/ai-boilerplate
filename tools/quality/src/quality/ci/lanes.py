@@ -14,6 +14,7 @@ import shlex
 from collections.abc import Iterable, Iterator
 from enum import StrEnum
 
+from quality.ci.gatecommands import gate_arguments
 from quality.ci.workflow import Table, finding, mapping, steps
 from quality.diagnostics import Diagnostic, Rule
 from quality.policy import Component
@@ -35,8 +36,8 @@ LANES = Rule(
 )
 RULES = (LANES,)
 
-# The arguments of a gate call; continuation lines are joined first.
-GATE = re.compile(r"quality gate\b([^\n]*)")
+# Broad discovery only; gate_arguments decides whether text proves an executed call.
+GATE = re.compile(r"quality[ \t]+gate\b([^\n]*)")
 VARIABLE = re.compile(r"\$(?:([A-Za-z_][A-Za-z_0-9]*)|\{([A-Za-z_][A-Za-z_0-9]*)\})")
 UNRESOLVED = "<unresolved>"
 
@@ -77,27 +78,26 @@ def _lane_argument(argument: str) -> str:
     return unquoted if unquoted == "--lane" else argument
 
 
+def _call_lane(text: str, variables: Table) -> str | None:
+    try:
+        arguments = [_lane_argument(argument) for argument in shlex.split(text, posix=False)]
+    except ValueError:
+        return UNRESOLVED
+    options = [index for index, arg in enumerate(arguments) if arg.split("=", 1)[0] == "--lane"]
+    if not options:
+        return None
+    if len(options) != 1:
+        return UNRESOLVED
+    index = options[0]
+    option = arguments[index].partition("=")
+    value = option[2] if option[1] else next(iter(arguments[index + 1 :]), "")
+    return _lane_value(value, variables)
+
+
 def gate_lanes(script: str, variables: Table | None = None) -> Iterator[str | None]:
     """Read literal or local-variable lanes; unresolved lane options never mean all lanes."""
-    for call in GATE.finditer(script.replace("\\\n", " ")):
-        try:
-            arguments = [
-                _lane_argument(argument)
-                for argument in shlex.split(call.group(1), comments=True, posix=False)
-            ]
-        except ValueError:
-            yield UNRESOLVED
-            continue
-        options = [index for index, arg in enumerate(arguments) if arg.split("=", 1)[0] == "--lane"]
-        if not options:
-            yield None
-        elif len(options) != 1:
-            yield UNRESOLVED
-        else:
-            index = options[0]
-            option = arguments[index].partition("=")
-            value = option[2] if option[1] else next(iter(arguments[index + 1 :]), "")
-            yield _lane_value(value, variables or {})
+    for text in gate_arguments(script):
+        yield UNRESOLVED if text is None else _call_lane(text, variables or {})
 
 
 def _job_lanes(job: Table) -> Iterator[str | None]:

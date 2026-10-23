@@ -6,7 +6,7 @@ import posixpath
 from collections.abc import Iterator, Mapping
 from typing import cast
 
-from quality.ci.lanes import GATE, LANES, check_lanes
+from quality.ci.lanes import GATE, LANES, check_lanes, gate_lanes
 from quality.ci.workflow import Table, finding, items, mapping
 from quality.diagnostics import Diagnostic
 
@@ -103,6 +103,15 @@ def _lane_job(document: Table, job: Table) -> Table:
     return {"env": variables, "steps": [{"run": text} for text in _script(job.get("script"))]}
 
 
+def _runs_required_gate(jobs: list[Table]) -> bool:
+    return any(
+        list(gate_lanes(text))
+        for job in jobs
+        if _required(job)
+        for text in _script(job.get("script"))
+    )
+
+
 def check_gitlab_lanes(path: str, document: Table) -> Iterator[Diagnostic]:
     """Check runnable local jobs, resolving extends and job-over-global variables."""
     gate_jobs: list[Table] = []
@@ -113,7 +122,7 @@ def check_gitlab_lanes(path: str, document: Table) -> Iterator[Diagnostic]:
         elif _has_gate(resolved):
             gate_jobs.append(resolved)
     required = [_lane_job(document, job) for job in gate_jobs if _required(job)]
-    if not required and (gate_jobs or _hidden_gate(document)):
+    if not _runs_required_gate(gate_jobs) and (gate_jobs or _hidden_gate(document)):
         message = "the GitLab wrapper defines the gate but no required job runs it"
         yield finding(LANES, path, message, "gate")
     yield from check_lanes(path, required)

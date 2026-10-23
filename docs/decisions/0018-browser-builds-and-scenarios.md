@@ -178,6 +178,11 @@ other. The same check covers `.gitlab-ci.yml` and the reference GitLab
 wrapper in exported projects, including local `extends` chains and merged
 global/job variables. An unresolved or unknown lane blocks; a conditional,
 manual, or allowed-to-fail job cannot supply a required lane.
+Lane proof requires a direct, unconditional `quality gate` or `./quality gate`
+command. Comments, quoted text, and commands that merely print gate text do
+not count. The shell recognizer supports the wrappers' argument preparation
+blocks; conditional gate calls and opaque compound commands cannot prove a
+lane. Put each gate invocation on its own line after argument preparation.
 When the root locally includes `ci/gitlab/quality.gitlab-ci.yml`, the check
 uses [GitLab's include merging](https://docs.gitlab.com/ci/yaml/includes/#merge-method-for-include):
 the reference wrapper first, then the root's overrides. A variables-only
