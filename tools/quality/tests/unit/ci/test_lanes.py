@@ -49,3 +49,51 @@ def test_a_lane_without_its_counterpart_is_reported() -> None:
         ("ci.lanes", "the required jobs run the gate's lane main but not 'browser'", "browser")
     ]
     assert [symbol for _, _, symbol in found("./quality gate --lane browser")] == ["main"]
+
+
+@pytest.mark.parametrize(
+    "option",
+    [
+        '--lane "$QUALITY_LANE"',
+        '--lane "${QUALITY_LANE}"',
+        "--lane=unknown",
+        '--lane ""',
+        "--lane",
+        "--lane=",
+        "--lane main --lane browser",
+        '--lane "unterminated',
+    ],
+)
+def test_unresolved_or_malformed_lane_options_never_mean_the_complete_gate(option: str) -> None:
+    diagnostics = found(f"./quality gate {option}")
+    assert diagnostics
+    assert {rule for rule, _, _ in diagnostics} == {"ci.lanes"}
+
+
+def test_unknown_lanes_are_reported_even_alongside_a_complete_gate() -> None:
+    assert found("./quality gate --lane unknown", "./quality gate")[0][2] == "unknown"
+
+
+def test_step_variables_override_job_variables() -> None:
+    job = {
+        "env": {"LANE": "main"},
+        "steps": [
+            {"run": './quality gate --lane "$LANE"'},
+            {"run": './quality gate --lane "$LANE"', "env": {"LANE": "browser"}},
+        ],
+    }
+    assert list(check_lanes(PATH, [job])) == []
+
+
+def test_single_quoted_variables_are_not_expanded_by_the_shell() -> None:
+    assert list(gate_lanes("./quality gate --lane '$LANE'", {"LANE": "browser"})) == ["$LANE"]
+
+
+@pytest.mark.parametrize("option", ['"--lane" main', "'--lane=main'", '"--lane=main"'])
+def test_quoting_a_lane_option_does_not_turn_it_into_the_complete_gate(option: str) -> None:
+    assert [symbol for _, _, symbol in found(f"./quality gate {option}")] == ["browser"]
+
+
+def test_a_single_quoted_option_value_does_not_expand_a_literal_variable() -> None:
+    assert list(gate_lanes("./quality gate '--lane=$LANE'", {"LANE": "browser"})) == ["$LANE"]
+    assert list(gate_lanes('./quality gate "--lane=$LANE"', {"LANE": "browser"})) == ["browser"]

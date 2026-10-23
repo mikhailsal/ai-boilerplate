@@ -124,3 +124,30 @@ def test_an_unreadable_codeowners_file_is_reported(tmp_path: Path, actionlint: P
             ".github/CODEOWNERS is not a UTF-8 regular file within the blob size limit",
         )
     ]
+
+
+@pytest.mark.parametrize("path", [".gitlab-ci.yml", "ci/gitlab/quality.gitlab-ci.yml"])
+def test_gitlab_lanes_are_checked_without_a_ci_table(
+    tmp_path: Path, actionlint: Path, path: str
+) -> None:
+    text = """\
+.gate:
+  script: ./quality gate --lane "$QUALITY_LANE"
+gate:
+  extends: .gate
+  variables: {QUALITY_LANE: main}
+browser:
+  extends: .gate
+  variables: {QUALITY_LANE: browser}
+"""
+    assert gates(tmp_path, [config(path, text)], ci=False, actionlint=actionlint) == []
+    missing = text[: text.index("browser:\n")]
+    assert gates(tmp_path, [config(path, missing)], ci=False, actionlint=actionlint) == [
+        ("ci.lanes", "the required jobs run the gate's lane main but not 'browser'")
+    ]
+
+
+def test_unreadable_gitlab_yaml_is_reported(tmp_path: Path, actionlint: Path) -> None:
+    assert gates(tmp_path, [config(".gitlab-ci.yml", None)], ci=False, actionlint=actionlint) == [
+        ("ci.workflow-syntax", "the workflow is not a regular file within the blob size limit")
+    ]

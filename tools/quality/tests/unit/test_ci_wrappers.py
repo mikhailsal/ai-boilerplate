@@ -11,6 +11,7 @@ import yaml
 
 from quality.ci import job_verdict
 from quality.ci.aggregate import check_required
+from quality.ci.gitlab import check_gitlab_lanes
 from quality.ci.workflow import check_workflow, jobs, mapping, steps
 from quality.policy import load_policy
 
@@ -142,3 +143,7 @@ def test_the_prepared_ruleset_requires_review_and_the_aggregate_status() -> None
     assert checks["required_status_checks"] == [
         {"context": policy.ci.aggregate_job, "integration_id": GITHUB_ACTIONS}
     ]
+
+
+def test_the_gitlab_reference_wrapper_meets_the_lane_contract() -> None:
+    assert list(check_gitlab_lanes(GITLAB, load(GITLAB))) == []

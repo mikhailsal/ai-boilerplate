@@ -10,10 +10,11 @@ runs one lane must run the other in a required job too.
 from __future__ import annotations
 
 import re
+import shlex
 from collections.abc import Iterable, Iterator
 from enum import StrEnum
 
-from quality.ci.workflow import Table, finding, steps
+from quality.ci.workflow import Table, finding, mapping, steps
 from quality.diagnostics import Diagnostic, Rule
 from quality.policy import Component
 
@@ -27,13 +28,17 @@ LANES = Rule(
         "the browser components. When a required job runs one lane, another required job "
         "must run the other, or a browser component could pass without its scenarios."
     ),
-    remedy="Run both lanes, or the gate without --lane, in jobs of `[ci].required_jobs`.",
+    remedy=(
+        "Run both lanes, or the gate without --lane, in required GitHub or GitLab jobs; "
+        "use literal lanes or locally defined lane variables."
+    ),
 )
 RULES = (LANES,)
 
 # The arguments of a gate call; continuation lines are joined first.
 GATE = re.compile(r"quality gate\b([^\n]*)")
-LANE = re.compile(r"--lane[= ]+[\"']?([\w-]+)")
+VARIABLE = re.compile(r"\$(?:([A-Za-z_][A-Za-z_0-9]*)|\{([A-Za-z_][A-Za-z_0-9]*)\})")
+UNRESOLVED = "<unresolved>"
 
 
 class Lane(StrEnum):
@@ -48,21 +53,72 @@ def in_lane(component: Component, lane: Lane | None) -> bool:
     return lane is None or component.in_browser is (lane is Lane.BROWSER)
 
 
-def gate_lanes(script: str) -> Iterator[str | None]:
-    """Yield the lane of each gate call in a shell script, None for the complete gate."""
+def _lane_value(value: str, variables: Table, seen: tuple[str, ...] = ()) -> str:
+    if value[:1] in ("'", '"') and value[-1:] == value[:1]:
+        quote, value = value[0], value[1:-1]
+        if quote == "'":
+            return value
+    variable = VARIABLE.fullmatch(value)
+    if variable is None:
+        return value
+    name = variable.group(1) or variable.group(2)
+    resolved = variables.get(name)
+    if not isinstance(resolved, str) or name in seen:
+        return UNRESOLVED
+    return _lane_value(resolved, variables, (*seen, name))
+
+
+def _lane_argument(argument: str) -> str:
+    if argument[:1] not in ("'", '"') or argument[-1:] != argument[:1]:
+        return argument
+    quote, unquoted = argument[0], argument[1:-1]
+    if unquoted.startswith("--lane="):
+        return f"--lane={quote}{unquoted.partition('=')[2]}{quote}"
+    return unquoted if unquoted == "--lane" else argument
+
+
+def gate_lanes(script: str, variables: Table | None = None) -> Iterator[str | None]:
+    """Read literal or local-variable lanes; unresolved lane options never mean all lanes."""
     for call in GATE.finditer(script.replace("\\\n", " ")):
-        lane = LANE.search(call.group(1))
-        yield lane.group(1) if lane is not None else None
+        try:
+            arguments = [
+                _lane_argument(argument)
+                for argument in shlex.split(call.group(1), comments=True, posix=False)
+            ]
+        except ValueError:
+            yield UNRESOLVED
+            continue
+        options = [index for index, arg in enumerate(arguments) if arg.split("=", 1)[0] == "--lane"]
+        if not options:
+            yield None
+        elif len(options) != 1:
+            yield UNRESOLVED
+        else:
+            index = options[0]
+            option = arguments[index].partition("=")
+            value = option[2] if option[1] else next(iter(arguments[index + 1 :]), "")
+            yield _lane_value(value, variables or {})
+
+
+def _job_lanes(job: Table) -> Iterator[str | None]:
+    for step in steps(job):
+        run = step.get("run")
+        if isinstance(run, str):
+            variables = {**(mapping(job.get("env")) or {}), **(mapping(step.get("env")) or {})}
+            yield from gate_lanes(run, variables)
+
+
+def _invalid_lanes(path: str, found: set[str | None]) -> Iterator[Diagnostic]:
+    unknown = (str(value) for value in found if value is not None and value not in Lane)
+    for lane in sorted(unknown):
+        message = f"the required jobs have an unknown or unresolved gate lane '{lane}'"
+        yield finding(LANES, path, message, lane or UNRESOLVED)
 
 
 def check_lanes(path: str, required: Iterable[Table]) -> Iterator[Diagnostic]:
-    """Report each lane that no required job runs while another required job runs one."""
-    found: set[str | None] = set()
-    for job in required:
-        for step in steps(job):
-            run = step.get("run")
-            if isinstance(run, str):
-                found.update(gate_lanes(run))
+    """Report unknown lanes and each lane that no required job runs while another runs one."""
+    found = {lane for job in required for lane in _job_lanes(job)}
+    yield from _invalid_lanes(path, found)
     if not found or None in found:
         return
     ran = ", ".join(sorted(lane for lane in found if lane is not None))

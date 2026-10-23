@@ -163,7 +163,11 @@ CI runs the gate of one candidate in two required jobs, one lane each
 Each component is in exactly one lane, and the gate without `--lane` is
 both. A lane names what it leaves to the other as `gate.lane` information,
 and `ci.lanes` fails a workflow whose required jobs run one lane but not the
-other. The browser lane judges exceptions only by the rules it ran, so an
+other. The same check covers `.gitlab-ci.yml` and the reference GitLab
+wrapper in exported projects, including local `extends` chains and merged
+global/job variables. An unresolved or unknown lane blocks; a conditional,
+manual, or allowed-to-fail job cannot supply a required lane.
+The browser lane judges exceptions only by the rules it ran, so an
 exception that only the main lane uses is not reported as unused there.
 
 The workflow's `browser` job always runs, without an `if`: the CLI, not the
