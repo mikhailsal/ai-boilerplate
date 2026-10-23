@@ -22,6 +22,7 @@ from types import FrameType
 from quality.adapters.native import fail
 
 PROC = Path("/proc")
+SET_PARENT_DEATH_SIGNAL = 1
 GET_SUBREAPER = 37
 SET_SUBREAPER = 36
 CLEANUP_TIMEOUT = 1.0
@@ -155,6 +156,23 @@ def interrupt(signum: int, _frame: FrameType | None) -> None:
     if signum == signal.SIGINT:
         raise KeyboardInterrupt
     raise SystemExit(128 + signum)
+
+
+def watch_parent(expected_parent: int) -> None:
+    """Arm cleanup on parent death, checking the startup race before launching children.
+
+    The expected PID comes from the trusted launching process, before any namespace
+    wrapper. A parent that died before prctl will not generate a retroactive signal.
+    """
+    try:
+        library = ctypes.CDLL(None, use_errno=True)
+    except OSError as error:
+        fail(TOOL, f"cannot watch browser worker parent: {error}")
+    if library.prctl(SET_PARENT_DEATH_SIGNAL, signal.SIGTERM, 0, 0, 0) != 0:
+        error = OSError(ctypes.get_errno(), "cannot set parent-death signal")
+        fail(TOOL, f"cannot watch browser worker parent: {error}")
+    if os.getppid() != expected_parent:
+        interrupt(signal.SIGTERM, None)
 
 
 @contextmanager

@@ -7,6 +7,7 @@ reply carries the server's observations independently of Playwright's report.
 
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -16,7 +17,7 @@ from pydantic import TypeAdapter
 from quality.adapters.native import ToolFailedError, fail, failure, suite_command
 from quality.adapters.typescript.bundle import Output
 from quality.adapters.typescript.environment import Node
-from quality.adapters.typescript.ownership import owned_processes
+from quality.adapters.typescript.ownership import owned_processes, watch_parent
 from quality.adapters.typescript.playwright import SUITE_TIMEOUT, run_playwright, settings
 from quality.adapters.typescript.serve import serve
 from quality.diagnostics import Diagnostic
@@ -28,7 +29,7 @@ BOOT = """\
 import sys
 sys.path.insert(0, sys.argv[1])
 from quality.adapters.typescript.browserrun import main
-main()
+main(int(sys.argv[2]))
 """
 
 
@@ -77,11 +78,12 @@ def execute(job: BrowserJob) -> BrowserReply:
     )
 
 
-def main() -> None:
+def main(expected_parent: int) -> None:
     """Read a JSON job from the parent and return observations or a structured tool failure."""
     job = JOB.validate_json(sys.stdin.buffer.read())
     try:
         with owned_processes():
+            watch_parent(expected_parent)
             reply = execute(job)
     except ToolFailedError as error:
         reply = BrowserReply(error=replace(error.diagnostic, data=dict(error.diagnostic.data)))
@@ -90,7 +92,14 @@ def main() -> None:
 
 def run_owned(job: BrowserJob) -> tuple[BrowserReply, str | None]:
     """Run a fresh worker with the same network restriction as unit suites."""
-    argv = (sys.executable, "-I", "-c", BOOT, str(Path(__file__).resolve().parents[3]))
+    argv = (
+        sys.executable,
+        "-I",
+        "-c",
+        BOOT,
+        str(Path(__file__).resolve().parents[3]),
+        str(os.getpid()),
+    )
     argv, unisolated = suite_command(job.request, argv)
     command = Command(
         argv,

@@ -47,7 +47,10 @@ or interruption. A dedicated Linux worker acts as a child subreaper: it owns
 Node and Chromium descendants even when they create separate sessions or
 outlive their parent. SIGTERM and SIGINT kill those descendants before the
 worker unwinds; its finalizer also kills and reaps adopted children after
-normal completion, failure, and timeout. Cleanup is bounded and an inability
+normal completion, failure, and timeout. Before starting children, the worker
+arms a Linux parent-death signal and checks its launching parent's identity
+to cover termination during startup. Terminating that CLI therefore also
+triggers the worker's cleanup. Cleanup is bounded and an inability
 to establish ownership or stop children is an environment failure. This uses
 the existing Linux and glibc prerequisite from [decision 0002](0002-installation-strategy.md),
 with pidfd support (Linux 5.3 or later, or an equivalent backport). The worker

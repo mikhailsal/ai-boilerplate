@@ -70,7 +70,7 @@ def dispose(process: subprocess.Popen[bytes], runtime: Path) -> None:
     process.communicate(timeout=15)
 
 
-@pytest.mark.parametrize("target", ["worker-term", "cli-int"])
+@pytest.mark.parametrize("target", ["worker-term", "cli-int", "cli-term"])
 def test_interruptions_stop_the_owned_node_and_detached_chromium_processes(
     counter: Project, tmp_path: Path, target: str
 ) -> None:
@@ -104,7 +104,7 @@ def test_interruptions_stop_the_owned_node_and_detached_chromium_processes(
             [worker] = [item for item in before if "browserrun import main" in item.command]
             os.kill(worker.pid, signal.SIGTERM)
         else:
-            process.send_signal(signal.SIGINT)
+            process.send_signal(signal.SIGINT if target == "cli-int" else signal.SIGTERM)
         stdout, stderr = process.communicate(timeout=20)
         (tmp_path / "gate.log").write_bytes(stdout + stderr)
         assert process.returncode != 0

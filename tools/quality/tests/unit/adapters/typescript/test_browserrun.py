@@ -2,8 +2,10 @@
 
 import http.client
 import io
+import os
 import sys
-from contextlib import nullcontext
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import replace
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -124,9 +126,23 @@ def test_main_returns_a_structured_reply_including_tool_diagnostics(
 ) -> None:
     diagnostic = failure("playwright", "failed to launch").diagnostic
     expected = BrowserReply(error=diagnostic) if failed else BrowserReply(0)
+    observed: list[str] = []
+
+    @contextmanager
+    def owned() -> Generator[None]:
+        observed.append("handlers installed")
+        try:
+            yield
+        finally:
+            observed.append("finalized")
+
+    def watch(parent: int) -> None:
+        assert parent == 123
+        observed.append("parent watched")
 
     def execute(received: BrowserJob) -> BrowserReply:
         assert received == job
+        observed.append("execute")
         if failed:
             raise ToolFailedError(diagnostic)
         return expected
@@ -135,9 +151,41 @@ def test_main_returns_a_structured_reply_including_tool_diagnostics(
     monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(browserrun.JOB.dump_json(job))))
     monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(stream))
     monkeypatch.setattr(browserrun, "execute", execute)
-    monkeypatch.setattr(browserrun, "owned_processes", nullcontext)
-    browserrun.main()
+    monkeypatch.setattr(browserrun, "owned_processes", owned)
+    monkeypatch.setattr(browserrun, "watch_parent", watch)
+    browserrun.main(123)
     assert browserrun.REPLY.validate_json(stream.getvalue()) == expected
+    assert observed == ["handlers installed", "parent watched", "execute", "finalized"]
+
+
+def test_a_parent_watch_failure_finalizes_without_starting_the_server_or_browser(
+    job: BrowserJob, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    observed: list[str] = []
+    diagnostic = failure("browser worker", "cannot watch parent").diagnostic
+
+    @contextmanager
+    def owned() -> Generator[None]:
+        try:
+            yield
+        finally:
+            observed.append("finalized")
+
+    def watch(_parent: int) -> None:
+        raise ToolFailedError(diagnostic)
+
+    def forbidden(_job: BrowserJob) -> BrowserReply:
+        pytest.fail("server or browser started without parent-death ownership")
+
+    stream = io.BytesIO()
+    monkeypatch.setattr(sys, "stdin", io.TextIOWrapper(io.BytesIO(browserrun.JOB.dump_json(job))))
+    monkeypatch.setattr(sys, "stdout", io.TextIOWrapper(stream))
+    monkeypatch.setattr(browserrun, "owned_processes", owned)
+    monkeypatch.setattr(browserrun, "watch_parent", watch)
+    monkeypatch.setattr(browserrun, "execute", forbidden)
+    browserrun.main(123)
+    assert browserrun.REPLY.validate_json(stream.getvalue()) == BrowserReply(error=diagnostic)
+    assert observed == ["finalized"]
 
 
 @pytest.mark.parametrize("unisolated", [None, "network namespaces unavailable"])
@@ -151,6 +199,7 @@ def test_owned_worker_uses_isolation_and_trusted_core_with_serialized_input(
         assert request == job.request
         assert argv[:4] == (sys.executable, "-I", "-c", browserrun.BOOT)
         assert argv[4] == str(Path(browserrun.__file__).resolve().parents[3])
+        assert argv[5:] == (str(os.getpid()),)
         return ("loopback-only", *argv), unisolated
 
     def run(command: Command) -> Completed:
