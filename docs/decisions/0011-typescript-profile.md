@@ -29,7 +29,8 @@ remains an environment failure (exit 3) requiring bootstrap.
 
 Before any tool runs, the profile reads the component's configuration from the
 candidate snapshot. A component that fails this check is not formatted,
-linted, typed, or tested. Every finding is `typescript.config`.
+linted, typed, or tested. Configuration findings are `typescript.config`;
+manifest drift is `typescript.lockfile`.
 
 | File | Requirement |
 | --- | --- |

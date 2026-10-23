@@ -8,7 +8,53 @@ bounded summary; the phase records and the traceability matrices
 the evidence behind each line. It is the author's record, not an
 independent audit.
 
-## Status
+## Audit remediation (2026-10-23)
+
+The independent audit and remediation started at the same revision,
+`5ab0146002d1a33afde8c5dbeb29ae784dd0df91`, with a clean working tree.
+The remediation branch is `fix/audit-2026-10-22`;
+[pull request #3](https://github.com/mikhailsal/ai-boilerplate/pull/3)
+targets `build/frontend`, the branch of the original frontend pull request #2.
+The original F08 status and verification below are historical records.
+
+| Finding | Status | Implementation commit | Reproduction and regression |
+| --- | --- | --- | --- |
+| AUD-001 | Fixed | `cce1358b6e8fc924f46331dbf301f51602d27e9a` | The original rogue proxy proved 4 of 4 scenarios without candidate content. Routing settings now fail with `typescript.playwright`; each passing test needs an owned document response, and substituted pages fail with `typescript.browser-served`. Legitimate presentation settings still pass. |
+| AUD-002 | Fixed | `b4fb46f0a6e395d93e906aeb60441043272c8003` | Root and workspace manifest drift now produce `typescript.lockfile`, exit 1, before installation. Matching locks pass offline; genuine cache misses retain exit 3. |
+| AUD-003 | Fixed | `6701b94d84a33453ac948712725d2dc5c3839178` | Python registration supplies the absent interpreter pin, preserves existing pins, and the first commit passes the real hook. |
+| AUD-004 | Fixed | `0de751da2d3859d87915c1d672e2aff7e2688ffb` | The valid GitLab wrapper passes without `[ci]`; deleted, relabelled, or unresolved browser lanes fail with `ci.lanes`. Local inheritance and variables are resolved. |
+| AUD-005 | Open: hosting prerequisite | No implementation commit | Read-only GitHub observations still show no rulesets and no protection on `main`. Applying hosting settings needs separate authorization. GitLab hosted execution remains unverified. |
+
+Final review also covered dangling interpreter-pin symlinks and browser
+interruption. The symlink follow-up is `2ff8da90e48845c6011778e225f5d711b3c23708`; it preserves
+the link without creating its external target. The browser cleanup
+follow-up is `0e544c157cdbc16fcd692bf77f33f59bfb97d388`. Before that fix, terminating the worker
+left 15 owned Node/Chrome processes. Native regressions now verify cleanup
+after worker termination, CLI interruption, and a timeout with a detached
+child that ignores SIGTERM. The worker checks pidfd support before launch
+and reaps its descendants on every exit; see
+[decision 0018](../../decisions/0018-browser-builds-and-scenarios.md).
+
+The GitLab include follow-up is `d9b32b6e51fd1bdf963293c05fe0b5bf4bf007c1`. It validates
+the known local wrapper after applying root overrides, including normalized
+path aliases. Missing wrappers and unresolved compositions block with
+`ci.lanes`.
+
+The final verification record is maintained in pull request #3. Its source
+provenance, command results, native artifacts, hook logs, and finding/commit
+ledger are retained at
+`/home/tass/myprojects/corp_v2/audit-remediation-2026-10-23/`.
+`verification.json` names the exact tested revision and each command's exit
+status; `evidence/final/completed.json` is written only after every required
+step passes. The sequence covers fresh-cache bootstrap, doctor, policy,
+scenario and schema validation, the full check, all three self-test levels,
+and exported browser, Python first-commit, and history controls. No threshold,
+exclusion, mandatory scenario, or installed Git hook was weakened.
+
+Passing local checks and hosted CI do not apply branch protection. AUD-005
+therefore remains open independently of the implementation results.
+
+## Original F08 status
 
 - Base: `BASE_COMPLETE_SHA` is `dfb232208b41f8423bd74c5e1724865f199aa455`,
   the completed base handoff ([F00](F00.md#base)).
