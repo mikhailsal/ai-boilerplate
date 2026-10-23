@@ -200,8 +200,9 @@ does not install them, because the system packages belong to the wrapper's
 environment. GitHub's Ubuntu 24.04 runners have them. The GitLab wrapper
 installs the set verified in its pinned Ubuntu 24.04 image for every job,
 and mirrors the lanes with one hidden job and a `QUALITY_LANE` variable.
-Hosted GitHub validation is recorded in the
-[handoff](../plan/frontend/handoff.md); the GitLab wrapper has no hosted run.
+Hosted GitHub validation is recorded in
+[pull request #3](https://github.com/mikhailsal/ai-boilerplate/pull/3);
+the GitLab wrapper has no hosted run.
 Hosting settings are prepared, not applied.
 
 ## Alternatives rejected
