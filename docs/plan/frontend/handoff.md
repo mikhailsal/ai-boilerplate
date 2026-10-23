@@ -40,6 +40,22 @@ the known local wrapper after applying root overrides, including normalized
 path aliases. Missing wrappers and unresolved compositions block with
 `ci.lanes`.
 
+The parent-lifetime follow-up is `e37e7449c0d2b66e2aee827894d680c41a7fc0bf`. Terminating the launching
+CLI previously left the worker and 16 Node/Chrome processes alive. The worker
+now arms a parent-death signal before starting children and checks for a parent
+that already exited. All four native cleanup cases pass, including CLI SIGTERM.
+
+Full verification also exposed the audit's whole-gate resource issue: at
+`d9349e7`, 221 acceptance cases passed and the four-language hook case reached
+its unchanged 900-second command limit while whole gates ran concurrently.
+The unchanged case passed alone in 335 seconds. Those fixtures now share one
+slot because each gate uses every CPU. A separate
+kernel regression covers a process disappearing between opening and reading
+its `/proc` stat file: the test helper accepts `ProcessLookupError` while still
+propagating permission errors. Deadlines, assertions, scenarios, and the
+production subprocess runner are unchanged. Both failed-run reports are retained
+beside the final verification evidence; the revised full run determines readiness.
+
 The final verification record is maintained in pull request #3. Its source
 provenance, command results, native artifacts, hook logs, and finding/commit
 ledger are retained at
