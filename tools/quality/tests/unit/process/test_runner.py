@@ -1,4 +1,5 @@
 import dataclasses
+import errno
 import os
 import signal
 import subprocess
@@ -47,7 +48,7 @@ def wait_gone(pid: int) -> bool:
     while time.monotonic() < deadline:
         try:
             stat = Path(f"/proc/{pid}/stat").read_text()
-        except FileNotFoundError:
+        except FileNotFoundError, ProcessLookupError:
             return True
         if stat.rsplit(")", 1)[1].split()[0] == "Z":
             return True
@@ -193,3 +194,44 @@ def test_without_reap_a_background_child_survives(tmp_path: Path) -> None:
         assert Path(f"/proc/{child}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z"
     finally:
         os.kill(child, signal.SIGKILL)
+
+
+def test_wait_gone_accepts_a_process_reaped_between_opening_and_reading_its_stat(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    child = subprocess.Popen(["/bin/sleep", "600"], cwd=tmp_path)
+    stat = Path(f"/proc/{child.pid}/stat")
+    original = Path.read_text
+    observed: list[int | None] = []
+    try:
+        with stat.open() as stream:
+            child.kill()
+            child.wait(timeout=5)
+
+            def read(path: Path) -> str:
+                if path != stat:
+                    return original(path)
+                try:
+                    return stream.read()
+                except ProcessLookupError as error:
+                    observed.append(error.errno)
+                    raise
+
+            monkeypatch.setattr(Path, "read_text", read)
+            assert wait_gone(child.pid)
+            assert observed == [errno.ESRCH]
+    finally:
+        if child.poll() is None:
+            child.kill()
+        child.wait(timeout=5)
+
+
+def test_wait_gone_does_not_hide_stat_permission_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def denied(path: Path) -> str:
+        raise PermissionError(errno.EACCES, "permission denied", str(path))
+
+    monkeypatch.setattr(Path, "read_text", denied)
+    with pytest.raises(PermissionError):
+        wait_gone(os.getpid())

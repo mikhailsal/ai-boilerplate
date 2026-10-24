@@ -1,8 +1,9 @@
-"""Loopback-only networking for unit suites (R06.9, decision 0008).
+"""Loopback-only networking for contained suites (R06.9, decision 0008).
 
-Unit tests may use loopback for instrumentation, such as the Dart VM service,
-and no other network. `isolated` puts a stub on the core interpreter in front
-of a command. The stub enters a new user and network namespace, maps the
+Unit tests and owned browser suites may use loopback for instrumentation,
+such as the Dart VM service, and no other network. `isolated` puts a stub on
+the core interpreter in front of a command. The stub enters a new user and
+network namespace, maps the
 caller's own user and group into it, brings the loopback interface up, and
 replaces itself with the command. The command keeps the stub's process, so
 timeouts and reaping work unchanged; it runs as the caller, without

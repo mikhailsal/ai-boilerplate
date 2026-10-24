@@ -21,6 +21,7 @@ def test_the_committed_manifest_pins_gitleaks_with_its_rules() -> None:
         "osv-scanner",
         "actionlint",
         "node",
+        "chromium",
         "dart",
         "composer",
     }
@@ -37,6 +38,31 @@ def test_the_committed_manifest_pins_node_as_a_tree_and_the_npm_packages() -> No
         assert artifact.url.endswith(f"/v24.22.0/node-v24.22.0-linux-{suffix}.tar.xz")
     assert manifest.packages["npm"]["typescript"] == "6.0.3"
     assert manifest.packages["npm"]["@vitest/coverage-v8"] == "5.0.5"
+
+
+def test_the_committed_manifest_pins_the_headless_shell_and_the_browser_packages() -> None:
+    manifest = load_manifest()
+    chromium = manifest.tools["chromium"]
+    assert (chromium.version, chromium.program, chromium.checksums) == (
+        "156.0.8078.4",
+        "chrome-headless-shell",
+        None,
+    )
+    for architecture, suffix in ((Architecture.X86_64, "64"), (Architecture.AARCH64, "-arm64")):
+        artifact = chromium.artifacts[architecture]
+        archive = f"chrome-headless-shell-linux{suffix}"
+        assert (artifact.packaging, artifact.member) == (Packaging.TREE, archive)
+        assert artifact.url == (
+            "https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.4/"
+            f"linux{suffix}/{archive}.zip"
+        )
+    browser = manifest.packages["npm-browser"]
+    assert (browser["react"], browser["vite"], browser["@playwright/test"]) == (
+        "19.3.1",
+        "8.3.5",
+        "1.64.1",
+    )
+    assert not set(browser) & set(manifest.packages["npm"])
 
 
 def test_the_committed_manifest_pins_the_dart_sdk_as_a_zip_tree_and_the_pub_packages() -> None:

@@ -20,6 +20,7 @@ from pathlib import Path, PurePosixPath
 
 from quality.adapters.settings import load_json_object
 from quality.adapters.typescript.lockfile import MANIFEST, Lock, check_lock
+from quality.adapters.typescript.manifests import LOCKFILE, mismatches
 from quality.boundedio import ReportError
 from quality.diagnostics import Diagnostic, Location, Rule
 from quality.policy import Component
@@ -31,15 +32,17 @@ CONFIG = Rule(
     explanation=(
         "A TypeScript component needs package.json, a package-lock.json that locks the pinned "
         "TypeScript, ESLint, typescript-eslint, Prettier, Vitest, and V8 coverage packages, "
-        "tsconfig.json, and an ESLint flat configuration at its root. Its source and test "
-        "files are TypeScript, and its lockfile installs nothing from outside the repository."
+        "tsconfig.json, and an ESLint flat configuration at its root; a browser component's "
+        "lockfile also locks the pinned React, Vite, testing, lint, and Playwright packages. "
+        "Its source and test files are TypeScript, and its lockfile installs nothing from "
+        "outside the repository."
     ),
     remedy=(
         "Fix the named file or convert it to TypeScript; `npm install --save-exact` writes "
         "the pinned versions."
     ),
 )
-RULES = (CONFIG,)
+RULES = (CONFIG, LOCKFILE)
 
 TSCONFIG = "tsconfig.json"
 ESLINT_CONFIGS = tuple(f"eslint.config.{ext}" for ext in ("js", "mjs", "cjs", "ts", "mts", "cts"))
@@ -67,12 +70,10 @@ class Findings:
     component: Component
     found: list[Diagnostic] = field(default_factory=list[Diagnostic])
 
-    def add(self, file: str, message: str) -> None:
+    def add(self, file: str, message: str, *, rule: Rule = CONFIG) -> None:
         """Record a problem in a file relative to the component directory."""
         location = Location(posixpath.normpath(posixpath.join(self.component.root, file)))
-        self.found.append(
-            CONFIG.diagnostic(message, location=location, component=self.component.id)
-        )
+        self.found.append(rule.diagnostic(message, location=location, component=self.component.id))
 
 
 def _eslint(directory: Path, report: Findings) -> None:
@@ -95,7 +96,11 @@ def check_config(
     if not (directory / TSCONFIG).is_file():
         report.add(TSCONFIG, "a tsconfig.json at the component root is required")
     _eslint(directory, report)
-    lock = check_lock(directory, snapshot, pins, report.add)
+    lock = check_lock(directory, snapshot, pins, report.add, browser=component.in_browser)
+    if lock is not None:
+        for path, message in mismatches(lock, snapshot):
+            name = posixpath.relpath(path.as_posix(), directory.as_posix())
+            report.add(name, message, rule=LOCKFILE)
     return (NativeConfig(lock) if lock is not None else None), report
 
 

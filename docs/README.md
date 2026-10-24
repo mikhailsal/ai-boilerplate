@@ -20,6 +20,8 @@
 | [0014](decisions/0014-behavioral-scenarios.md) | Behavioral scenarios: capabilities, manifests, proof, and quarantine |
 | [0015](decisions/0015-ci-wrappers-and-merge-gates.md) | CI wrappers, the required status, dependency audit, and control files |
 | [0016](decisions/0016-template-lifecycle.md) | Template lifecycle: export, components, tool updates, and adapter contracts |
+| [0017](decisions/0017-browser-frontend-profile.md) | Browser frontend profile: React, Vite, component model, versions, static checks, unit suites |
+| [0018](decisions/0018-browser-builds-and-scenarios.md) | Browser builds, Playwright scenarios, accessibility, and the browser CI job |
 
 ## Guides
 
@@ -49,6 +51,8 @@
 - [Quality core](../tools/quality/README.md): layout, exit codes, and native
   development commands.
 - [Agent instructions](../AGENTS.md): setup and the everyday commands.
+- [Reference browser application](../examples/web/README.md): the React +
+  Vite example component and the scenarios it proves.
 
 <!-- maintainer-only:begin -->
 
@@ -59,5 +63,9 @@
   [adversarial checklist](plan/adversarial.md).
 - [Implementation handoff](plan/handoff.md): final status, versions,
   verification, hosting, and known limitations.
+- [Frontend extension plan](../FRONTEND_PLAN.md) with one record per phase
+  and the [frontend traceability matrix](plan/frontend/traceability.md).
+- [Frontend handoff](plan/frontend/handoff.md): status, contracts,
+  versions, startup, verification, hosting, and limitations.
 
 <!-- maintainer-only:end -->

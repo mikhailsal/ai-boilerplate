@@ -16,8 +16,9 @@ from quality.adapters.typescript.runner import (
     wrapper,
 )
 from quality.boundedio import ReportError
+from quality.policy import Component
 from quality.testing import Suite, SuiteRequest
-from quality.testkit.nodefakes import script, typescript_component
+from quality.testkit.nodefakes import browser_component, script, typescript_component
 from quality.testkit.suites import direct
 
 # The fake Vitest records its call and writes JUnit results and the annotations of the
@@ -31,12 +32,14 @@ exit 1
 """
 
 
-def request(tmp_path: Path, suite: Suite = Suite.UNIT) -> SuiteRequest:
+def request(
+    tmp_path: Path, suite: Suite = Suite.UNIT, component: Component | None = None
+) -> SuiteRequest:
+    component = component or typescript_component()
     work = tmp_path / "work"
-    output = work / f"app-{suite}"
+    output = work / f"{component.id}-{suite}"
     output.mkdir(parents=True)
-    (tmp_path / "snapshot" / "app").mkdir(parents=True, exist_ok=True)
-    component = typescript_component()
+    (tmp_path / "snapshot" / component.root).mkdir(parents=True, exist_ok=True)
     return SuiteRequest(component, suite, ("tests",), tmp_path / "snapshot", output, 0.0, work)
 
 
@@ -84,10 +87,20 @@ def test_the_wrapper_overrides_what_decides_the_verdict(tmp_path: Path) -> None:
     assert settings["reporters"] == ["default", "junit", str(unit.output / "quality-reporter.mjs")]
     assert settings["coverage"] == coverage_settings(unit)
     assert "tsconfigPaths: base.resolve?.tsconfigPaths ?? true" in text
-    assert "projects: undefined, testNamePattern: undefined, ...settings" in text
+    assert "projects: undefined,\n      testNamePattern: undefined,\n      ...settings," in text
+    assert "expect: { ...base.test?.expect, ...settings.expect }" in text
+    assert "environment" not in settings
+    assert "expect" not in settings
     config = unit.directory / "vitest.config.ts"
     config.write_text("export default {};\n")
     assert wrapper(unit).startswith(f"import * as loaded from {json.dumps(str(config))};\n")
+
+
+@pytest.mark.parametrize("suite", [Suite.UNIT, Suite.INTEGRATION, Suite.CONTRACT, Suite.ACCEPTANCE])
+def test_browser_suites_run_in_jsdom_and_require_assertions(tmp_path: Path, suite: Suite) -> None:
+    settings = settings_of(wrapper(request(tmp_path, suite, browser_component())))
+    assert settings["environment"] == "jsdom"
+    assert settings["expect"] == {"requireAssertions": True}
 
 
 @pytest.mark.parametrize(

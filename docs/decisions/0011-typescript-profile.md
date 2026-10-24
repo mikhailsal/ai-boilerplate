@@ -19,11 +19,18 @@ at those versions in its own `package-lock.json`, because the tools import the
 component's configuration and code. Node is installed only when a TypeScript
 component needs it, so a repository without one never downloads it.
 
+Manifest dependency specifications must match the root and workspace entries
+of `package-lock.json` before installation. Drift reports `typescript.lockfile`
+as a candidate violation (exit 1), with a remedy to run `npm install` in the
+lockfile directory and stage the result. A cache miss for consistent manifests
+remains an environment failure (exit 3) requiring bootstrap.
+
 ## Component contract
 
 Before any tool runs, the profile reads the component's configuration from the
 candidate snapshot. A component that fails this check is not formatted,
-linted, typed, or tested. Every finding is `typescript.config`.
+linted, typed, or tested. Configuration findings are `typescript.config`;
+manifest drift is `typescript.lockfile`.
 
 | File | Requirement |
 | --- | --- |
@@ -109,6 +116,9 @@ roots with Vitest's default test-file pattern), retries (off), the reporters
 source roots' TypeScript files included, declaration files excluded). When the
 component sets no `oxc` options, `.cts` files are transformed too; tsconfig
 `paths` are resolved unless the component configures `resolve.tsconfigPaths`.
+The suites of a browser component, except end-to-end, also run in jsdom
+with `expect.requireAssertions`
+([decision 0017](0017-browser-frontend-profile.md#unit-tests-and-coverage)).
 
 The gate's reporter writes what JUnit cannot say: the tests marked
 `test.fails`, which JUnit reports as passing when they fail as expected and
@@ -125,7 +135,9 @@ like the Python runner.
 `./quality fix` runs `prettier --write` and `eslint --fix` in a temporary copy
 of the component with an offline install, over the same files as the check,
 then copies back each changed file whose working-tree content is still the
-copied one. It never stages anything.
+copied one. It never stages anything. For a browser component it also
+formats the CSS files and HTML entry points
+([decision 0017](0017-browser-frontend-profile.md#static-checks)).
 
 ## Residual risks
 

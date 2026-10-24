@@ -31,6 +31,62 @@ installed only when a component uses that profile, or when a candidate
 changes the profile's helper bundle in `tools/quality/helpers`. The
 prerequisites are in [decision 0002](../decisions/0002-installation-strategy.md).
 
+Before installing npm packages, the root and workspace manifest dependency
+specifications must agree with their lockfile entries. Drift is a
+`typescript.lockfile` candidate finding: run `npm install` in the lockfile
+directory and stage the lockfile. A consistent lock with missing cached
+packages remains an environment failure requiring bootstrap.
+
+## Browser applications
+
+The browser target of the TypeScript profile, `target = "browser"`, covers
+single-page React + Vite applications
+([decision 0017](../decisions/0017-browser-frontend-profile.md)). Every check
+runs its static checks: the React Hooks and accessibility lint rules, import
+boundaries, Stylelint and Prettier for CSS, and the HTML entry points. Its
+unit suites run in jsdom with the base coverage floors. The merge stage builds
+the candidate for production, serves the build, and runs the end-to-end
+suites in the pinned Chromium in every declared viewport, with console,
+request, and accessibility evidence
+([decision 0018](../decisions/0018-browser-builds-and-scenarios.md)).
+Bootstrap installs that Chromium for an active browser component, and
+bootstrap and doctor report whether it starts and matches the locked
+Playwright; it needs system libraries such as NSS and GLib, and
+`typescript.browser-libraries` names the missing ones. CI checks browser
+components in a lane of the gate of their own, `quality gate --lane
+browser`, which the aggregate status requires like the main lane.
+
+The component Playwright configuration accepts presentation settings only:
+`use.viewport`, `locale`, `timezoneId`, `colorScheme`, `reducedMotion`,
+`forcedColors`, `contrast`, `deviceScaleFactor`, `isMobile`, `hasTouch`,
+`actionTimeout`, `navigationTimeout`, `screenshot`, `video`, and
+`testIdAttribute`. The gate overrides browser, base URL, traces, executable,
+and project viewports. Unknown `use` keys and transport/setup substitutions
+(`proxy`, `connectOptions`, headers, storage, service workers, launch arguments,
+`globalSetup`, `globalTeardown`, `webServer`, `build`) block with
+`typescript.playwright`. The server and browser share a loopback-only
+namespace. Each passing test must have an owned document navigation in its
+network trace. `server.json` ties those matches to the build identity and digest;
+missing document fetches block with
+`typescript.browser-served`. See decision 0018 for the full contract.
+
+| | Supported | Not supported |
+| --- | --- | --- |
+| Application | A client-rendered single-page application | Server rendering and React Server Components: Next.js, Remix, React Router framework mode, Gatsby, Astro, Vike; React Native and Expo |
+| Framework | React with `@vitejs/plugin-react` | Vue, Nuxt, Svelte, SvelteKit, Angular, Solid, Preact |
+| Bundler | Vite | webpack, Parcel, Rspack |
+| Unit tests | Vitest in jsdom, React Testing Library, user-event | Vitest Browser Mode |
+| Browser | The pinned Chromium headless shell | Firefox, WebKit, other Chromium builds |
+| Budgets | None in the baseline | Visual, bundle-size, and performance budgets |
+
+`component add --target browser` refuses a project that depends on an
+application framework, framework, or bundler of the right-hand column, and a
+TypeScript project with React or Vite must name its target. Budgets would be
+enhanced capabilities with their own measurement, so no check claims them. A browser component declares the `ui` capability; its
+scenarios prove `ui.smoke`, `ui.flows`, `ui.accessibility`, and
+`ui.keyboard` in a manifest like the one of the
+[reference application](../../examples/web/scenarios.toml).
+
 ## Unsupported source
 
 Source files are classified by extension and owner

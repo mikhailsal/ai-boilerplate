@@ -33,6 +33,7 @@ from quality.testing import (
     SuiteRun,
     parse_dart_json,
     parse_junit,
+    parse_playwright,
     suite_roots,
 )
 
@@ -41,6 +42,7 @@ FRESHNESS_SLACK = 2.0
 PARSERS: dict[ResultsFormat, Callable[[bytes, str], SuiteResults]] = {
     ResultsFormat.JUNIT: parse_junit,
     ResultsFormat.DART_JSON: parse_dart_json,
+    ResultsFormat.PLAYWRIGHT: parse_playwright,
 }
 
 
@@ -73,7 +75,8 @@ def native_reports(run: SuiteRun | None) -> tuple[Path, ...]:
     """Return the reports a runner wrote, for the reports directory of a gate run."""
     if run is None:
         return ()
-    return (run.results,) if run.coverage is None else (run.results, run.coverage)
+    native = (run.results,) if run.coverage is None else (run.results, run.coverage)
+    return (*native, *run.reports)
 
 
 def run_suite(
@@ -86,7 +89,9 @@ def run_suite(
         run = runner.run(request)
         parse = PARSERS[run.results_format]
         results = parse(read_evidence(run.results, request), "test results")
-        results = results.annotated(run.inverted, run.retried)
+        results = results.annotated(run.inverted, run.retried, run.invalidated).with_evidence(
+            run.evidence
+        )
     except ToolFailedError as error:
         return SuiteOutcome([error.diagnostic], reports=native_reports(run))
     except ReportError as error:
@@ -95,8 +100,9 @@ def run_suite(
     names = frozenset(entry.test for entry in held)
     found = testing.judge(component, request.suite, run, results, names)
     found.extend(quarantine.reported(held, results))
+    found.extend(run.findings)
     if run.unisolated is not None:
-        found.append(testing.unisolated(component, run.unisolated))
+        found.append(testing.unisolated(component, run.unisolated, suite=request.suite))
     clean = not any(diagnostic.severity is Severity.ERROR for diagnostic in found)
     return SuiteOutcome(found, run if clean else None, results, native_reports(run))
 
@@ -168,7 +174,12 @@ def request(scope: Scope, component: Component, suite: Suite) -> SuiteRequest:
     started = time.time()
     output = Path(tempfile.mkdtemp(prefix=f"{component.id}-{suite}-", dir=snapshot.work))
     roots = suite_roots(component, suite)
-    return SuiteRequest(component, suite, roots, snapshot.root, output, started, snapshot.work)
+    files = tuple(
+        record.path for record in scope.inventory.files if record.component == component.id
+    )
+    return SuiteRequest(
+        component, suite, roots, snapshot.root, output, started, snapshot.work, snapshot.tree, files
+    )
 
 
 def component_suites(

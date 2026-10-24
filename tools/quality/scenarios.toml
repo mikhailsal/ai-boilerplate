@@ -80,4 +80,41 @@ tests = [
     "tests.acceptance.test_template::test_changing_a_dormant_helper_runs_its_own_checks",
     "tests.acceptance.test_template::test_a16_a_clean_four_language_project_passes_the_hook",
 ]
+
+[[scenarios]]
+id = "browser-gate"
+summary = "A browser build proves its Chromium scenarios, and each broken page, scan, or test is found for its own reason."
+capability = "cli"
+level = "acceptance"
+stage = "merge"
+requirements = ["cli.flows"]
+tests = [
+    "tests.acceptance.test_browser_scenarios::test_the_built_counter_proves_its_scenarios_in_every_viewport",
+    "tests.acceptance.test_browser_scenarios::test_each_broken_scenario_is_found_for_its_own_reason*",
+    "tests.acceptance.test_browser_runs::test_scenarios_without_their_browser_cannot_be_verified",
+    "tests.acceptance.test_browser_runs::test_a_run_leaves_no_process_or_temporary_file",
+    "tests.acceptance.test_browser_runs::test_the_gate_keeps_the_native_evidence_of_the_scenarios",
+]
+
+[[scenarios]]
+id = "browser-lanes"
+summary = "While one browser scenario is skipped, the main lane passes and leaves it to the browser lane, which fails, and so does the verdict."
+capability = "cli"
+level = "acceptance"
+stage = "merge"
+requirements = ["cli.flows"]
+tests = ["tests.acceptance.test_browser_runs::test_the_lanes_and_the_verdict_stay_red_while_a_scenario_fails"]
+
+[[scenarios]]
+id = "frontend-start"
+summary = "The README's browser Quick start, run as written, adds one or two frontends to a fresh export or to a Node project that never needed a browser."
+capability = "cli"
+level = "acceptance"
+stage = "merge"
+requirements = ["cli.flows"]
+tests = [
+    "tests.acceptance.test_frontend_start::test_a_fresh_export_starts_a_browser_application_from_the_quick_start",
+    "tests.acceptance.test_frontend_start::test_a_node_project_needs_no_browser_until_it_adds_a_frontend",
+    "tests.acceptance.test_frontend_start::test_two_browser_applications_pass_the_hook_and_the_browser_lane",
+]
 # maintainer-only:end

@@ -122,17 +122,21 @@ class Scope:
         )
 
     def static_request(self, component: Component) -> StaticRequest:
-        """Name the files a component's static gates check: its code and its config scripts."""
+        """Name the files a component's static gates check: its code, config scripts, and rest."""
+        owned = [record for record in self.inventory.files if record.component == component.id]
         configs = tuple(
             record.path
-            for record in self.inventory.files
-            if record.component == component.id
-            and record.category is Category.CONFIG
-            and record.language is not None
+            for record in owned
+            if record.category is Category.CONFIG and record.language is not None
+        )
+        resources = tuple(
+            record.path
+            for record in owned
+            if record.category not in CHECKED | {Category.GENERATED} and record.path not in configs
         )
         snapshot = self.snapshot
         return StaticRequest(
-            component, snapshot.root, snapshot.work, self.files(component), configs
+            component, snapshot.root, snapshot.work, self.files(component), configs, resources
         )
 
 

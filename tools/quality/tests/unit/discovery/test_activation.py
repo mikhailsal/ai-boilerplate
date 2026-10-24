@@ -32,3 +32,18 @@ def test_maintainer_mode_runs_every_helper() -> None:
 def test_is_active_defaults_to_no_changes() -> None:
     policy = build_policy(APP, TS_HELPER)
     assert not is_active(policy, policy.components[1])
+
+
+EXAMPLE = ComponentSpec(id="example", root="examples/web", profile="typescript", role="example")
+WEB = ComponentSpec(id="web", root="apps/web", profile="typescript", capabilities=("ui",))
+
+
+def test_a_shipped_example_never_wakes_because_of_another_component() -> None:
+    assert ids(WEB, TS_HELPER, EXAMPLE) == ["web", "ts-helper"]
+    assert ids(APP, EXAMPLE, changed=("apps/api/src/app.py", "helpers/ts/a.ts")) == ["app"]
+
+
+def test_a_shipped_example_runs_when_it_changes_or_in_maintainer_mode() -> None:
+    assert ids(APP, EXAMPLE, changed=("examples/web/src/App.tsx",)) == ["app", "example"]
+    assert ids(APP, EXAMPLE, changed=("examples/website/a.ts",)) == ["app"]
+    assert ids(APP, EXAMPLE, mode="maintainer") == ["app", "example"]

@@ -19,10 +19,10 @@ from quality.cli.local import (
     local_tools,
     local_uv,
     node_environments,
-    node_step,
     npm_cache,
     npm_pins,
     pinned,
+    tool_step,
     worktree_files,
 )
 from quality.policy import Profile
@@ -127,11 +127,30 @@ def test_the_typescript_profile_uses_the_pinned_packages_and_the_npm_cache() -> 
     assert isinstance(profile, TypeScriptProfile)
     assert isinstance(setup, TypeScriptSetup)
     assert isinstance(fixer, TypeScriptFixer)
-    assert profile.pins == setup.pins == fixer.pins == load_manifest().packages["npm"]
+    packages = load_manifest().packages
+    assert (
+        profile.pins == setup.pins == fixer.pins == {**packages["npm"], **packages["npm-browser"]}
+    )
     assert npm_pins() == profile.pins
     assert npm_cache() == cache_root().parent / "npm" == setup.cache
     assert node_environments().cache == npm_cache()
     assert fixer.listing is worktree_files
+
+
+def test_browser_components_get_the_pinned_chromium(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: list[str] = []
+
+    def found(name: str, tool: Tool, cache: Path) -> Path:
+        called.append(f"{name} {tool.version}")
+        return cache / name
+
+    monkeypatch.setattr(local, "locate", found)
+    monkeypatch.setattr(local, "install", found)
+    setup = local_setups()[Profile.TYPESCRIPT]
+    assert isinstance(setup, TypeScriptSetup)
+    assert called == [f"uv {pinned('uv').version}"]
+    assert setup.chromium.locate() == setup.chromium.install() == cache_root() / "chromium"
+    assert called[1:] == ["chromium 156.0.8078.4"] * 2
 
 
 def test_the_npm_pins_need_a_valid_manifest(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -150,7 +169,7 @@ def test_node_is_located_or_installed_only_when_used() -> None:
         called.append((name, tool, cache))
         return cache / name
 
-    step = node_step(found)
+    step = tool_step(local.NODE, found)
     assert called == []
     assert step() == cache_root() / "node"
     assert called == [("node", pinned("node"), cache_root())]
@@ -159,7 +178,7 @@ def test_node_is_located_or_installed_only_when_used() -> None:
         raise ToolchainError(MISSING.diagnostic(f"{name} {tool.version} is not installed"))
 
     with pytest.raises(ToolFailedError, match=r"node .* is not installed") as raised:
-        node_step(absent)()
+        tool_step(local.NODE, absent)()
     assert raised.value.diagnostic.rule == MISSING.id
 
 

@@ -15,7 +15,7 @@ from pathlib import Path
 
 from quality.adapters.typescript.environment import NPM_CLI, Node
 from quality.policy import Component
-from quality.testkit.policies import ComponentSpec, build_policy
+from quality.testkit.policies import ComponentSpec, browser_spec, build_policy
 
 PINS = {
     "typescript": "6.0.3",
@@ -37,6 +37,12 @@ def typescript_component(root: str = "app") -> Component:
     return found
 
 
+def browser_component(root: str = "web", extra: str = "") -> Component:
+    """Return a React + Vite browser component `web` rooted at `root` (decision 0017)."""
+    (found,) = build_policy(browser_spec(root=root, extra=extra)).components
+    return found
+
+
 def lockfile(pins: Mapping[str, str] = PINS, extra: Mapping[str, object] | None = None) -> str:
     """Render a lockfile that locks `pins` from the registry, plus `extra` entries."""
     packages: dict[str, object] = {"": {"name": "app", "devDependencies": dict(pins)}}
@@ -51,7 +57,8 @@ def write_component(directory: Path, pins: Mapping[str, str] = PINS) -> Path:
     """Write a valid TypeScript component into `directory` and return it."""
     (directory / "src").mkdir(parents=True, exist_ok=True)
     (directory / "tests").mkdir(exist_ok=True)
-    (directory / "package.json").write_text('{"name": "app", "type": "module"}\n')
+    manifest = {"name": "app", "type": "module", "devDependencies": dict(pins)}
+    (directory / "package.json").write_text(json.dumps(manifest) + "\n")
     (directory / "package-lock.json").write_text(lockfile(pins))
     (directory / "tsconfig.json").write_text('{"compilerOptions": {"strict": true}}\n')
     (directory / "eslint.config.js").write_text(ESLINT_CONFIG)

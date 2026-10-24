@@ -127,3 +127,34 @@ def test_a_run_without_coverage_names_only_its_results() -> None:
         frozenset({1}),
     )
     assert SuiteRun(0, Path("r"), Path("c")).coverage == Path("c")
+
+
+def test_evidence_is_added_to_the_named_cases() -> None:
+    found = SuiteResults(results(Outcome.PASSED, Outcome.FAILED).cases, focused=True)
+    proved = found.with_evidence({"t0": frozenset({"scan"})}).with_evidence(
+        {"t0": frozenset({"other"})}
+    )
+    assert [case.evidence for case in proved.cases] == [frozenset({"scan", "other"}), frozenset()]
+    assert proved.focused
+    assert found.with_evidence({}) == found
+
+
+def test_evidence_must_name_cases_of_the_results() -> None:
+    with pytest.raises(ReportError, match="evidence names tests that are not among the results: x"):
+        results(Outcome.PASSED).with_evidence({"x": frozenset({"scan"})})
+
+
+def test_a_run_reports_no_evidence_findings_or_extra_reports_by_default() -> None:
+    run = SuiteRun(0, Path("junit.xml"))
+    assert (dict(run.evidence), run.findings, run.reports) == ({}, (), ())
+
+
+def test_a_runner_can_invalidate_passes_without_rewriting_the_native_report() -> None:
+    results = SuiteResults(
+        (CaseResult("loaded", Outcome.PASSED), CaseResult("substituted", Outcome.PASSED))
+    )
+    judged = results.annotated(frozenset(), frozenset(), frozenset({"substituted"}))
+    assert [case.outcome for case in judged.cases] == [Outcome.PASSED, Outcome.FAILED]
+    assert results.cases[1].outcome is Outcome.PASSED
+    with pytest.raises(ReportError, match="annotated tests are not among the results: missing"):
+        results.annotated(frozenset(), frozenset(), frozenset({"missing"}))

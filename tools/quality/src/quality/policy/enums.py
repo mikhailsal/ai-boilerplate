@@ -1,4 +1,4 @@
-"""The enumerations of the policy: categories, roles, profiles, capabilities, and suites."""
+"""The enumerations of the policy: categories, roles, profiles, targets, capabilities, suites."""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ class Role(StrEnum):
     APPLICATION = "application"
     TOOLING = "tooling"
     HELPER = "helper"
+    EXAMPLE = "example"
 
 
 class Profile(StrEnum):
@@ -32,6 +33,25 @@ class Profile(StrEnum):
     TYPESCRIPT = "typescript"
     DART = "dart"
     PHP = "php"
+
+
+class ExecutionTarget(StrEnum):
+    """Where a TypeScript component's code runs (decision 0017)."""
+
+    NODE = "node"
+    BROWSER = "browser"
+
+
+class Framework(StrEnum):
+    """The user-interface frameworks a browser component may use (decision 0017)."""
+
+    REACT = "react"
+
+
+class Bundler(StrEnum):
+    """The bundlers that build a browser component (decision 0017)."""
+
+    VITE = "vite"
 
 
 class Capability(StrEnum):

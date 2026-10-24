@@ -53,6 +53,71 @@
       "title": "AuditPolicy",
       "type": "object"
     },
+    "BrowserSettings": {
+      "additionalProperties": false,
+      "description": "HTML entry points, public build values, server-only modules, viewports, and scans.\n\n`entries` are relative to the component root. `public_env` holds the only\nvalues the production build exposes to the client; they are not secret.\nBrowser source may import neither `server_modules` (globs relative to the\nroot) nor `server_packages`. Every browser scenario runs in each viewport,\nand every accessibility scan runs at least the axe `accessibility_tags`.",
+      "properties": {
+        "accessibility_tags": {
+          "items": {
+            "maxLength": 64,
+            "pattern": "^[a-z0-9][a-z0-9.-]*$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Accessibility Tags",
+          "type": "array"
+        },
+        "entries": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Entries",
+          "type": "array"
+        },
+        "public_env": {
+          "additionalProperties": {
+            "maxLength": 1024,
+            "pattern": "^[^\\r\\n\\x00]*$",
+            "type": "string"
+          },
+          "title": "Public Env",
+          "type": "object"
+        },
+        "server_modules": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Server Modules",
+          "type": "array"
+        },
+        "server_packages": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Server Packages",
+          "type": "array"
+        },
+        "viewports": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Viewport"
+          },
+          "minProperties": 1,
+          "title": "Viewports",
+          "type": "object"
+        }
+      },
+      "title": "BrowserSettings",
+      "type": "object"
+    },
+    "Bundler": {
+      "description": "The bundlers that build a browser component (decision 0017).",
+      "enum": [
+        "vite"
+      ],
+      "title": "Bundler",
+      "type": "string"
+    },
     "Capability": {
       "description": "Behavioral capabilities a component can declare (decision 0014).",
       "enum": [
@@ -150,10 +215,32 @@
     },
     "Component": {
       "additionalProperties": false,
-      "description": "A unit with its own profile, roots, and gates.",
+      "description": "A unit with its own profile, roots, and gates.\n\nA TypeScript component runs on Node unless `target` is `\"browser\"`\n(decision 0017); `framework`, `bundler`, and `browser` belong to that target.",
       "properties": {
         "architecture": {
           "$ref": "#/$defs/Architecture"
+        },
+        "browser": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/BrowserSettings"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "bundler": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Bundler"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "capabilities": {
           "items": {
@@ -175,6 +262,17 @@
           },
           "title": "Enhanced",
           "type": "array"
+        },
+        "framework": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Framework"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "id": {
           "title": "Id",
@@ -221,6 +319,17 @@
           "minItems": 1,
           "title": "Source",
           "type": "array"
+        },
+        "target": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExecutionTarget"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "tests": {
           "$ref": "#/$defs/Suites"
@@ -301,6 +410,23 @@
         "mutation"
       ],
       "title": "Enhancement",
+      "type": "string"
+    },
+    "ExecutionTarget": {
+      "description": "Where a TypeScript component's code runs (decision 0017).",
+      "enum": [
+        "node",
+        "browser"
+      ],
+      "title": "ExecutionTarget",
+      "type": "string"
+    },
+    "Framework": {
+      "description": "The user-interface frameworks a browser component may use (decision 0017).",
+      "enum": [
+        "react"
+      ],
+      "title": "Framework",
       "type": "string"
     },
     "Limit": {
@@ -514,7 +640,8 @@
       "enum": [
         "application",
         "tooling",
-        "helper"
+        "helper",
+        "example"
       ],
       "title": "Role",
       "type": "string"
@@ -654,6 +781,30 @@
         "blob_bytes"
       ],
       "title": "Thresholds",
+      "type": "object"
+    },
+    "Viewport": {
+      "additionalProperties": false,
+      "description": "The size of the page in one browser project.",
+      "properties": {
+        "height": {
+          "maximum": 4320,
+          "minimum": 240,
+          "title": "Height",
+          "type": "integer"
+        },
+        "width": {
+          "maximum": 7680,
+          "minimum": 240,
+          "title": "Width",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "width",
+        "height"
+      ],
+      "title": "Viewport",
       "type": "object"
     }
   },

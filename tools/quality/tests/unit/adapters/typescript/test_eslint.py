@@ -67,7 +67,41 @@ def test_files_without_a_typed_configuration_are_reported(
         "eslint": str(directory),
         "cwd": str(directory),
         "files": [str(snapshot / path) for path in FILES],
+        "rules": [],
     }
+
+
+def test_required_rules_must_be_enabled_at_any_level(
+    node: Node, snapshot: Path, tmp_path: Path
+) -> None:
+    directory = snapshot / "app"
+    directory.mkdir()
+    entry = {"configured": True, "ignored": False, "typed": True, "parser": "typescript-eslint"}
+    levels = {"a": [("x/one", 2), ("x/two", 1)], "b": [("x/one", 0), ("x/two", 2)], "c": []}
+    files = [
+        {
+            **entry,
+            "file": str(directory / f"src/{name}.ts"),
+            "rules": [{"rule": rule, "severity": level} for rule, level in rules],
+        }
+        for name, rules in levels.items()
+    ]
+    helper = answer(tmp_path, {"protocol": 1, "files": files})
+    target = Target(APP, snapshot, FILES[:3])
+    required = {"app/src/a.ts": ("x/one", "x/two"), "app/src/b.ts": ("x/two", "x/one")}
+    found = eslint_configuration(
+        target, node=node, work=tmp_path / "work", program=helper, required=required
+    )
+    assert located(found) == [
+        (
+            "app/src/b.ts",
+            None,
+            None,
+            "the browser target requires x/one, which ESLint does not enable here",
+        )
+    ]
+    request = json.loads((tmp_path / "request.json").read_text())
+    assert request["rules"] == ["x/one", "x/two"]
 
 
 def test_every_message_is_an_error(node: Node, snapshot: Path, tmp_path: Path) -> None:

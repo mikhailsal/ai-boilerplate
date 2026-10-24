@@ -134,3 +134,17 @@ def test_missing_and_conditional_required_jobs_are_reported() -> None:
     assert found(WORKFLOW.replace("  audit:\n", "  scan:\n")) == [
         ("ci.aggregate", "the required job 'audit' does not exist", "audit")
     ]
+
+
+def test_a_browser_lane_outside_the_required_jobs_leaves_a_lane_unchecked() -> None:
+    workflow = WORKFLOW.replace("./quality gate", "./quality gate --lane main").replace(
+        "  audit:\n",
+        "  browser:\n    runs-on: ubuntu-24.04\n    steps:\n"
+        "      - run: ./quality gate --lane browser\n  audit:\n",
+    )
+    assert found(workflow) == [
+        ("ci.lanes", "the required jobs run the gate's lane main but not 'browser'", "browser")
+    ]
+    policy = CiPolicy(workflow=PATH, required_jobs=["gate", "browser", "audit"])
+    required = workflow.replace("needs: [gate, audit]", "needs: [gate, browser, audit]")
+    assert found(required, policy) == []

@@ -9,8 +9,9 @@ from quality.catalog import build_registry
 from quality.cli.main import command_table
 from quality.diagnostics import Diagnostic, Severity
 from quality.engine import Report, Settings, check_candidate
-from quality.engine.check import UNAVAILABLE, ran_rules
+from quality.engine.check import UNAVAILABLE
 from quality.engine.common import MEASURED_RULES
+from quality.engine.ran import ran_rules
 from quality.gitio import staged
 from quality.metrics import FileMetrics, FunctionMetrics, Measurements, StructureError
 from quality.policy import Profile
@@ -188,3 +189,16 @@ def test_an_adapter_whose_parser_fails_still_reports_its_gates(project: GitRepo)
     (request,) = adapter.statics
     assert request.files == ("web/src/api.ts", "web/src/core.ts", "web/tests/core.test.ts")
     assert request.directory == request.snapshot / "web"
+
+
+def test_the_static_request_names_configuration_scripts_and_resources(project: GitRepo) -> None:
+    project.write("web/eslint.config.js", "export default [];\n")
+    project.write("web/package.json", "{}\n")
+    project.write("web/src/app.css", "a {}\n")
+    project.write("web/dist/app.js.map", "{}\n")
+    project.git("add", "-A")
+    adapter = ScriptedRunner({}, cover=True)
+    check(project, adapter)
+    (request,) = adapter.statics
+    assert request.configs == ("web/eslint.config.js",)
+    assert request.resources == ("web/package.json", "web/src/app.css")

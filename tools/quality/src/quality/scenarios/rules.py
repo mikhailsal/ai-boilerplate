@@ -121,6 +121,17 @@ UNVERIFIED = Rule(
     ),
     remedy="Fix the suite's run, reported separately, then rerun the check.",
 )
+EVIDENCE = Rule(
+    id="scenarios.evidence",
+    title="A mandatory scenario's test did not produce the evidence its requirement needs",
+    requirement="R08",
+    explanation=(
+        "Some requirements need more than a passing test: `ui.accessibility` needs a valid "
+        "accessibility scan of the rendered page in every viewport the test ran in. A test "
+        "that passed without it proves only its own assertions."
+    ),
+    remedy="Attach an accessibility scan of the rendered page from the test.",
+)
 QUARANTINED = Rule(
     id="scenarios.quarantined",
     title="A mandatory scenario relies on a quarantined test",
@@ -165,6 +176,7 @@ RULES = (
     SKIPPED,
     ABSENT,
     UNVERIFIED,
+    EVIDENCE,
     QUARANTINED,
     SUSPENDED,
     SUGGESTION,

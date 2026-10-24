@@ -26,6 +26,7 @@ from quality.adapters.python.fixer import PythonFixer
 from quality.adapters.python.profile import PythonProfile
 from quality.adapters.python.provision import PythonSetup
 from quality.adapters.typescript import environment as node_environment
+from quality.adapters.typescript.chromium import Chromium
 from quality.adapters.typescript.fixer import TypeScriptFixer
 from quality.adapters.typescript.profile import TypeScriptProfile
 from quality.adapters.typescript.provision import TypeScriptSetup
@@ -49,6 +50,7 @@ from quality.toolchain.install import MISSING
 # Ruff and Pyright are pinned by the core's own lockfile and installed beside its interpreter.
 CORE_TOOLS = ("ruff", "pyright")
 NODE = "node"
+CHROMIUM = "chromium"
 DART = "dart"
 COMPOSER = "composer"
 # The system programs of the PHP profile, by their `[runtimes]` names in the manifest.
@@ -96,12 +98,18 @@ def core_tool(name: str) -> Path:
     return path
 
 
-def npm_pins() -> Mapping[str, str]:
-    """Return the npm packages the TypeScript profile pins."""
+def package_pins(*tables: str) -> Mapping[str, str]:
+    """Return the packages of the manifest's `[packages]` tables of these names."""
     try:
-        return load_manifest().packages.get("npm", {})
+        packages = load_manifest().packages
     except ManifestError as error:
         raise ToolchainError(MISSING.diagnostic(f"toolchain manifest: {error}")) from error
+    return {name: pin for table in tables for name, pin in packages.get(table, {}).items()}
+
+
+def npm_pins() -> Mapping[str, str]:
+    """Return the npm packages the TypeScript profile pins, browser components' included."""
+    return package_pins("npm", "npm-browser")
 
 
 def npm_cache() -> Path:
@@ -121,22 +129,14 @@ def tool_step(name: str, step: Callable[[str, Tool, Path], Path]) -> Callable[[]
     return run
 
 
-def node_step(step: Callable[[str, Tool, Path], Path]) -> Callable[[], Path]:
-    """Defer locating or installing the pinned Node until a TypeScript component needs it."""
-    return tool_step(NODE, step)
-
-
 def node_environments() -> node_environment.Environments:
     """Return the TypeScript environments, which locate the installed Node on first use."""
-    return node_environment.Environments(node_step(locate), npm_cache())
+    return node_environment.Environments(tool_step(NODE, locate), npm_cache())
 
 
 def pub_pins() -> Mapping[str, str]:
     """Return the pub packages the Dart profile pins."""
-    try:
-        return load_manifest().packages.get("pub", {})
-    except ManifestError as error:
-        raise ToolchainError(MISSING.diagnostic(f"toolchain manifest: {error}")) from error
+    return package_pins("pub")
 
 
 def pub_cache() -> Path:
@@ -156,10 +156,7 @@ def dart_environments() -> dart_environment.Environments:
 
 def composer_pins() -> Mapping[str, str]:
     """Return the Composer packages the PHP profile pins."""
-    try:
-        return load_manifest().packages.get("composer", {})
-    except ManifestError as error:
-        raise ToolchainError(MISSING.diagnostic(f"toolchain manifest: {error}")) from error
+    return package_pins("composer")
 
 
 def composer_cache() -> Path:
@@ -199,7 +196,7 @@ def local_profiles() -> Mapping[Profile, ProfileAdapter]:
     """Return the profile adapters of this build with their installed tools."""
     ruff, pyright = (core_tool(name) for name in CORE_TOOLS)
     python = PythonProfile(ruff=ruff, pyright=pyright, environments=Environments(local_uv()))
-    typescript = TypeScriptProfile(node_environments(), npm_pins())
+    typescript = TypeScriptProfile(node_environments(), npm_pins(), chromium=local_chromium())
     dart = DartProfile(dart_environments(), pub_pins(), dart_helper())
     php = PhpProfile(php_environments(), composer_pins(), php_helper())
     return {
@@ -210,9 +207,16 @@ def local_profiles() -> Mapping[Profile, ProfileAdapter]:
     }
 
 
+def local_chromium() -> Chromium:
+    """Return the pinned headless shell that browser scenarios run in."""
+    return Chromium(tool_step(CHROMIUM, locate), tool_step(CHROMIUM, install))
+
+
 def local_setups() -> Mapping[Profile, ProfileSetup]:
     """Return what bootstrap and doctor use to provision and probe each profile."""
-    typescript = TypeScriptSetup(node_step(locate), node_step(install), npm_cache(), npm_pins())
+    typescript = TypeScriptSetup(
+        tool_step(NODE, locate), tool_step(NODE, install), npm_cache(), npm_pins(), local_chromium()
+    )
     dart = DartSetup(
         tool_step(DART, locate), tool_step(DART, install), pub_cache(), pub_pins(), dart_helper()
     )

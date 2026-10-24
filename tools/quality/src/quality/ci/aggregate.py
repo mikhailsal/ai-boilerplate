@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 
+from quality.ci.lanes import check_lanes
 from quality.ci.workflow import Table, events, finding, items, jobs, mapping, steps
 from quality.diagnostics import Diagnostic, Location, Rule
 from quality.policy import CiPolicy
@@ -106,3 +107,4 @@ def check_required(document: Table | None, policy: CiPolicy) -> Iterator[Diagnos
         elif "if" in job:
             message = f"the required job '{name}' has a condition and may be skipped"
             yield finding(AGGREGATE, path, message, name)
+    yield from check_lanes(path, (found[name] for name in policy.required_jobs if name in found))

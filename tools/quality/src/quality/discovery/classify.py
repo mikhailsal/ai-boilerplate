@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from pathlib import PurePosixPath
 
@@ -21,9 +21,14 @@ NATURAL = {
     FileKind.DOC: Category.DOCS,
     FileKind.CONFIG: Category.CONFIG,
     FileKind.ASSET: Category.ASSETS,
+    FileKind.GENERATED: Category.GENERATED,
     FileKind.UNKNOWN: Category.ASSETS,
     FileKind.CODE: Category.SOURCE,
 }
+# Vite's output and public directories in a browser component (decision 0017):
+# its bundles are generated, and its public files are copied to the output as
+# they are, so they are assets whatever their type.
+BROWSER_DIRECTORIES = {"dist": Category.GENERATED, "public": Category.ASSETS}
 
 
 class Region(StrEnum):
@@ -66,11 +71,16 @@ def owner(policy: Policy, path: str) -> Component | None:
     return max(owners, key=lambda c: 0 if c.root == "." else len(c.root), default=None)
 
 
+def relative_to(component: Component, path: str) -> str:
+    """Return a repository path relative to the root of the component that contains it."""
+    return path if component.root == "." else path.removeprefix(component.root + "/")
+
+
 def region_of(component: Component | None, path: str) -> Region:
     """Return whether `path` is in the test roots, the source roots, or elsewhere."""
     if component is None:
         return Region.OTHER
-    relative = path if component.root == "." else path.removeprefix(component.root + "/")
+    relative = relative_to(component, path)
     if any(under(relative, root) for root in component.tests.all_paths()):
         return Region.TESTS
     if any(under(relative, root) for root in component.source):
@@ -129,6 +139,17 @@ def _explicit(found: Classified, entry: Classification, head: bytes) -> FileReco
     )
 
 
+def browser_category(component: Component | None, path: str, region: Region) -> Category | None:
+    """Return the category of a browser component's output or public file outside its roots."""
+    if component is None or not component.in_browser or region is not Region.OTHER:
+        return None
+    relative = relative_to(component, path)
+    return next(
+        (category for name, category in BROWSER_DIRECTORIES.items() if under(relative, name)),
+        None,
+    )
+
+
 def natural_category(region: Region, filetype: FileType) -> Category:
     """Return the category of a path from its region and type alone.
 
@@ -164,5 +185,9 @@ def classify(policy: Policy, path: str, filetype: FileType, head: bytes = b"") -
         found.record = _explicit(found, entries[0], head)
         if found.record.explicit:
             return found
+    special = browser_category(component, path, region)
+    if special is not None:
+        found.record = replace(record, category=special)
+        return found
     _natural(found, filetype, component)
     return found

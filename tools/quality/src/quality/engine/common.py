@@ -138,16 +138,9 @@ def tool_findings(run: Callable[[], Iterable[Diagnostic]]) -> list[Diagnostic]:
         return [error.diagnostic]
 
 
-def common_gates(
-    scope: Scope, candidate: list[CandidateFile], *, tools: Tools, commands: Commands
-) -> Iterator[Diagnostic]:
-    """File, configuration, suppression, documentation, secret, CI, and Python structure gates."""
-    policy, snapshot = scope.policy, scope.snapshot
-    yield from files.check_files(candidate, policy.thresholds)
-    yield from config.check_config(candidate)
-    yield from suppressions.check_suppressions(candidate)
-    yield from docs.check_docs(candidate, policy.thresholds, commands)
-    pages = [
+def markdown_pages(candidate: list[CandidateFile]) -> list[tuple[str, bytes]]:
+    """Return the path and content of each readable Markdown documentation page."""
+    return [
         (file.path, file.data)
         for file in candidate
         if file.category is Category.DOCS
@@ -155,6 +148,19 @@ def common_gates(
         and file.data is not None
         and file.text() is not None
     ]
+
+
+def common_gates(
+    scope: Scope, candidate: list[CandidateFile], *, tools: Tools, commands: Commands
+) -> Iterator[Diagnostic]:
+    """File, configuration, suppression, documentation, secret, CI, and Python structure gates."""
+    policy, snapshot = scope.policy, scope.snapshot
+    yield from files.check_files(candidate, policy.thresholds)
+    yield from config.check_config(candidate)
+    styled = frozenset(component.id for component in policy.components if component.in_browser)
+    yield from suppressions.check_suppressions(candidate, styled)
+    yield from docs.check_docs(candidate, policy.thresholds, commands)
+    pages = markdown_pages(candidate)
     if pages:
         yield from tool_findings(
             lambda: markdown.lint_markdown(pages, snapshot.work, python=tools.python)

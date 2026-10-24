@@ -1,3 +1,5 @@
+import dataclasses
+
 import pytest
 
 from quality.policy.edit import Draft, EditError, add_component, component_toml
@@ -36,6 +38,23 @@ def test_a_component_renders_as_one_table() -> None:
     assert component_toml(quoted).splitlines()[-1] == 'no_boundary_reason = "pure \\"math\\""'
     api = Draft("api", "python", "api", ("src",), ("tests",), ("cli", "http"))
     assert component_toml(api).splitlines()[-1] == 'capabilities = ["cli", "http"]'
+
+
+def test_a_target_follows_the_profile() -> None:
+    browser = Draft("ui", "typescript", "ui", ("src",), ("tests",), ("ui",), None, "browser")
+    browser = dataclasses.replace(browser, framework="react", bundler="vite")
+    assert component_toml(browser).splitlines()[3:7] == [
+        'profile = "typescript"',
+        'target = "browser"',
+        'framework = "react"',
+        'bundler = "vite"',
+    ]
+    node = dataclasses.replace(WEB, target="node")
+    assert component_toml(node).splitlines()[3:6] == [
+        'profile = "typescript"',
+        'target = "node"',
+        'root = "web"',
+    ]
 
 
 def test_the_table_follows_the_last_component_and_its_subtables() -> None:

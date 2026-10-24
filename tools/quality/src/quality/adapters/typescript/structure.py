@@ -45,16 +45,21 @@ def _imports(
     return tuple(imports), edges
 
 
-def measure_files(
-    target: Target, *, node: Node, work: Path, program: Path = helper.HELPER
-) -> Measurements:
-    """Measure the functions and imports of the named files."""
+def files_request(target: Target) -> dict[str, JsonValue]:
+    """Return the helper request that analyzes the named files with the component's tsconfig."""
     tsconfig = target.directory / TSCONFIG
-    request: dict[str, JsonValue] = {
+    return {
         "typescript": str(target.directory),
         "tsconfig": str(tsconfig) if tsconfig.is_file() else None,
         "files": [*target.arguments()],
     }
+
+
+def measure_files(
+    target: Target, *, node: Node, work: Path, program: Path = helper.HELPER
+) -> Measurements:
+    """Measure the functions and imports of the named files."""
+    request = files_request(target)
     response = helper.run_helper(
         helper.Program(node, program), "structure", request, work=work, cwd=target.directory
     )
