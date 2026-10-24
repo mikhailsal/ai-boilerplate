@@ -19,11 +19,18 @@ at those versions in its own `package-lock.json`, because the tools import the
 component's configuration and code. Node is installed only when a TypeScript
 component needs it, so a repository without one never downloads it.
 
+Manifest dependency specifications must match the root and workspace entries
+of `package-lock.json` before installation. Drift reports `typescript.lockfile`
+as a candidate violation (exit 1), with a remedy to run `npm install` in the
+lockfile directory and stage the result. A cache miss for consistent manifests
+remains an environment failure (exit 3) requiring bootstrap.
+
 ## Component contract
 
 Before any tool runs, the profile reads the component's configuration from the
 candidate snapshot. A component that fails this check is not formatted,
-linted, typed, or tested. Every finding is `typescript.config`.
+linted, typed, or tested. Configuration findings are `typescript.config`;
+manifest drift is `typescript.lockfile`.
 
 | File | Requirement |
 | --- | --- |

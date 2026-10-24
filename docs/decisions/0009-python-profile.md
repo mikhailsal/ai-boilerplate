@@ -15,6 +15,11 @@ import the code under test.
 
 ## Component contract
 
+`./quality component add ROOT` creates `.python-version` from the core's pinned
+interpreter when it is absent and preserves an existing file. Stage it with
+the component before running `./quality bootstrap` and making the first commit,
+as shown in the [getting started commands](../../README.md#getting-started).
+
 Before any tool runs, the profile reads the component's native configuration
 from the candidate snapshot. A component that fails this check is not
 linted, typed, or tested; its findings say what to fix. Every finding is

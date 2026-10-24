@@ -36,20 +36,15 @@ review = 2999-01-01
 """
 # What a stale build in the work tree and an unrelated server would show.
 STALE = "<!doctype html>\n<title>Stale</title>\n<p>an old build</p>\n"
-# The component's own configuration: a filter, retries, another browser, and a server.
+# Allowed presentation settings and forced filters, retries, browser, and baseURL.
 CONFIG = """\
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   retries: 2,
   grep: /keyboard/,
-  use: { baseURL: "{url}" },
+  use: { baseURL: "{url}", locale: "en-GB" },
   projects: [{ name: "firefox", use: { browserName: "firefox" } }],
-  webServer: {
-    command: "node -e 'process.exit(1)'",
-    url: "{url}",
-    reuseExistingServer: true,
-  },
 });
 """
 SKIPPED = SCENARIOS.replace(KEYBOARD, KEYBOARD.replace("test(", "test.skip("))

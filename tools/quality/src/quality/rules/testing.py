@@ -62,17 +62,17 @@ EVIDENCE = Rule(
 )
 NETWORK = Rule(
     id="tests.network",
-    title="A unit suite ran with network access",
+    title="A contained test suite ran with network access",
     requirement="R06",
     explanation=(
-        "Unit suites run in a network namespace with loopback only, so a test cannot "
+        "Unit and owned browser suites run in a loopback-only namespace, so a test cannot "
         "reach a real service or the internet. This system does not let an unprivileged "
         "user create that namespace, so the suite ran with the network."
     ),
     remedy=(
         "Allow unprivileged user namespaces (on Ubuntu, set the sysctl "
-        "kernel.apparmor_restrict_unprivileged_userns to 0), or review that the unit "
-        "tests use no network."
+        "kernel.apparmor_restrict_unprivileged_userns to 0), or review that these "
+        "tests use no external network."
     ),
     severity=Severity.WARNING,
 )
@@ -178,7 +178,7 @@ def invalid_evidence(component: str, suite: Suite, problem: str) -> Diagnostic:
     )
 
 
-def unisolated(component: str, reason: str) -> Diagnostic:
-    """Report a unit suite that ran without network isolation."""
-    message = f"the unit suite of '{component}' ran with the network: {reason}"
+def unisolated(component: str, reason: str, *, suite: Suite = Suite.UNIT) -> Diagnostic:
+    """Report a contained suite that ran without network isolation."""
+    message = f"the {suite} suite of '{component}' ran with the network: {reason}"
     return NETWORK.diagnostic(message, component=component)

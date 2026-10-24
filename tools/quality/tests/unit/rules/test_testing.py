@@ -241,3 +241,8 @@ def test_a_runner_may_report_failures_with_several_statuses() -> None:
     held = frozenset({"t1"})
     errored = results(PASSED, Outcome.ERROR)
     assert judge("app", Suite.INTEGRATION, run(2, status=frozenset({1, 2})), errored, held) == []
+
+
+def test_a_browser_suite_without_network_isolation_names_its_own_suite() -> None:
+    found = unisolated("web", "namespaces denied", suite=Suite.E2E)
+    assert found.message == "the e2e suite of 'web' ran with the network: namespaces denied"

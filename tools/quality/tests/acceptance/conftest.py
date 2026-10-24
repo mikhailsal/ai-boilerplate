@@ -23,9 +23,9 @@ from quality.toolchain import load_manifest
 # Each of these runs several whole gates, so they go to the workers first
 # instead of finishing last; the sort is stable, so every worker agrees.
 LONGEST = frozenset({"test_template.py", "test_frontend_start.py"})
-# Their gates run nested suites on every CPU, so at most one runs per two CPUs;
-# seven at once on eight CPUs let a commit outlast the scratch timeout.
-WHOLE_GATES = max(1, (os.cpu_count() or 1) // 2)
+# Each whole gate runs nested suites on every CPU. Serialize these tests so
+# concurrent whole gates do not exhaust a scratch command's unchanged timeout.
+WHOLE_GATES = 1
 TEMPLATE = Path(__file__).resolve().parents[4]
 # What a clone of the template leaves out: Git data and installed packages.
 INSTALLED = shutil.ignore_patterns(

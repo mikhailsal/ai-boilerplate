@@ -5,16 +5,17 @@ imports the component's `playwright.config.*`, when there is one, and
 overrides what decides the verdict:
 
 - test files are the suite's roots with Playwright's default test-file
-  pattern, below the component directory; the component's test filters,
-  shards, and `webServer` are off, so no development or reused server is
-  tested;
+  pattern, below the component directory; test filters and shards are off,
+  and a component `webServer` is rejected, so no development or reused
+  server is tested;
 - `baseURL` is the gate's server, and every project is Chromium in the
   pinned headless shell, one per declared viewport, replacing the
   component's projects;
 - retries are 0, `.only` fails the run, a test that passes only on its own
   retry fails, and snapshots are never written;
 - traces record console messages, page errors, and requests, without
-  screenshots, snapshots, or sources, in the output directory;
+  screenshots or sources; snapshots retain document response evidence
+  in the output directory;
 - the reporters are Playwright's list reporter and the gate's own, which
   writes `playwright.json` (see `quality.testing.playwright`) with each
   test's error messages, and saves each attachment the tests attach in memory
@@ -30,9 +31,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from quality.adapters.native import fail, failure
+from quality.adapters.native import ToolFailedError, fail, failure
 from quality.adapters.typescript.environment import Node
 from quality.boundedio import JsonValue
+from quality.diagnostics import Location, Rule
 from quality.process import Command, ProcessError, run
 from quality.testing import SuiteRequest
 
@@ -43,12 +45,21 @@ WRAPPER = "playwright.quality.mjs"
 REPORTER = "quality-playwright-reporter.mjs"
 RESULTS = "playwright.json"
 LOG = "playwright.log"
+REJECTED = "playwright-config-error.json"
+CONFIG = Rule(
+    id="typescript.playwright",
+    title="The component Playwright configuration can substitute the tested production output",
+    requirement="R06",
+    explanation="Browser scenarios must exercise the fresh output on the gate's owned server.",
+    remedy="Remove the rejected key; use only the documented presentation and timeout settings.",
+)
+RULES = (CONFIG,)
 CONFIG_FILES = tuple(f"playwright.config.{ext}" for ext in ("ts", "mts", "cts", "js", "mjs", "cjs"))
 TEST_FILES = r"\.(spec|test)\.(c|m)?[jt]sx?$"
 TRACE: dict[str, JsonValue] = {
     "mode": "on",
     "screenshots": False,
-    "snapshots": False,
+    "snapshots": True,
     "sources": False,
 }
 REPORTER_BODY = """\
@@ -104,6 +115,29 @@ WRAPPER_BODY = """\
 const escape = (text) => text.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");
 const base = (await loaded.default) ?? {};
 const use = base.use ?? {};
+const allowed = new Set([
+  "viewport", "locale", "timezoneId", "colorScheme", "reducedMotion",
+  "forcedColors", "contrast", "deviceScaleFactor", "isMobile", "hasTouch",
+  "actionTimeout", "navigationTimeout", "screenshot", "video", "testIdAttribute",
+]);
+const forced = new Set(["baseURL", "trace", "browserName", "headless", "channel"]);
+const reject = (key) => {
+  writeFileSync(settings.rejected, JSON.stringify({ key }));
+  throw new Error(`${settings.config}: rejected Playwright setting ${key}`);
+};
+for (const key of ["globalSetup", "globalTeardown", "webServer", "build"]) {
+  if (base[key] !== undefined) reject(key);
+}
+for (const key of Object.keys(use)) {
+  if (key === "launchOptions") {
+    for (const option of Object.keys(use.launchOptions ?? {})) {
+      if (option !== "executablePath") reject(`use.launchOptions.${option}`);
+    }
+  } else if (!allowed.has(key) && !forced.has(key)) {
+    reject(`use.${key}`);
+  }
+}
+const presentation = Object.fromEntries(Object.entries(use).filter(([key]) => allowed.has(key)));
 
 export default {
   ...base,
@@ -123,14 +157,15 @@ export default {
   outputDir: settings.artifacts,
   reporter: [["list"], [settings.reporter]],
   use: {
-    ...use,
+    ...presentation,
     baseURL: settings.baseURL,
     trace: settings.trace,
     browserName: "chromium",
     headless: true,
     channel: undefined,
     connectOptions: undefined,
-    launchOptions: { ...use.launchOptions, executablePath: settings.executable },
+    launchOptions: { executablePath: settings.executable },
+    serviceWorkers: "block",
   },
   projects: settings.viewports.map(([name, viewport]) => ({ name, use: { viewport } })),
 };
@@ -147,6 +182,8 @@ def settings(request: SuiteRequest, url: str, executable: Path) -> dict[str, Jso
     viewports = request.component.browser_settings.viewports
     return {
         "directory": str(request.directory),
+        "config": str(user_config(request.directory) or request.directory / "playwright.config.ts"),
+        "rejected": str(request.output / REJECTED),
         "roots": [str(request.directory / root) for root in request.roots],
         "files": TEST_FILES,
         "baseURL": url,
@@ -175,7 +212,7 @@ def wrapper(request: SuiteRequest, values: dict[str, JsonValue]) -> str:
         if config is not None
         else "const loaded = {};"
     )
-    return f"{load}\n{_settings(values)}{WRAPPER_BODY}"
+    return f'import {{ writeFileSync }} from "node:fs";\n{load}\n{_settings(values)}{WRAPPER_BODY}'
 
 
 def reporter(values: dict[str, JsonValue]) -> str:
@@ -224,7 +261,24 @@ def run_playwright(
     log = completed.stdout_text() + completed.stderr_text()
     (request.output / LOG).write_text(log, encoding="utf-8")
     results = request.output / RESULTS
+    reject_configuration(request)
     if not results.exists():
         output = (completed.stderr_text() or completed.stdout_text()).strip()
         fail(TOOL, f"exit status {completed.returncode} without test results: {output}")
     return completed.returncode, results
+
+
+def reject_configuration(request: SuiteRequest) -> None:
+    """Turn a rejected wrapper key into a candidate finding before interpreting tool errors."""
+    rejected = request.output / REJECTED
+    if rejected.is_file():
+        key = json.loads(rejected.read_text(encoding="utf-8"))["key"]
+        config = user_config(request.directory)
+        path = config.relative_to(request.snapshot).as_posix() if config else request.component.root
+        raise ToolFailedError(
+            CONFIG.diagnostic(
+                f"rejected Playwright setting {key}",
+                location=Location(path),
+                component=request.component.id,
+            )
+        )

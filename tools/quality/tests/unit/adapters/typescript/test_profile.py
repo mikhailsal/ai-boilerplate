@@ -107,6 +107,9 @@ def test_the_profile_reports_its_rules(setup: Setup) -> None:
         "typescript.entries",
         "typescript.format",
         "typescript.lint",
+        "typescript.lockfile",
+        "typescript.playwright",
+        "typescript.browser-served",
         "typescript.styles",
         "typescript.types",
     }

@@ -1,8 +1,8 @@
 """`quality component add`: declare an application component in quality.toml (decision 0016).
 
-The command only edits the policy in the work tree. It never stages, never
-creates the native project, and never downloads; `quality bootstrap` then
-installs what the new component's profile needs. A TypeScript project with
+The command edits the policy in the work tree and supplies a missing Python
+interpreter pin. It never stages, creates the native project, or downloads;
+`quality bootstrap` then installs what the new component's profile needs. A TypeScript project with
 React or Vite evidence must name its target, so registration never guesses
 whether its code runs in the browser (decision 0017); a browser application
 also registers its end-to-end suite and scenario manifest when they exist.
@@ -38,6 +38,7 @@ CONVENTIONS: dict[Profile, tuple[tuple[str, ...], tuple[str, ...]]] = {
 # The end-to-end suite and scenario manifest a browser application registers when present.
 BROWSER_E2E = "e2e"
 MANIFEST = "scenarios.toml"
+CORE_PYTHON = Path(__file__).resolve().parents[3] / ".python-version"
 
 
 class UsageError(ValueError):
@@ -60,7 +61,9 @@ def register(commands: Subcommands) -> None:
         "ID from the directory name, and the source and unit test directories from the "
         "profile's conventions, unless the options name them; a browser application also "
         "registers its e2e directory and scenarios.toml when they exist. The edited policy is "
-        "validated before it is written; nothing is staged. Exit 0 when added, 2 when the "
+        "validated before it is written; Python components receive a missing .python-version "
+        "from the core interpreter pin, and existing pins are preserved. Nothing is staged. "
+        "Exit 0 when added, 2 when the "
         "arguments or the resulting policy are invalid, 3 on Git errors.",
     )
     add.add_argument("root", help="the component's directory, relative to the current one")
@@ -204,6 +207,18 @@ def _policy_text(top: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _pin_python(directory: Path) -> None:
+    path = directory / ".python-version"
+    if path.exists() or path.is_symlink():
+        return
+    try:
+        version = CORE_PYTHON.read_text(encoding="utf-8").strip()
+        path.write_text(f"{version}\n", encoding="utf-8")
+    except OSError as error:
+        msg = f"cannot create {path}: {error}"
+        raise UsageError(msg) from error
+
+
 def run_add(args: argparse.Namespace) -> int:
     """Add the component to the work tree's policy and print the new table."""
     try:
@@ -211,6 +226,15 @@ def run_add(args: argparse.Namespace) -> int:
         draft = _draft(args, top)
         block = component_toml(draft)
         text, policy = add_component(_policy_text(top), block)
+        outcome = Outcome.of(cross_validate(policy, build_registry().ids()))
+        if not outcome.errors:
+            if draft.profile == Profile.PYTHON:
+                _pin_python(top / draft.root)
+            (top / POLICY_FILE).write_text(text, encoding="utf-8")
+            print(f"added to {POLICY_FILE}:\n\n{block}")
+            print(
+                "next: stage the component and quality.toml, run ./quality bootstrap, then commit"
+            )
     except UsageError as error:
         print(f"component add: {error}", file=sys.stderr)
         return 2
@@ -218,14 +242,6 @@ def run_add(args: argparse.Namespace) -> int:
         outcome = Outcome.of([error.diagnostic])
     except EditError as error:
         outcome = Outcome.of(error.diagnostics)
-    else:
-        outcome = Outcome.of(cross_validate(policy, build_registry().ids()))
-        if not outcome.errors:
-            (top / POLICY_FILE).write_text(text, encoding="utf-8")
-            print(f"added to {POLICY_FILE}:\n\n{block}")
-            print(
-                "next: stage the component and quality.toml, run ./quality bootstrap, then commit"
-            )
     if outcome.diagnostics:
         sys.stdout.write(render_text(outcome))
     return int(outcome.exit_code())

@@ -147,3 +147,14 @@ def test_evidence_must_name_cases_of_the_results() -> None:
 def test_a_run_reports_no_evidence_findings_or_extra_reports_by_default() -> None:
     run = SuiteRun(0, Path("junit.xml"))
     assert (dict(run.evidence), run.findings, run.reports) == ({}, (), ())
+
+
+def test_a_runner_can_invalidate_passes_without_rewriting_the_native_report() -> None:
+    results = SuiteResults(
+        (CaseResult("loaded", Outcome.PASSED), CaseResult("substituted", Outcome.PASSED))
+    )
+    judged = results.annotated(frozenset(), frozenset(), frozenset({"substituted"}))
+    assert [case.outcome for case in judged.cases] == [Outcome.PASSED, Outcome.FAILED]
+    assert results.cases[1].outcome is Outcome.PASSED
+    with pytest.raises(ReportError, match="annotated tests are not among the results: missing"):
+        results.annotated(frozenset(), frozenset(), frozenset({"missing"}))

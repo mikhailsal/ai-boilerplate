@@ -62,10 +62,11 @@ def run_tool(command: Command, *, name: str, accepted: Collection[int]) -> Compl
 def suite_command(
     request: SuiteRequest, argv: tuple[str, ...]
 ) -> tuple[tuple[str, ...], str | None]:
-    """Return a suite's command, a unit suite reaching loopback only when this machine allows it.
+    """Return a unit or owned browser command reaching loopback only when possible.
 
-    The second item says why a unit suite runs with the network (R06.9).
+    The second item says why a contained suite runs with the network (R06.9).
     """
-    if request.suite is not Suite.UNIT:
+    browser = request.component.in_browser and request.suite is Suite.E2E
+    if request.suite is not Suite.UNIT and not browser:
         return argv, None
     return contained(argv)

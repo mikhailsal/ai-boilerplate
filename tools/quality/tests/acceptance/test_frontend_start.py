@@ -39,7 +39,7 @@ def quick_start(project: Project, name: str = "web") -> dict[str, Completed]:
     for line in block.group(1).splitlines():
         command = EXAMPLE.sub(name, line.replace("apps/web", f"apps/{name}"))
         result = project.run("bash", "-euo", "pipefail", "-c", command)
-        assert result.returncode == 0, (command, output(result))
+        assert result.returncode == 0, f"{command}\n{output(result)}"
         results[command.split()[1]] = result
     return results
 
