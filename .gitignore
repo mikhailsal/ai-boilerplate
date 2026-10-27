@@ -6,3 +6,7 @@ node_modules/
 .dart_tool/
 vendor/
 .quality/
+.ruff_cache/
+.coverage
+.coverage.*
+coverage.json
