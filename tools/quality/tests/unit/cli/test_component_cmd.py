@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 
+from quality.cli import component_cmd
 from quality.cli.main import main
 from quality.policy import load_policy
 from quality.testkit.gitrepo import GitRepo
@@ -61,6 +62,7 @@ def test_the_profile_and_directories_follow_from_the_native_project(
     assert main(["component", "add", "services/web", "--capability", "cli"]) == 0
     profile, source, unit = expected
     assert added(project) == [("web", profile, "services/web", source, unit)]
+    assert (project.path / "services/web/.python-version").exists() == (profile == "python")
     out = capsys.readouterr().out
     assert out.startswith('added to quality.toml:\n\n[[components]]\nid = "web"\n')
     assert out.endswith(
@@ -144,3 +146,51 @@ def test_outside_a_repository_the_git_error_is_reported(
     monkeypatch.chdir(tmp_path / "loose")
     assert main(["component", "add", ".", "--capability", "cli"]) == 3
     assert "(git." in capsys.readouterr().out
+
+
+def test_python_registration_supplies_the_core_pin_without_staging(
+    project: GitRepo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pin = project.write("core-python", "3.12.7\n")
+    monkeypatch.setattr(component_cmd, "CORE_PYTHON", pin)
+    native(project, "pricing", "pyproject.toml", "src", "tests")
+    assert main(["component", "add", "pricing", "--capability", "cli"]) == 0
+    assert (project.path / "pricing/.python-version").read_text() == "3.12.7\n"
+    assert project.git("diff", "--cached", "--name-only").strip() == ""
+
+
+def test_python_registration_preserves_an_existing_pin(project: GitRepo) -> None:
+    native(project, "pricing", "pyproject.toml", "src", "tests")
+    pin = project.write("pricing/.python-version", "3.13.9\n")
+    assert main(["component", "add", "pricing", "--capability", "cli"]) == 0
+    assert pin.read_bytes() == b"3.13.9\n"
+
+
+def test_rejected_registration_does_not_create_a_python_pin(project: GitRepo) -> None:
+    native(project, "pricing", "pyproject.toml", "src", "tests")
+    assert main(["component", "add", "pricing", "--id", "app", "--capability", "cli"]) == 2
+    assert not (project.path / "pricing/.python-version").exists()
+    assert (project.path / "quality.toml").read_text() == POLICY
+
+
+def test_an_unreadable_core_pin_leaves_the_policy_unchanged(
+    project: GitRepo, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(component_cmd, "CORE_PYTHON", project.path / "missing-pin")
+    native(project, "pricing", "pyproject.toml", "src", "tests")
+    assert main(["component", "add", "pricing", "--capability", "cli"]) == 2
+    assert "cannot create" in capsys.readouterr().err
+    assert not (project.path / "pricing/.python-version").exists()
+    assert (project.path / "quality.toml").read_text() == POLICY
+
+
+def test_python_registration_preserves_a_dangling_pin_symlink(project: GitRepo) -> None:
+    native(project, "pricing", "pyproject.toml", "src", "tests")
+    outside = project.path.parent / "outside-python-version"
+    pin = project.path / "pricing/.python-version"
+    pin.symlink_to(outside)
+    assert not outside.exists()
+    assert main(["component", "add", "pricing", "--capability", "cli"]) == 0
+    assert pin.is_symlink()
+    assert pin.readlink() == outside
+    assert not outside.exists()

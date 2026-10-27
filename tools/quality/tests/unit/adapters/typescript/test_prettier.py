@@ -76,6 +76,14 @@ def test_unparsable_files_are_left_to_the_other_tools(
     assert "bad" not in calls[1]
 
 
+def test_an_unparsable_html_file_is_a_finding(node: Node, snapshot: Path, tmp_path: Path) -> None:
+    files = ("app/src/bad.css", "app/bad.html", "app/messy.html")
+    assert run(node, snapshot, tmp_path, files) == [
+        ("app/bad.html", "Prettier cannot parse the file: Unexpected token (1:1)"),
+        ("app/messy.html", "the file is not formatted; run `./quality fix`"),
+    ]
+
+
 def test_a_run_of_only_unparsable_files_reports_nothing(
     node: Node, snapshot: Path, tmp_path: Path
 ) -> None:

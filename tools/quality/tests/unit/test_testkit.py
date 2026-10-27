@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,7 @@ from quality.testkit.scratch import (
     rules_of,
     shared_caches,
 )
+from quality.testkit.slots import held
 
 
 def test_failed_arrangement_commands_fail_the_test(tmp_path: Path) -> None:
@@ -189,3 +191,22 @@ def test_scratch_users_share_the_caller_caches() -> None:
     assert shared_caches({"HOME": "/home/u"}) == {"XDG_CACHE_HOME": "/home/u/.cache"}
     environ = {"HOME": "/home/u", "XDG_CACHE_HOME": "/c", "UV_CACHE_DIR": "/uv"}
     assert shared_caches(environ) == {"XDG_CACHE_HOME": "/c", "UV_CACHE_DIR": "/uv"}
+
+
+def test_slots_admit_at_most_their_count_at_once(tmp_path: Path) -> None:
+    entered = threading.Event()
+    slots: list[int] = []
+
+    def third() -> None:
+        with held(tmp_path / "slots", 2, poll=0.01) as index:
+            slots.append(index)
+            entered.set()
+
+    with held(tmp_path / "slots", 2) as first:
+        with held(tmp_path / "slots", 2) as second:
+            waiting = threading.Thread(target=third)
+            waiting.start()
+            assert not entered.wait(0.2)
+        assert entered.wait(10)
+        waiting.join()
+    assert [first, second, *slots] == [0, 1, 1]

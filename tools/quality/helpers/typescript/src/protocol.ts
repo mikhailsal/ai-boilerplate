@@ -15,6 +15,10 @@ export function isRecord(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isString(value: unknown): value is string {
+  return typeof value === "string";
+}
+
 /** A field of a JSON object; undefined for anything else. */
 export function field(value: unknown, key: string): unknown {
   return isRecord(value) ? value[key] : undefined;
@@ -67,4 +71,16 @@ export function pathList(request: JsonObject, key: string): string[] {
     throw new RequestError(`"${key}" is not a list of absolute paths`);
   }
   return value.map((item: unknown) => checkedPath(item, key));
+}
+
+/** A list of strings, or an empty list when the request omits it. */
+export function optionalStrings(request: JsonObject, key: string): string[] {
+  const value = request[key];
+  if (value === undefined) {
+    return [];
+  }
+  if (!Array.isArray(value) || !value.every(isString)) {
+    throw new RequestError(`"${key}" is not a list of strings`);
+  }
+  return value;
 }

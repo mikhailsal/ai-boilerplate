@@ -15,6 +15,7 @@ from quality.diagnostics import Kind, Severity
 from quality.policy import Component
 from quality.process import Command, isolation, sanitized
 from quality.testing import Suite, SuiteRequest
+from quality.testkit.nodefakes import browser_component
 from quality.testkit.policies import ComponentSpec, build_policy
 
 
@@ -88,3 +89,19 @@ def test_only_unit_suites_are_contained(
     expected = isolation.isolated(argv) if isolated else argv
     assert suite_command(suite_request(Suite.UNIT), argv) == (expected, reason)
     assert suite_command(suite_request(Suite.INTEGRATION), argv) == (argv, None)
+
+
+def test_owned_browser_suites_share_unit_network_isolation(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def contain(argv: tuple[str, ...]) -> tuple[tuple[str, ...], str | None]:
+        calls.append(argv)
+        return ("isolated", *argv), None
+
+    monkeypatch.setattr(native, "contained", contain)
+    request = SuiteRequest(
+        browser_component(), Suite.E2E, ("e2e",), Path("/s"), Path("/o"), 0.0, Path("/w")
+    )
+    assert suite_command(request, ("browser-worker",)) == (("isolated", "browser-worker"), None)
+    assert suite_command(suite_request(Suite.E2E), ("pytest",)) == (("pytest",), None)
+    assert calls == [("browser-worker",)]

@@ -43,7 +43,12 @@ your components use are installed.
 
 Add each component, a directory with a `pyproject.toml`, `package.json`,
 `pubspec.yaml`, or `composer.json`, then stage it and bootstrap again so its
-tools are ready before the hook checks it:
+tools are ready before the hook checks it.
+
+For Python, registration creates a missing `.python-version` from the core's
+pinned interpreter and preserves an existing pin; stage that file with the
+component. The [Python contract](docs/decisions/0009-python-profile.md#component-contract)
+lists the other required settings and lockfile.
 
 ```sh
 ./quality component add libs/pricing --no-boundary-reason "Pure price calculations."
@@ -55,6 +60,42 @@ git commit -m "Add the pricing library"
 A component with boundaries declares them instead, for example
 `--capability http-api`, and proves them with the scenarios of
 [decision 0014](docs/decisions/0014-behavioral-scenarios.md).
+
+### A browser application
+
+A React + Vite application is a TypeScript component with the browser target.
+To start from the [reference application](examples/web/README.md), copy its
+tracked files, name your component in its scenario manifest, and register it;
+registration also finds its `e2e/` suite and `scenarios.toml`:
+
+```sh
+git archive --prefix=apps/web/ HEAD:examples/web | tar -x
+rm apps/web/README.md
+sed -i 's/^component = "example-web"$/component = "web"/' apps/web/scenarios.toml
+./quality component add apps/web --target browser
+git add quality.toml apps/web
+./quality bootstrap
+git commit -m "Add the web application"
+./quality test --component web --suite unit --suite e2e
+```
+
+Bootstrap installs the pinned Chromium, which needs the system libraries
+listed in the
+[prerequisites](docs/decisions/0002-installation-strategy.md#prerequisites-documented-not-promised-away).
+The commit runs the static checks and the unit suites with their coverage
+floors; the last command, like the merge stage, also builds the application
+and proves its scenarios in Chromium. Then replace the pages, tests, and
+scenarios with your own. The `audit` job of CI matches the copied lockfile
+against current advisories; one without a fixed release needs a dated
+exception for your copy too, like those in [`quality.toml`](quality.toml)
+for the reference application ([exceptions guide](docs/guides/exceptions.md)).
+
+The same commands add a frontend to a project that already has components,
+such as a TypeScript Node service registered like the library above, and
+they add a second application under another directory and name. Until a
+browser component is staged, no bootstrap, hook, or gate needs Chromium.
+The supported variants are in the
+[profile matrix](docs/reference/profiles.md#browser-applications).
 
 Local hooks can be bypassed, so CI runs the same gate. Replace the owner in
 [`.github/CODEOWNERS`](.github/CODEOWNERS) with your own team, and apply the

@@ -39,12 +39,22 @@ class Draft:
     unit: tuple[str, ...]
     capabilities: tuple[str, ...] = ()
     no_boundary_reason: str | None = None
+    target: str | None = None
+    framework: str | None = None
+    bundler: str | None = None
+    e2e: tuple[str, ...] = ()
+    scenarios: str | None = None
 
 
 def _value(value: str | tuple[str, ...]) -> str:
     if isinstance(value, str):
         return json.dumps(value, ensure_ascii=False)
     return "[" + ", ".join(json.dumps(item, ensure_ascii=False) for item in value) + "]"
+
+
+def _tests(draft: Draft) -> str:
+    suites = (("unit", draft.unit), ("e2e", draft.e2e))
+    return ", ".join(f"{suite} = {_value(roots)}" for suite, roots in suites if roots)
 
 
 def component_toml(draft: Draft) -> str:
@@ -54,11 +64,22 @@ def component_toml(draft: Draft) -> str:
         f"id = {_value(draft.id)}",
         'role = "application"',
         f"profile = {_value(draft.profile)}",
+        *(
+            f"{key} = {_value(value)}"
+            for key, value in (
+                ("target", draft.target),
+                ("framework", draft.framework),
+                ("bundler", draft.bundler),
+            )
+            if value is not None
+        ),
         f"root = {_value(draft.root)}",
         f"source = {_value(draft.source)}",
-        f"tests = {{ unit = {_value(draft.unit)} }}",
+        f"tests = {{ {_tests(draft)} }}",
         f"capabilities = {_value(draft.capabilities)}",
     ]
+    if draft.scenarios is not None:
+        lines.append(f"scenarios = {_value(draft.scenarios)}")
     if draft.no_boundary_reason is not None:
         lines.append(f"no_boundary_reason = {_value(draft.no_boundary_reason)}")
     return "\n".join(lines) + "\n"

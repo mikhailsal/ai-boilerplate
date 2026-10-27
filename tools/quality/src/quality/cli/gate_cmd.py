@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from quality.catalog import build_registry
+from quality.ci import Lane
 from quality.cli import Subcommands
 from quality.cli.inventory_cmd import index_from
 from quality.cli.local import local_profiles, local_tools
@@ -38,10 +39,11 @@ def register(commands: Subcommands) -> None:
         "--stage commit checks the index (or --index), or a pushed range with --base and "
         "--head; --stage merge checks the tested tree of a pull request (--tested, the head "
         "by default) or of a merge-queue entry (--queue) against --base and --head. A range "
-        "also checks every blob of its new commits; missing history fails. --reports writes "
-        "report.json, JUnit, LCOV, Cobertura, and native reports into a new or empty "
-        "directory. Exit 0 on pass, 1 on violations, 2 on usage or policy errors, 3 on "
-        "environment errors.",
+        "also checks every blob of its new commits; missing history fails. --lane checks one "
+        "part, as a CI job does: main the common gates and every component that does not run "
+        "in a browser, browser the browser components. --reports writes report.json, JUnit, "
+        "LCOV, Cobertura, and native reports into a new or empty directory. Exit 0 on pass, "
+        "1 on violations, 2 on usage or policy errors, 3 on environment errors.",
     )
     parser.add_argument(
         "--stage", choices=[str(stage) for stage in Stage], required=True, help="gate stage"
@@ -53,6 +55,9 @@ def register(commands: Subcommands) -> None:
         "--queue", action="store_true", help="the head is a merge-queue entry built on the base"
     )
     parser.add_argument("--index", type=Path, help="alternate index file (commit stage)")
+    parser.add_argument(
+        "--lane", choices=[str(lane) for lane in Lane], help="check one lane, as a CI job does"
+    )
     parser.add_argument("--reports", type=Path, help="new or empty directory for the reports")
     parser.add_argument("--baseline", type=Path, help="earlier report.json to report regressions")
     parser.add_argument("--json", action="store_true", help="print a JSON report")
@@ -91,6 +96,7 @@ def _report(args: argparse.Namespace, reports: Path | None) -> tuple[Report, Can
         everything=True,
         stage=Stage(args.stage),
         reports=reports,
+        lane=Lane(args.lane) if args.lane is not None else None,
     )
     report = check_candidate(repo, candidate, settings)
     if args.baseline is not None:
@@ -103,7 +109,7 @@ def _identity(args: argparse.Namespace, candidate: Candidate | None) -> dict[str
     revisions = {key: getattr(args, key) for key in ("base", "head", "tested")}
     tree = None if candidate is None else candidate.tree
     base_tree = None if candidate is None else candidate.base_tree
-    shown = {"stage": args.stage, **revisions, "queue": args.queue}
+    shown = {"stage": args.stage, "lane": args.lane, **revisions, "queue": args.queue}
     return {**shown, "tree": tree, "base_tree": base_tree}
 
 

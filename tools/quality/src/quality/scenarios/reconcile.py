@@ -15,16 +15,18 @@ from dataclasses import dataclass
 from quality.diagnostics import Diagnostic, Location, Rule
 from quality.policy import Quarantine, Suite
 from quality.policy.scenarios import Scenario, ScenarioManifest
+from quality.scenarios.catalog import EVIDENCE_NAMES, requirement
 from quality.scenarios.rules import (
     ABSENT,
     AMBIGUOUS,
+    EVIDENCE,
     FAILED,
     QUARANTINED,
     SKIPPED,
     SUSPENDED,
     UNVERIFIED,
 )
-from quality.testing import Outcome, SuiteResults
+from quality.testing import CaseResult, Outcome, SuiteResults
 
 PROBLEMS = {
     Outcome.FAILED: (FAILED, "failed"),
@@ -47,6 +49,7 @@ class ScenarioSummary:
     passed: int
     suspended: int = 0
     deferred: int = 0
+    boundaries: tuple[str, ...] = ()
 
 
 def selected(selector: str, names: Sequence[str]) -> list[str]:
@@ -76,29 +79,57 @@ def _cases(scenario: Scenario, results: SuiteResults) -> Iterator[tuple[Rule, st
         yield from chosen
 
 
+def needed_evidence(scenario: Scenario) -> tuple[str, ...]:
+    """Return the evidence the scenario's requirements need from each case beside a pass."""
+    kinds: dict[str, None] = {}
+    for identifier in scenario.requirements:
+        found = requirement(identifier)
+        if found is not None and found[1].evidence is not None:
+            kinds[found[1].evidence] = None
+    return tuple(kinds)
+
+
 @dataclass(slots=True)
 class _Verdict:
     problems: dict[Rule, list[str]]
     suspended: list[str]
 
+    def add(self, rule: Rule, message: str) -> None:
+        self.problems.setdefault(rule, []).append(message)
+
+
+def _judge_case(
+    verdict: _Verdict,
+    scenario: str,
+    case: CaseResult,
+    held: Quarantine | None,
+    needed: Sequence[str],
+) -> None:
+    """Record why one selected case does not prove the scenario, or that it is quarantined."""
+    if held is not None and scenario in held.scenarios:
+        verdict.suspended.append(f"'{case.name}' is quarantined until {held.expires}")
+    elif held is not None:
+        verdict.add(
+            QUARANTINED, f"'{case.name}' is quarantined, and its entry does not name this scenario"
+        )
+    elif case.outcome in PROBLEMS:
+        rule, verb = PROBLEMS[case.outcome]
+        verdict.add(rule, f"'{case.name}' {verb}")
+    else:
+        for kind in (kind for kind in needed if kind not in case.evidence):
+            verdict.add(EVIDENCE, f"'{case.name}' passed without {EVIDENCE_NAMES[kind]}")
+
 
 def _judge(scenario: Scenario, results: SuiteResults, entries: Sequence[Quarantine]) -> _Verdict:
     verdict = _Verdict({}, [])
-    outcomes = {case.name: case.outcome for case in results.cases}
+    cases = {case.name: case for case in results.cases}
+    needed = needed_evidence(scenario)
     held = {entry.test: entry for entry in entries}
     for item in dict.fromkeys(_cases(scenario, results)):
-        if not isinstance(item, str):
-            verdict.problems.setdefault(item[0], []).append(item[1])
-            continue
-        entry = held.get(item)
-        if entry is not None and scenario.id in entry.scenarios:
-            verdict.suspended.append(f"'{item}' is quarantined until {entry.expires}")
-        elif entry is not None:
-            message = f"'{item}' is quarantined, and its entry does not name this scenario"
-            verdict.problems.setdefault(QUARANTINED, []).append(message)
-        elif outcomes[item] in PROBLEMS:
-            rule, verb = PROBLEMS[outcomes[item]]
-            verdict.problems.setdefault(rule, []).append(f"'{item}' {verb}")
+        if isinstance(item, str):
+            _judge_case(verdict, scenario.id, cases[item], held.get(item), needed)
+        else:
+            verdict.add(*item)
     return verdict
 
 
@@ -115,6 +146,15 @@ def _findings(
         message = f"{head} is suspended: {'; '.join(verdict.suspended)}"
         return [SUSPENDED.diagnostic(message, location=location, component=component)]
     return []
+
+
+def _held(quarantine: Sequence[Quarantine], component: str, level: Suite) -> list[Quarantine]:
+    return [entry for entry in quarantine if entry.component == component and entry.suite is level]
+
+
+def _boundaries(scenarios: Sequence[Scenario]) -> tuple[str, ...]:
+    """Return the distinct boundaries the scenarios name, in their order."""
+    return tuple(dict.fromkeys(s.boundary for s in scenarios if s.boundary is not None))
 
 
 def reconcile(
@@ -138,10 +178,11 @@ def reconcile(
             )
             found.append(UNVERIFIED.diagnostic(message, location=location, component=component))
             continue
-        entries = [e for e in quarantine if e.component == component and e.suite is scenario.level]
-        verdict = _judge(scenario, results, entries)
+        verdict = _judge(scenario, results, _held(quarantine, component, scenario.level))
         found.extend(_findings(scenario, verdict, location, component))
         passed += not verdict.problems and not verdict.suspended
         suspended += not verdict.problems and bool(verdict.suspended)
     deferred = len(manifest.scenarios) - len(needed)
-    return found, ScenarioSummary(component, len(needed), passed, suspended, deferred)
+    boundaries = _boundaries(needed)
+    summary = ScenarioSummary(component, len(needed), passed, suspended, deferred, boundaries)
+    return found, summary

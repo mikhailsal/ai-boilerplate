@@ -1,6 +1,6 @@
 # 0002 Installation strategy
 
-Status: accepted (P00); amended in P03, P05, P06, P08, P10, and P11.
+Status: accepted (P00); amended in P03, P05, P06, P08, P10, P11, and F02.
 
 Commands that are not implemented yet are named in plain text with the phase
 that delivers them; `quality check` fails documentation that presents a
@@ -27,6 +27,15 @@ missing command as runnable.
   replace it. The core's own acceptance suite also needs PCOV
   (`php8.4-pcov`) to prove that a machine with only PCOV cannot pass
   ([decision 0013](0013-php-profile.md#runtime)).
+- For browser components only: the shared libraries that the pinned
+  Chromium headless shell links, among them NSS and NSPR, GLib, ATK and
+  AT-SPI, D-Bus, ALSA, GBM, expat, udev, xkbcommon, and the X11 client
+  libraries (Debian/Ubuntu: `libnss3 libglib2.0-0 libatk-bridge2.0-0
+  libasound2 libgbm1 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2`,
+  with the `t64` names on Ubuntu 24.04). The `deb.deps` and `rpm.deps` files
+  beside the installed browser list the packages, and bootstrap and doctor
+  name the libraries the loader cannot find
+  ([decision 0017](0017-browser-frontend-profile.md#chromium)).
 
 ## Managed downloads
 
@@ -47,6 +56,10 @@ standalone tools:
 - PHP profile active: `composer.phar`, installed by `quality bootstrap` only
   when a PHP component exists, or explicitly with `quality tools install
   composer` (since P08);
+- browser component active: the Chrome for Testing headless shell, installed
+  by `quality bootstrap` only when an active TypeScript component has the
+  browser target, or explicitly with `quality tools install chromium`
+  (since F02);
 - always since P10: actionlint, because every check lints the workflows, and
   osv-scanner, because the core's own tests run it and merge CI runs
   `quality audit`

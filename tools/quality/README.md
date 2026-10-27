@@ -18,17 +18,17 @@ its tests, the stdlib launcher, and locked development tooling.
 | `src/quality/testing` | Suite and result model, JUnit XML and Dart JSON reporter parsers (PHPUnit writes JUnit XML) |
 | `src/quality/reports` | The `--reports` directory of `quality gate`: JUnit, LCOV, and Cobertura exports and native report copies |
 | `src/quality/coverage` | Coverage model and parsers for coverage.py JSON, LCOV, and PHPUnit's Clover and JSONL reports |
-| `src/quality/adapters` | Native tool adapters: the Python profile (Ruff, Pyright, pytest, uv environments, fixes), the TypeScript profile (Prettier, ESLint, tsc, Vitest, npm environments, fixes), the Dart profile (dart format, dart analyze, package:test, package:coverage, pub environments, fixes), the PHP profile (Composer, PHP CS Fixer, PHPStan, PHPUnit with Xdebug, the system PHP, fixes), Python structure and imports, Markdown lint, gitleaks, actionlint, osv-scanner, HTTP probes |
+| `src/quality/adapters` | Native tool adapters: the Python profile (Ruff, Pyright, pytest, uv environments, fixes), the TypeScript profile (Prettier, ESLint, tsc, Vitest, npm environments, fixes, and the browser target's Stylelint, import boundaries, entry points, production build and its output, Chromium, the server of the build, and the Playwright scenarios with their traces and accessibility scans), the Dart profile (dart format, dart analyze, package:test, package:coverage, pub environments, fixes), the PHP profile (Composer, PHP CS Fixer, PHPStan, PHPUnit with Xdebug, the system PHP, fixes), Python structure and imports, Markdown lint, gitleaks, actionlint, osv-scanner, HTTP probes |
 | `src/quality/rules` | Common rules: files, configuration, suppressions, docs, links, structure, architecture, exceptions, tests, quarantine, coverage |
 | `src/quality/scenarios` | Capability catalog, scenario manifests, static validation, proof from test results, and capability suggestions |
 | `src/quality/toolchain` | Pinned standalone tool manifest, verified installation, and `tools update` from vendor checksum files |
 | `src/quality/hooks` | Text, installation, and status of the managed Git hooks |
-| `src/quality/ci` | CI wrapper rules: workflow trust, the aggregate job, CODEOWNERS, control files, and the job-result verdict |
+| `src/quality/ci` | CI wrapper rules: workflow trust, the aggregate job, the lanes of the gate, CODEOWNERS, control files, and the job-result verdict |
 | `src/quality/template` | Template export: maintainer-only fences, left-out paths, and the new project's root commit |
 | `src/quality/engine` | Orchestration of `check`, `gate`, `audit`, history ranges, external links, test suites, fixes, bootstrap, and doctor |
 | `src/quality/catalog.py` | The registry of every rule the core can report |
 | `src/quality/cli` | Argument parsing and subcommands (`audit`, `bootstrap`, `check`, `ci`, `component`, `doctor`, `explain`, `fix`, `gate`, `inventory`, `links`, `policy`, `scenarios`, `self-test`, `template`, `test`, `tools`) |
-| `src/quality/testkit` | Test builders shared by unit, contract, and acceptance tests, including scratch projects with real hooks, the `greet` and `notes` scenario fixtures, and offline advisory databases |
+| `src/quality/testkit` | Test builders shared by unit, contract, and acceptance tests, including scratch projects with real hooks, a React + Vite browser component locked from the seed in `browserseed/`, the `greet` and `notes` scenario fixtures, and offline advisory databases |
 | `toolchains.toml` | Versions, URLs, and SHA-256 checksums of standalone tools, Node, the Dart SDK, and Composer; the npm, pub, and Composer packages TypeScript, Dart, and PHP components lock; and the PHP and Xdebug minor versions the system must provide |
 | `helpers/typescript` | The Node helper of the TypeScript profile: types, structure, imports, and ESLint configuration probes; a separate component |
 | `helpers/dart` | The Dart helper of the Dart profile: structure and imports with package:analyzer; a separate component |

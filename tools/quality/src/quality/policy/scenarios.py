@@ -37,7 +37,9 @@ class Scenario(StrictModel):
     """One required behavior and the native test cases that prove it.
 
     `tests` are case names as the suite's results report them, or prefixes
-    ending in `*` that must select at least one case.
+    ending in `*` that must select at least one case. `boundary` names what the
+    tests exercise, such as a browser route that simulates the backend; every
+    scenario of a browser component names it (decision 0018).
     """
 
     id: Name
@@ -49,6 +51,7 @@ class Scenario(StrictModel):
     requirements: list[Name] = Field(default_factory=list[Name])
     operations: list[Text] = Field(default_factory=list[Text])
     enhanced: Enhancement | None = None
+    boundary: Text | None = None
 
 
 class NotApplicable(StrictModel):

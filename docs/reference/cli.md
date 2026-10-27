@@ -26,7 +26,7 @@ environment fails with `core.environment`.
 | --- | --- |
 | `bootstrap [--pre-push]` | Install the pinned tools, interpreters, and locked packages, then the managed hooks ([decision 0010](../decisions/0010-launcher-bootstrap-and-hooks.md)) |
 | `doctor [--json]` | Verify offline and read-only that checks can run here |
-| `tools install [NAME ...]` | Download, verify, and install pinned tools from `tools/quality/toolchains.toml`: gitleaks, actionlint, and osv-scanner by default, or the named ones such as `node`, `dart`, or `composer`; bootstrap installs Node only for a TypeScript component, the Dart SDK only for a Dart component, and Composer only for a PHP component |
+| `tools install [NAME ...]` | Download, verify, and install pinned tools from `tools/quality/toolchains.toml`: gitleaks, actionlint, and osv-scanner by default, or the named ones such as `node`, `dart`, `composer`, or `chromium`; bootstrap installs Node only for a TypeScript component, Chromium only for a browser component, the Dart SDK only for a Dart component, and Composer only for a PHP component |
 | `tools update NAME VERSION` | Rewrite one tool's pins in `toolchains.toml` for another release, with checksums from the vendor's checksum file that its `checksums` template names; nothing is installed or staged ([maintenance guide](../guides/maintenance.md)) |
 
 ## Project lifecycle
@@ -36,7 +36,7 @@ environment fails with `core.environment`.
 | Command | Purpose |
 | --- | --- |
 | `template export DIRECTORY [--rev REV]` | Write a commit of this repository, without `[template].exclude` and the maintainer-only regions of `[template].fenced`, to a new or empty directory, and make it a repository whose root commit, made with your Git identity, carries a `Quality-Template` trailer naming that commit; the launcher may download the core environment for it |
-| `component add ROOT [--id ID] [--profile P] [--source DIR ...] [--unit DIR ...] [--capability C ...] [--no-boundary-reason TEXT]` | Append an application component to `quality.toml`, with the profile detected from its manifest and the profile's conventional source and unit test directories; the edit is validated before it is written, and nothing is staged |
+| `component add ROOT [--id ID] [--profile P] [--target T] [--source DIR ...] [--unit DIR ...] [--e2e DIR ...] [--scenarios FILE] [--capability C ...] [--no-boundary-reason TEXT]` | Append an application component to `quality.toml`, with the profile detected from its manifest and the profile's conventional source and unit test directories, and for a browser application its `e2e` directory and `scenarios.toml` when they exist; the edit is validated before it is written, and nothing is staged. Python components receive a missing `.python-version` from the core's interpreter pin; existing files are preserved. `--target node` or `browser` says where a TypeScript component runs; React or Vite evidence without it is refused as ambiguous, and `browser` requires a complete React + Vite application ([decision 0017](../decisions/0017-browser-frontend-profile.md#registration)) |
 
 ## Checking and testing
 
@@ -56,7 +56,7 @@ commands read no provider variables
 
 | Command | Purpose |
 | --- | --- |
-| `gate --stage commit\|merge [--base REV --head REV] [--tested REV \| --queue] [--index FILE] [--reports DIR] [--baseline FILE] [--json]` | Every gate over every active component of one candidate: the index, a pushed range, a pull request's tested merge, or a merge-queue entry; a range also checks every blob of its new commits. `--reports` writes `report.json`, JUnit, LCOV, Cobertura, and the native reports; `--baseline` reports coverage regressions against an earlier `report.json` as warnings |
+| `gate --stage commit\|merge [--base REV --head REV] [--tested REV \| --queue] [--lane main\|browser] [--index FILE] [--reports DIR] [--baseline FILE] [--json]` | Every gate over every active component of one candidate: the index, a pushed range, a pull request's tested merge, or a merge-queue entry; a range also checks every blob of its new commits. `--lane browser` checks only the browser components and `--lane main` everything else, so two CI jobs together run the whole gate. `--reports` writes `report.json`, JUnit, LCOV, Cobertura, and the native reports; `--baseline` reports coverage regressions against an earlier `report.json` as warnings |
 | `audit [--rev REV] [--offline-db DIR] [--json]` | Match every lockfile against the OSV advisories with the pinned osv-scanner, from the osv.dev API or an offline database; `[audit]` in the policy sets the blocking CVSS score |
 | `ci verdict --needs FILE [--rev REV] [--json]` | The aggregate job's decision: fail unless every job in `[ci].required_jobs` succeeded, from results in the form of GitHub's `toJSON(needs)` |
 

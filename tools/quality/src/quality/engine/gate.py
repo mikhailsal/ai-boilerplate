@@ -5,15 +5,18 @@ into explicit revisions (decision 0015). The commit stage checks an index, or
 a pushed range with `--base` and `--head`; the merge stage checks the tested
 tree of a pull request (`--tested`, the head by default) or of a merge-queue
 entry (`--queue`). Both stages check every active component, and a range
-also checks every blob of its new commits.
+also checks every blob of its new commits. A lane checks one part of that,
+as a CI job does (decision 0018).
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
-from quality.diagnostics import Diagnostic, Kind, Rule
+from quality.ci import Lane
+from quality.diagnostics import Diagnostic, Kind, Rule, Severity
 from quality.gitio import Candidate, Repository, merge_candidate, push_candidate, staged
 from quality.policy.scenarios import Stage
 
@@ -29,7 +32,20 @@ ARGUMENTS = Rule(
     remedy="Pass the revisions your stage needs; `quality gate --help` lists them.",
     kind=Kind.USAGE,
 )
-RULES = (ARGUMENTS,)
+LANE = Rule(
+    id="gate.lane",
+    title="The gate checked one lane",
+    requirement="R09",
+    explanation=(
+        "CI runs the lanes of the gate in separate required jobs: `main` runs the common "
+        "gates and the history checks and checks every component that does not run in a "
+        "browser, and `browser` checks the browser components. One lane is not the complete "
+        "gate; the aggregate job requires both."
+    ),
+    remedy="Nothing to do; without --lane the gate checks everything.",
+    severity=Severity.INFO,
+)
+RULES = (ARGUMENTS, LANE)
 
 
 class GateError(Exception):
@@ -96,3 +112,17 @@ def gate_candidate(repo: Repository, revisions: Revisions) -> Candidate:
     if revisions.stage is Stage.COMMIT:
         return push_candidate(repo, base, head)
     return merge_candidate(repo, base, head, revisions.tested, queue=revisions.queue)
+
+
+def lane_note(lane: Lane | None, active: Iterable[str]) -> list[Diagnostic]:
+    """Say what the other lane checks, given the active browser components' IDs."""
+    if lane is None:
+        return []
+    browsers = ", ".join(active)
+    if lane is Lane.MAIN:
+        message = f"lane main: the browser lane checks {browsers or 'no component'}"
+    elif browsers:
+        message = f"lane browser: checks {browsers}; the main lane checks everything else"
+    else:
+        message = "lane browser: no active component runs in a browser, so nothing to check"
+    return [LANE.diagnostic(message)]

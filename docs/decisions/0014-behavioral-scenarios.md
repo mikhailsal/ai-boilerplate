@@ -34,7 +34,7 @@ both, is a policy error. A component with capabilities names its manifest in
 | `migrations` | `migrations.fresh`, *`migrations.upgrade`* | integration, e2e, acceptance |
 | `contracts` | *`contracts.consumer`*, *`contracts.provider`* | contract |
 | `queues` | `queues.contract`, *`acknowledgement`*, *`retry`*, *`duplicate`* | contract, integration; the others real suites |
-| `ui` | `ui.smoke`, `ui.flows` | e2e, acceptance |
+| `ui` | `ui.smoke`, `ui.flows`; for a browser component also `ui.accessibility` and `ui.keyboard`, with a `boundary` per scenario ([decision 0018](0018-browser-builds-and-scenarios.md#requirements)) | e2e, acceptance |
 | `authorization` | `authorization.forbidden`, *`authorization.isolation`* | any |
 
 An optional requirement is either proved by a scenario or listed in

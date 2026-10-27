@@ -1,6 +1,6 @@
 # 0015 CI wrappers and merge gates
 
-Status: accepted (P10).
+Status: accepted (P10); amended in F02 and F06.
 
 ## Scope
 
@@ -33,6 +33,12 @@ size limit. History that is shallow or lacks the base fails with
 `git.revision-unresolvable` instead of shrinking the check, so CI checks out
 with full history. Arguments that do not describe one candidate fail with
 `gate.arguments` (exit 2).
+
+`--lane main|browser` checks one part of the same candidate, so that CI can
+run the browser components in a job of their own: the main lane runs the
+whole-candidate gates and the other components, the browser lane the
+browser components, and together they are the gate without `--lane`
+([decision 0018](0018-browser-builds-and-scenarios.md#lanes)).
 
 `--reports DIR` writes into a new or empty directory: `report.json` (the JSON
 report with the candidate's revisions and trees), JUnit per suite, LCOV and
@@ -81,6 +87,7 @@ request cannot weaken the aggregate without the gate noticing:
 
 | Rule | What it rejects |
 | --- | --- |
+| `ci.lanes` | Required jobs that run one lane of the gate but no required job that runs the other |
 | `ci.aggregate` | The required workflow missing, not run on `pull_request` and `merge_group`, an aggregate without `if: always()`, with other needs, without the verdict or `toJSON(needs)`, or a required job with an `if` |
 | `ci.path-filter` | `paths` or `paths-ignore` on any trigger, which would let a change skip the status |
 | `ci.unpinned-action` | An action or reusable workflow not pinned to a 40-character commit SHA, or an image without a digest |
@@ -97,14 +104,14 @@ of `quality bootstrap`, because every check lints the workflows.
 
 Caches never carry trust from a pull request: jobs restore the cache of the
 default branch, and only a push to the default branch saves it. The coverage
-baseline is the `report.json` saved by that push.
+baseline of each lane is the `report.json` saved by that push.
 
 Every job installs PHP 8.4, the one runtime that bootstrap does not download
 ([decision 0002](0002-installation-strategy.md)), and runs `quality
 bootstrap`, because only bootstrap downloads, including the core's uv
-([decision 0010](0010-launcher-bootstrap-and-hooks.md#launcher)). The `gate`
-job also lifts the AppArmor restriction of Ubuntu 24.04 on unprivileged user
-namespaces; without it the suites run with the network and the gate warns
+([decision 0010](0010-launcher-bootstrap-and-hooks.md#launcher)). The jobs
+of both lanes also lift the AppArmor restriction of Ubuntu 24.04 on
+unprivileged user namespaces; without it the suites run with the network and the gate warns
 ([decision 0008](0008-test-and-coverage-engine.md#network-isolation)).
 
 ## Dependency gates
@@ -137,8 +144,8 @@ tests run it against offline databases.
 
 Control files decide what the gate checks: `quality.toml`, the launcher,
 `.gitattributes`, everything under `.github`, `.gitlab-ci.yml`, the roots of
-tooling and helper components (the core, its hooks, bootstrap, and validator),
-scenario manifests, native configuration, and the globs in `[ci].control`.
+tooling and helper components (the core, its hooks, bootstrap, and validator)
+and of example components, scenario manifests, native configuration, and the globs in `[ci].control`.
 `ci.codeowners` requires an owner for each one in `[ci].codeowners`, including
 the CODEOWNERS file itself, and reports the lines GitHub would ignore and a
 CODEOWNERS file that GitHub reads instead. At the merge stage

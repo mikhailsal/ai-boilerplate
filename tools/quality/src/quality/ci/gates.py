@@ -12,6 +12,8 @@ from quality.boundedio import ReportError
 from quality.ci.aggregate import check_required
 from quality.ci.codeowners import CODEOWNERS, parse_codeowners, shadowing, unowned
 from quality.ci.control import control_files
+from quality.ci.gitlab import PATHS as GITLAB_PATHS
+from quality.ci.gitlab import check_gitlab_documents
 from quality.ci.workflow import SYNTAX, Table, check_workflow, finding, is_workflow
 from quality.diagnostics import Diagnostic, Location
 from quality.policy import CiPolicy, Policy
@@ -46,10 +48,24 @@ def _codeowners(
     yield from unowned(ci.codeowners, entries, control)
 
 
+def _gitlab(files: Sequence[CandidateFile]) -> Iterator[Diagnostic]:
+    documents: dict[str, Table | None] = {}
+    for file in files:
+        if file.path in GITLAB_PATHS:
+            document = _document(file)
+            if isinstance(document, Diagnostic):
+                documents[file.path] = None
+                yield document
+            else:
+                documents[file.path] = document
+    yield from check_gitlab_documents(documents)
+
+
 def ci_gates(
     files: Sequence[CandidateFile], policy: Policy, root: Path, work: Path, *, actionlint: Path
 ) -> Iterator[Diagnostic]:
-    """Check every workflow, then the required workflow and CODEOWNERS when `[ci]` is set."""
+    """Check wrapper trust and lanes, plus the required workflow and ownership in `[ci]`."""
+    yield from _gitlab(files)
     workflows = [file for file in files if is_workflow(file.path)]
     documents: dict[str, Table] = {}
     for file in workflows:

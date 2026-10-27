@@ -61,6 +61,11 @@ class ComponentSpec:
             suites.append(f"e2e = {_toml_list(self.e2e)}")
         return ", ".join(suites)
 
+    @property
+    def browser(self) -> bool:
+        """Whether the component targets the browser, as `browser_spec` declares it."""
+        return BROWSER_STACK in self.extra
+
     def toml(self) -> str:
         """Render the component as TOML."""
         lines = [
@@ -81,6 +86,20 @@ class ComponentSpec:
         if self.extra:
             lines.append(self.extra.strip())
         return "\n".join(lines) + "\n"
+
+
+BROWSER_STACK = 'target = "browser"\nframework = "react"\nbundler = "vite"'
+
+
+def browser_spec(component: str = "web", root: str = "web", extra: str = "") -> ComponentSpec:
+    """Return a React + Vite browser component (decision 0017); `extra` follows its fields."""
+    return ComponentSpec(
+        id=component,
+        root=root,
+        profile="typescript",
+        capabilities=("ui",),
+        extra=f"{BROWSER_STACK}\n{extra}",
+    )
 
 
 def policy_toml(*components: ComponentSpec, mode: str = "project", extra: str = "") -> str:

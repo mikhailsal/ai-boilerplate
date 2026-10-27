@@ -22,7 +22,11 @@ one, and overrides what decides the verdict:
 - Vite 8 does not transform `.cts` files, so `oxc.include` adds them unless the
   component configures `oxc` itself;
 - `resolve.tsconfigPaths` (Vite 8.3) resolves tsconfig `paths` aliases unless
-  the component configures it.
+  the component configures it;
+- the suites of a browser component, which never include end-to-end ones,
+  run in jsdom with `expect.requireAssertions`, so a test that asserts
+  nothing fails (decision 0017); a test file's own environment comment still
+  applies.
 
 A run without test files exits 1 but still writes a JUnit report without
 cases, which the engine reports as `tests.none`, not as a tool failure. Tests
@@ -84,7 +88,13 @@ export default async (env) => {
     ...base,
     oxc: base.oxc === undefined ? { include: /\\.(m?ts|cts|[jt]sx)$/ } : base.oxc,
     resolve: { ...base.resolve, tsconfigPaths: base.resolve?.tsconfigPaths ?? true },
-    test: { ...base.test, projects: undefined, testNamePattern: undefined, ...settings },
+    test: {
+      ...base.test,
+      projects: undefined,
+      testNamePattern: undefined,
+      ...settings,
+      expect: { ...base.test?.expect, ...settings.expect },
+    },
   };
 };
 """
@@ -131,6 +141,9 @@ def wrapper(request: SuiteRequest) -> str:
         "outputFile": {"junit": str(request.output / RESULTS)},
         "coverage": coverage_settings(request),
     }
+    if request.component.in_browser:
+        settings["environment"] = "jsdom"
+        settings["expect"] = {"requireAssertions": True}
     return f"{load}\nconst settings = {json.dumps(settings, indent=2)};\n{WRAPPER_BODY}"
 
 

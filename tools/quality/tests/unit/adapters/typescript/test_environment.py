@@ -19,6 +19,7 @@ def test_node_runs_with_a_private_home_and_itself_first_on_path(node: Node, tmp_
     assert home.is_dir()
     assert env["HOME"] == str(home)
     assert env["CI"] == "1"
+    assert env["NODE_DISABLE_COMPILE_CACHE"] == "1"
     assert env["PATH"].split(":")[0] == str(node.executable.parent)
     assert node.npm == node.executable.parent.parent / "lib/node_modules/npm/bin/npm-cli.js"
 
@@ -110,6 +111,11 @@ def test_the_pinned_tool_script_is_returned(tmp_path: Path) -> None:
     script(package / "run.sh", "exit 0\n")
     (package / "package.json").write_text('{"version": "1.0.0", "bin": "run.sh"}')
     assert tool_script("single", tmp_path, tmp_path, "1.0.0") == (package / "run.sh").resolve()
+    named = tmp_path / "node_modules" / "@scope" / "runner"
+    script(named / "cli.sh", "exit 0\n")
+    (named / "package.json").write_text('{"version": "3.0.0", "bin": {"run": "cli.sh"}}')
+    found = tool_script("@scope/runner", tmp_path, tmp_path, "3.0.0", "run")
+    assert found == (named / "cli.sh").resolve()
 
 
 @pytest.mark.parametrize(

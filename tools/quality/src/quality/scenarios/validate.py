@@ -15,7 +15,7 @@ from quality.diagnostics import Diagnostic, Location, Rule
 from quality.policy import Capability, Component, Enhancement, Quarantine, Suite
 from quality.policy.load import POLICY_FILE
 from quality.policy.scenarios import Scenario, ScenarioManifest
-from quality.scenarios.catalog import CATALOG, Requirement, requirement
+from quality.scenarios.catalog import Requirement, requirement, requirements
 from quality.scenarios.rules import AMBIGUOUS, DELETED, ENHANCED, LEVEL, REFERENCE, UNCOVERED
 from quality.testing import suite_roots
 
@@ -62,7 +62,10 @@ def _requirements(subject: Subject, scenario: Scenario) -> Iterator[Diagnostic]:
             yield subject.report(REFERENCE, f"{name} names the unknown requirement '{identifier}'")
             continue
         capability, needed = found
-        if capability is not scenario.capability:
+        if needed.browser and not subject.component.in_browser:
+            message = f"{name} proves '{identifier}', which only a browser component proves"
+            yield subject.report(REFERENCE, message)
+        elif capability is not scenario.capability:
             message = (
                 f"{name} proves '{scenario.capability}', but '{identifier}' is a "
                 f"requirement of '{capability}'"
@@ -101,6 +104,9 @@ def _scenario(subject: Subject, scenario: Scenario) -> Iterator[Diagnostic]:
     if scenario.enhanced is not None and scenario.enhanced not in component.enhanced:
         message = f"{name} is tagged '{scenario.enhanced}', which '{component.id}' does not enable"
         yield subject.report(REFERENCE, message)
+    if component.in_browser and scenario.boundary is None:
+        message = f"{name} names no tested boundary; every scenario of a browser component does"
+        yield subject.report(REFERENCE, message)
     if scenario.enhanced is Enhancement.PERFORMANCE and scenario.level is Suite.UNIT:
         yield subject.report(LEVEL, f"{name} measures performance in the unit suite")
     for duplicate in _duplicates(scenario.tests):
@@ -136,7 +142,7 @@ def _obligations(subject: Subject) -> Iterator[Diagnostic]:
         if not any(scenario.capability is capability for scenario in manifest.scenarios):
             message = f"'{component.id}' declares '{capability}', but no scenario proves it"
             yield subject.report(UNCOVERED, message)
-        for needed in CATALOG[capability]:
+        for needed in requirements(capability, browser=component.in_browser):
             yield from _obligation(subject, needed, covered, set(excused))
     yield from _foreign_excuses(subject, excused)
 

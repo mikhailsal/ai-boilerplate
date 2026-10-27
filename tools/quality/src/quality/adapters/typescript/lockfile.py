@@ -15,7 +15,7 @@ snapshot.
 from __future__ import annotations
 
 import posixpath
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import cast
@@ -38,6 +38,27 @@ REQUIRED = (
     "@vitest/coverage-v8",
 )
 OPTIONAL = ("@eslint/js",)
+# A browser component also locks these (decision 0017); `globals` only when it uses it.
+BROWSER_REQUIRED = (
+    "react",
+    "react-dom",
+    "@types/react",
+    "@types/react-dom",
+    "vite",
+    "@vitejs/plugin-react",
+    "jsdom",
+    "@testing-library/react",
+    "@testing-library/dom",
+    "@testing-library/user-event",
+    "eslint-plugin-react-hooks",
+    "eslint-plugin-jsx-a11y-x",
+    "stylelint",
+    "stylelint-config-standard",
+    "stylelint-config-css-modules",
+    "@playwright/test",
+    "@axe-core/playwright",
+)
+BROWSER_OPTIONAL = ("globals",)
 
 
 def workspace_patterns(manifest: Table) -> list[str]:
@@ -127,10 +148,32 @@ def _version(lock: Lock, name: str, directory: Path) -> tuple[str, object] | Non
     return key, None if entry.get("link") is True else entry.get("version")
 
 
+def _unpinned(
+    lock: Lock, directory: Path, pins: Mapping[str, str], *, browser: bool
+) -> Iterator[str]:
+    """Describe each profile package the lockfile does not lock at its pin."""
+    required = (*REQUIRED, *BROWSER_REQUIRED) if browser else REQUIRED
+    optional = (*OPTIONAL, *BROWSER_OPTIONAL) if browser else OPTIONAL
+    for package in (*required, *optional):
+        found = _version(lock, package, directory)
+        pin = pins.get(package)
+        if pin is None:
+            fail("typescript", f"toolchains.toml pins no version of {package}")
+        if found is None:
+            if package in required:
+                yield f"the lockfile does not lock {package}; add {package}@{pin}"
+        elif found[1] != pin:
+            key, version = found
+            yield f"{key} is locked at {version!r}; the profile pins {package} {pin}"
+
+
 def check_lock(
-    directory: Path, snapshot: Path, pins: Mapping[str, str], add: Report
+    directory: Path, snapshot: Path, pins: Mapping[str, str], add: Report, *, browser: bool = False
 ) -> Lock | None:
-    """Check the component's lockfile; return it when npm can install from it."""
+    """Check the component's lockfile; return it when npm can install from it.
+
+    A `browser` component must also lock the browser packages at their pins.
+    """
     where = lock_directory(directory, snapshot)
     if where is None:
         message = (
@@ -145,17 +188,8 @@ def check_lock(
     except ReportError as error:
         add(name, f"the lockfile is unusable: {error}")
         return None
-    for package in (*REQUIRED, *OPTIONAL):
-        found = _version(lock, package, directory)
-        pin = pins.get(package)
-        if pin is None:
-            fail("typescript", f"toolchains.toml pins no version of {package}")
-        if found is None:
-            if package in REQUIRED:
-                add(name, f"the lockfile does not lock {package}; add {package}@{pin}")
-        elif found[1] != pin:
-            key, version = found
-            add(name, f"{key} is locked at {version!r}; the profile pins {package} {pin}")
+    for message in _unpinned(lock, directory, pins, browser=browser):
+        add(name, message)
     for key, path in _sources(lock, snapshot):
         add(name, f"{key or 'the root package'} is installed from {path!r}, outside the repository")
     return lock

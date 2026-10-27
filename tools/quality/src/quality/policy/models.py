@@ -6,8 +6,19 @@ from typing import Literal, Self
 
 from pydantic import Field, model_validator
 
+from quality.policy.browser import BrowserSettings, Declaration
 from quality.policy.ci import AuditPolicy, CiPolicy
-from quality.policy.enums import Capability, Category, Enhancement, Profile, Role, Suite
+from quality.policy.enums import (
+    Bundler,
+    Capability,
+    Category,
+    Enhancement,
+    ExecutionTarget,
+    Framework,
+    Profile,
+    Role,
+    Suite,
+)
 from quality.policy.template import TemplatePolicy
 from quality.policy.types import (
     Date,
@@ -125,11 +136,19 @@ class Architecture(StrictModel):
 
 
 class Component(StrictModel):
-    """A unit with its own profile, roots, and gates."""
+    """A unit with its own profile, roots, and gates.
+
+    A TypeScript component runs on Node unless `target` is `"browser"`
+    (decision 0017); `framework`, `bundler`, and `browser` belong to that target.
+    """
 
     id: Identifier
     role: Role
     profile: Profile
+    target: ExecutionTarget | None = None
+    framework: Framework | None = None
+    bundler: Bundler | None = None
+    browser: BrowserSettings | None = None
     root: RootPath
     source: list[RelPath] = Field(min_length=1)
     tests: Suites
@@ -141,14 +160,34 @@ class Component(StrictModel):
     architecture: Architecture = Field(default_factory=Architecture)
 
     @model_validator(mode="after")
-    def _capabilities_declared(self) -> Self:
+    def _declared(self) -> Self:
         if not self.capabilities and self.no_boundary_reason is None:
             msg = "declare 'capabilities' or justify their absence in 'no_boundary_reason'"
             raise ValueError(msg)
         if self.capabilities and self.no_boundary_reason is not None:
             msg = "'no_boundary_reason' is only allowed when 'capabilities' is empty"
             raise ValueError(msg)
+        problem = Declaration(
+            self.profile,
+            self.target,
+            self.framework,
+            self.bundler,
+            self.browser,
+            (*self.capabilities,),
+        ).problem()
+        if problem is not None:
+            raise ValueError(problem)
         return self
+
+    @property
+    def in_browser(self) -> bool:
+        """Whether the component is a browser application (decision 0017)."""
+        return self.target is ExecutionTarget.BROWSER
+
+    @property
+    def browser_settings(self) -> BrowserSettings:
+        """The declared browser settings, or their defaults."""
+        return self.browser or BrowserSettings()
 
 
 class Classification(StrictModel):
