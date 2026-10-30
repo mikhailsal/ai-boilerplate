@@ -45,7 +45,7 @@ environment fails with `core.environment`.
 | `check [--staged \| --rev REV] [--all] [--stage commit\|merge] [--json]` | Every gate over the affected components, or every active one with `--all`, and the suites that prove the scenarios mandatory at the stage ([decision 0014](../decisions/0014-behavioral-scenarios.md)); the pre-commit hook runs `check --staged` at the commit stage |
 | `test [--rev REV] [--suite S] [--component C] [--all] [--json]` | The declared suites, and the scenarios they prove; unit suites enforce the coverage floors |
 | `self-test [--level unit\|e2e\|acceptance] [--rev REV] [--json]` | The suites of the tooling components; `e2e` runs the built-artifact suites |
-| `fix [--json]` | Safe native fixes and formatting in the working tree; nothing is staged |
+| `fix [--json]` | Safe native fixes and formatting of the active components in the working tree; nothing is staged |
 | `links [--rev REV] [--timeout S] [--json]` | Probe external documentation links; not part of `check` |
 
 ## Merge CI

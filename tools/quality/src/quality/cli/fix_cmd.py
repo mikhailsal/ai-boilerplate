@@ -26,8 +26,9 @@ def register(commands: Subcommands) -> None:
         NAME,
         help="apply safe formatter and lint fixes to the working tree",
         description="Format and apply the native tools' safe fixes to the source and test "
-        "files of every component in the working tree (tracked and untracked, not ignored), "
-        "then report what remains. The index is never touched: review and stage the result "
+        "files of every active component in the working tree (tracked and untracked, not "
+        "ignored), then report what remains. A dormant helper or example is fixed only when "
+        "the working tree changes it. The index is never touched: review and stage the result "
         "yourself. Exit 0 when nothing remains, 1 when findings remain, 3 on environment "
         "errors.",
     )
