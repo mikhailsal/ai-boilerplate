@@ -52,7 +52,10 @@ workflows from outside contributors run.
 - A sole maintainer cannot approve their own pull requests. Either add a
   second maintainer, or add the repository admin role as a bypass actor with
   `"bypass_mode": "pull_request"`, which still forces a pull request and
-  records every bypass. Either way is a decision to make deliberately.
+  records every bypass. A third way keeps the status enforced for everyone
+  and drops review: apply the ruleset with `required_approving_review_count`
+  0 and `require_code_owner_review` and `require_last_push_approval` false.
+  Each way is a decision to make deliberately.
 - A merge queue (organization repositories) needs a `merge_queue` rule; the
   workflow already handles `merge_group` events. Without a queue, the
   up-to-date requirement does the same job, one pull request at a time.
