@@ -27,8 +27,10 @@ simply has no acceptance suite and no maintainer mode
 `./quality template export DIRECTORY [--rev REV]` writes the tree of a
 commit, never the working tree, to a new or empty directory:
 
-- paths matching `[template].exclude` (the plan records and the acceptance
-  harness) are left out;
+- paths matching `[template].exclude` (the plan records, the acceptance
+  harness, and the template's root `LICENSE`) are left out; a project
+  chooses its own license, and `tools/quality/LICENSE` keeps the MIT notice
+  with the core it ships;
 - every file in `[template].fenced` loses its maintainer-only regions. A
   region starts at a line containing `maintainer-only:begin` and ends at a
   line containing `maintainer-only:end`, both removed with it; in TOML they

@@ -26,6 +26,9 @@ repository whose root commit, made with your Git identity, names the
 template commit it came from
 ([decision 0016](docs/decisions/0016-template-lifecycle.md)).
 
+The template is available under the [MIT License](LICENSE). An export leaves
+the root license out, so the new project chooses its own.
+
 <!-- maintainer-only:end -->
 
 ## Getting started
@@ -107,4 +110,6 @@ hosting protection described in the
 
 - [Agent instructions](AGENTS.md): setup, checks, boundaries, exceptions.
 - [Documentation index](docs/README.md): decisions, guides, reference.
-- [Quality core](tools/quality/README.md): the `quality` command-line tool.
+- [Quality core](tools/quality/README.md): the `quality` command-line tool,
+  under the MIT License in [`tools/quality/LICENSE`](tools/quality/LICENSE);
+  keep that file when you copy or change the core.

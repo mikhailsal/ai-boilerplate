@@ -181,6 +181,7 @@ unscored = "error"
 # whose maintainer-only regions it removes (decision 0016).
 [template]
 exclude = [
+    "LICENSE",
     "PLAN.md",
     "FRONTEND_PLAN.md",
     "docs/plan/**",
