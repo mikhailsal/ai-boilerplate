@@ -23,7 +23,7 @@ The original F08 status and verification below are historical records.
 | AUD-002 | Fixed | `b4fb46f0a6e395d93e906aeb60441043272c8003` | Root and workspace manifest drift now produce `typescript.lockfile`, exit 1, before installation. Matching locks pass offline; genuine cache misses retain exit 3. |
 | AUD-003 | Fixed | `6701b94d84a33453ac948712725d2dc5c3839178` | Python registration supplies the absent interpreter pin, preserves existing pins, and the first commit passes the real hook. |
 | AUD-004 | Fixed | `0de751da2d3859d87915c1d672e2aff7e2688ffb` | The valid GitLab wrapper passes without `[ci]`; deleted, relabelled, or unresolved browser lanes fail with `ci.lanes`. Local inheritance and variables are resolved. |
-| AUD-005 | Open: hosting prerequisite | No implementation commit | Read-only GitHub observations still show no rulesets and no protection on `main`. Applying hosting settings needs separate authorization. GitLab hosted execution remains unverified. |
+| AUD-005 | Closed for GitHub on 2026-10-28 | No implementation commit | The owner applied a ruleset to `main` and both enforcement probes were observed; see [Merge and protection](#merge-and-protection-2026-10-28). GitLab hosted execution remains unverified. |
 
 Final review also covered dangling interpreter-pin symlinks and browser
 interruption. The symlink follow-up is `2ff8da90e48845c6011778e225f5d711b3c23708`; it preserves
@@ -67,8 +67,31 @@ scenario and schema validation, the full check, all three self-test levels,
 and exported browser, Python first-commit, and history controls. No threshold,
 exclusion, mandatory scenario, or installed Git hook was weakened.
 
-Passing local checks and hosted CI do not apply branch protection. AUD-005
-therefore remains open independently of the implementation results.
+Passing local checks and hosted CI do not apply branch protection, so AUD-005
+stayed open until the owner applied it after the merge below.
+
+## Merge and protection (2026-10-28)
+
+- Pull request #2 was merged into `build/v1` as `ce7202c`. Run 40592387144
+  of pull request #1 at `ce7202c` passed `gate`, `browser`, `audit`, and
+  `required`, and pull request #1 was merged into `main` as `8aa72bb`, whose
+  tree equals the audited `5967034`.
+- Run 40598619733, the first `push` run on `main`, passed all four jobs.
+- The owner applied ruleset 25998893 to the default branch. It is
+  `.github/rulesets/main.json` with review not required, because the
+  repository has one maintainer, who cannot approve their own pull requests
+  ([protection guide](../../guides/protection.md#choices-left-to-the-owner)):
+  zero approvals, no code-owner review, and no last-push approval. Deletion
+  and non-fast-forward are blocked, changes need a pull request, and the
+  status `required` from GitHub Actions is required on an up-to-date branch.
+  The ruleset has no bypass actors.
+- Probes: moving `main` to a new commit through the Git API was rejected with
+  `Required status check "required" is expected` (HTTP 422), and the probe
+  pull request #4, while its checks ran, was `BLOCKED` with "the base branch
+  policy prohibits the merge"; it was closed unmerged. An administrator merge
+  (`gh pr merge --admin`) was not tried.
+- Not observed on a host: `merge_group` events, which a personal repository
+  cannot use, and the GitLab wrapper.
 
 ## Original F08 status
 
@@ -167,7 +190,7 @@ result.
 | Item | Prepared | Observed on the host |
 | --- | --- | --- |
 | GitHub `gate`, `browser`, and `audit` jobs and the `required` aggregate | Validated locally: actionlint, the CI policy, the verdict over failed, cancelled, skipped, and missing jobs | Observed for a pull request: run 39802757156 passed. `merge_group` and `push` events: `NOT_VERIFIED` |
-| Ruleset `.github/rulesets/main.json` and code owners | As in the base | `NOT_VERIFIED`: not applied |
+| Ruleset `.github/rulesets/main.json` and code owners | As in the base | Applied without required review on 2026-10-28, and both probes observed; code owners are not enforced ([Merge and protection](#merge-and-protection-2026-10-28)) |
 | GitLab wrapper | Its `before_script`, both lanes, the audit, and the verdict passed in a clean `ubuntu:24.04` container ([F06](F06.md)) | `NOT_VERIFIED`: never run on GitLab |
 | Draft pull request #1 | Opened for the base | Its last three runs, at `dfb2322` among them, failed while installing PHP, when Launchpad's PPA answered 503 |
 
@@ -197,7 +220,8 @@ result.
 - Without unprivileged user namespaces, as in an unprivileged container,
   each unit suite warns with `tests.network`.
 - The base handoff's limitations still apply: bypassable local hooks,
-  protection that is prepared but not applied, and the cost of core changes.
+  protection that is prepared (applied here since 2026-10-28), and the cost
+  of core changes.
 - The full merge gate of this repository needs several gigabytes of free
   memory and an hour on eight CPUs; on a shared machine it can be stopped
   before it ends, as in F08.

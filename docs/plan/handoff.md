@@ -89,7 +89,9 @@ passed locally ([P12 record](phases/P12.md#hosted-status)).
 Applying and confirming the protection is the owner's step, described in the
 [protection guide](../guides/protection.md#confirming-the-protection). Until
 it is observed, a direct push or a failing pull request is not blocked by
-the host.
+the host. The owner applied it on 2026-10-28; the
+[frontend handoff](frontend/handoff.md#merge-and-protection-2026-10-28)
+records the ruleset and its probes.
 
 ## Known limitations
 
