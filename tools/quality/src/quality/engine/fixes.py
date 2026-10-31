@@ -10,7 +10,7 @@ from typing import Protocol
 
 from quality.adapters import native
 from quality.diagnostics import Diagnostic
-from quality.discovery import build_inventory
+from quality.discovery import active_components, build_inventory
 from quality.engine.scope import CHECKED, checked_policy, unavailable
 from quality.gitio import Repository, TreeEntry
 from quality.policy import Component, Profile
@@ -53,10 +53,23 @@ def worktree_entries(repo: Repository) -> list[TreeEntry]:
     return entries
 
 
+def worktree_changes(repo: Repository) -> list[str]:
+    """Paths the index or the working tree changes since HEAD, and untracked files."""
+    base = repo.head_commit() or repo.empty_tree()
+    changed = repo.git("diff", "--name-only", "-z", "--no-renames", base).stdout
+    untracked = repo.git("ls-files", "-z", "--others", "--exclude-standard").stdout
+    paths = (changed + untracked).decode("utf-8", "surrogateescape").split("\0")
+    return sorted(set(filter(None, paths)))
+
+
 def fix_worktree(
     repo: Repository, fixers: Mapping[Profile, ProfileFixer], rules: Iterable[str]
 ) -> FixReport:
-    """Fix the source and test files of every component whose profile has a fixer."""
+    """Fix the source and test files of every active component whose profile has a fixer.
+
+    A dormant helper or example is fixed only when the working tree changes it, as
+    bootstrap and check activate it (decision 0003); its tools may not be installed.
+    """
     root = repo.worktree
     policy = checked_policy(root, rules)
     if isinstance(policy, tuple):
@@ -64,7 +77,7 @@ def fix_worktree(
     inventory = build_inventory(policy, root, worktree_entries(repo))
     found: list[Diagnostic] = []
     fixed: list[str] = []
-    for component in policy.components:
+    for component in active_components(policy, worktree_changes(repo)):
         fixer = fixers.get(component.profile)
         if fixer is None:
             found.append(unavailable(component, "fixer for it"))
