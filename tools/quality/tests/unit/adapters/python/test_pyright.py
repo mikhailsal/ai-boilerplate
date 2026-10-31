@@ -71,12 +71,18 @@ def test_report_entries_are_mapped(component: Path, tools: Path, fake: Fake) -> 
         entry("error", range=span, rule="reportX"),
         entry("warning", range={"start": "x"}),
         entry("warning", range=[]),
+        entry("error", message='Type is partially unknown\n  Type of "x" is "int"', rule="reportY"),
     ]
-    found = run(component, tools, fake(output(entries, 1), 1))
+    found = run(component, tools, fake(output(entries, 2), 1))
     assert [(severity, where, message) for _, severity, where, message, _ in found] == [
         (Severity.ERROR, Location(FILE, 4, 1), "m (reportX)"),
         (Severity.WARNING, Location(FILE), "m"),
         (Severity.WARNING, Location(FILE), "m"),
+        (
+            Severity.ERROR,
+            Location(FILE),
+            'Type is partially unknown; Type of "x" is "int" (reportY)',
+        ),
     ]
 
 

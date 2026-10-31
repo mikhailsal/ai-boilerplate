@@ -7,7 +7,7 @@ import pytest
 from quality.adapters import native
 from quality.catalog import build_registry
 from quality.diagnostics import Diagnostic, Location
-from quality.engine.fixes import FixReport, fix_worktree, worktree_entries
+from quality.engine.fixes import FixReport, fix_worktree, worktree_changes, worktree_entries
 from quality.gitio import TreeEntry
 from quality.policy import Component, Profile
 from quality.testkit.gitrepo import GitRepo
@@ -16,6 +16,7 @@ from quality.testkit.policies import ComponentSpec, policy_toml
 RULES = tuple(rule.id for rule in build_registry())
 APP = ComponentSpec(root="app")
 WEB = ComponentSpec(id="web", root="web", profile="typescript")
+HELPER = ComponentSpec(id="helper", root="helper", profile="dart", role="helper")
 LEFT = native.FAILED.diagnostic("ruff: app/src/app/core.py was left unformatted")
 
 
@@ -138,3 +139,56 @@ def test_a_policy_that_fails_cross_validation_is_unusable(project: GitRepo) -> N
     report = fix_worktree(project.repository(), {Profile.PYTHON: python}, RULES)
     assert [(d.rule, d.component) for d in report.diagnostics] == [("policy.reference", "app")]
     assert (report.fixed, python.calls) == ((), [])
+
+
+def test_worktree_changes_cover_the_index_the_working_tree_and_untracked_files(
+    project: GitRepo,
+) -> None:
+    project.write("app/src/app/core.py", "x = 2\n")
+    project.write("web/src/index.ts", "export const x = 2;\n")
+    project.git("add", "web/src/index.ts")
+    project.write("app/src/app/new.py", "y = 2\n")
+    project.write("app/build/skip.py", "z = 3\n")
+    assert worktree_changes(project.repository()) == [
+        "app/src/app/core.py",
+        "app/src/app/new.py",
+        "web/src/index.ts",
+    ]
+
+
+def test_before_the_first_commit_every_file_is_a_change(repo: GitRepo) -> None:
+    repo.write("a.txt", "a\n")
+    repo.git("add", "a.txt")
+    repo.write("b.txt", "b\n")
+    assert worktree_changes(repo.repository()) == ["a.txt", "b.txt"]
+
+
+@pytest.fixture
+def with_helper(project: GitRepo) -> GitRepo:
+    project.write("quality.toml", policy_toml(APP, WEB, HELPER))
+    project.write("helper/pubspec.yaml", "name: helper\n")
+    project.write("helper/lib/helper.dart", "void main() {}\n")
+    project.commit_all("helper")
+    return project
+
+
+def test_an_unchanged_dormant_helper_is_not_fixed(with_helper: GitRepo) -> None:
+    dart = Recorder()
+    fixers = {Profile.PYTHON: Recorder(), Profile.TYPESCRIPT: Recorder(), Profile.DART: dart}
+    report = fix_worktree(with_helper.repository(), fixers, RULES)
+    assert report == FixReport((), ("app", "web"))
+    assert dart.calls == []
+
+
+def test_a_dormant_helper_without_a_fixer_is_not_reported(with_helper: GitRepo) -> None:
+    fixers = {Profile.PYTHON: Recorder(), Profile.TYPESCRIPT: Recorder()}
+    assert fix_worktree(with_helper.repository(), fixers, RULES) == FixReport((), ("app", "web"))
+
+
+def test_a_helper_changed_in_the_working_tree_is_fixed(with_helper: GitRepo) -> None:
+    with_helper.write("helper/lib/helper.dart", "void main() { }\n")
+    dart = Recorder()
+    fixers = {Profile.PYTHON: Recorder(), Profile.TYPESCRIPT: Recorder(), Profile.DART: dart}
+    report = fix_worktree(with_helper.repository(), fixers, RULES)
+    assert report.fixed == ("app", "web", "helper")
+    assert [call[0] for call in dart.calls] == ["helper"]

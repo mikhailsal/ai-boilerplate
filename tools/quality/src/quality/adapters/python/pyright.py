@@ -156,9 +156,11 @@ def _diagnostic(target: Target, entry: Entry) -> Diagnostic | None:
         path, None if line is None else line + 1, None if column is None else column + 1
     )
     rule = entry.get("rule")
-    message = (
-        f"{entry.get('message')} ({rule})" if isinstance(rule, str) else str(entry.get("message"))
+    # Pyright indents its explanation on further lines; one line keeps it readable.
+    text = "; ".join(
+        filter(None, (part.strip() for part in str(entry.get("message")).splitlines()))
     )
+    message = f"{text} ({rule})" if isinstance(rule, str) else text
     return TYPES.diagnostic(
         message, location=where, component=target.component.id, severity=severity
     )
