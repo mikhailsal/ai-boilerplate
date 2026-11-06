@@ -1,0 +1,112 @@
+# RL00a: bounded kernel feasibility protocol
+
+Execution authorized by the owner's active RL00a goal on 2026-11-06. This
+experiment does not integrate resource limits into `quality`. RL00b/c and
+production policy values remain outside its claim. Live GitHub publication
+requires review of the concrete workflow and a separate owner approval, as
+required by [the verification plan](verification.md).
+
+## Subjects and finite experimental fixtures
+
+The subject is kernel-charged memory in an owned cgroup subtree, including
+anonymous, native and charged file-cache pages. This is neither physical RSS
+nor a per-test attribution method. Swap is explicitly disabled in every owned
+boundary. `memory.current` samples are lower bounds on observed peaks;
+`memory.peak`, when absent, is unavailable. Record local and hierarchical
+events before and after each workload. An own OOM/denial is a violation even
+when native code catches it; successful cache reclaim alone is not one.
+
+The following are finite experiment fixtures, not proposed project thresholds:
+
+- Run cases serially. Each transient service has 256 MiB, zero swap, 64 tasks,
+  a 16-second runtime backstop and a one-second systemd stop grace period.
+- A 32 MiB / 8-task independent guardian and a 224 MiB / 48-task invocation
+  divide that total. The invocation contains a 32 MiB / 8-task supervisor leaf
+  and a 160 MiB / 32-task payload branch, leaving 32 MiB unassigned headroom.
+- Each supervisor has a six-second absolute monotonic deadline: stop payload
+  at four seconds and reserve two seconds for cleanup/reporting. The guardian
+  independently enforces it. CLOCK_MONOTONIC excludes suspend; time-namespace
+  identity and offsets are recorded. A namespace mismatch fails before payload.
+- Individual allocation requests never exceed 80 MiB. Fork probes attempt at
+  most 16 children, all with an eight-second independent lifespan. Other
+  payloads also stop independently within eight seconds.
+- One unrelated sentinel service (32 MiB, eight tasks, at most 300 seconds)
+  remains alive during the proof. The two services' combined ceilings are
+  288 MiB. Require at least 512 MiB available host memory before each case;
+  unavailable capacity is an environment nonpass, never an unprotected retry.
+
+## Provisioning and independent enforcement
+
+Both paths use cgroup v2 with `memory`, `pids`, `cgroup.kill` and writable
+delegation. The ordinary-host path obtains a fresh systemd delegated unit;
+the runner creates its own invocation branch. For the prepared path, a
+separate provider prepares the empty limited branch before handing its open
+descriptor to the runner. The runner does not call systemd or sudo.
+
+The provider/guardian occupies a separate bounded leaf and observes the
+supervisor through a pidfd. Supervisor death or expiry closes admission and
+kills the verified invocation subtree. systemd `KillMode=control-group`, a
+one-second stop grace and `RuntimeMaxSec` independently cover guardian death
+and an unresponsive guardian. The prepared-path fixture uses this same
+external provider contract; it does not claim arbitrary containers supply it.
+Payloads run as the ordinary user. CI's system-manager provisioning may use
+sudo to create, inspect and stop only the experiment's UUID-named transient
+services. The supervisor and payload never elevate themselves. No persistent
+machine configuration changes are needed.
+
+Empty internal branches enable controllers top-down. A separate placement
+shim writes its PID through an already-open cgroup descriptor before exec;
+no threaded Python `preexec_fn` is used. The first payload statement records
+membership, UID, namespace and start time. Opaque generated names and
+descriptor-relative, no-symlink operations constrain ownership. Environment
+strings alone never authorize cleanup.
+
+## Preregistered verdicts
+
+| Case | Expected observation |
+| --- | --- |
+| placement / partial setup | All ancestor caps and membership precede payload exec; rejected oversized setup starts no payload. |
+| own memory | A 32 MiB leaf rejects an 80 MiB request; leaf-local OOM evidence, supervisor and sentinel survive. |
+| ancestor memory | Two bounded leaves fit individually but exhaust their 96 MiB parent; parent-local cause, no invented offending case. |
+| nested budgets | Two nested branches retain memory/task ceilings and the original deadline; oversized requests fail promptly while parents remain charged. |
+| caught task denial | A two-task leaf catches EAGAIN and exits zero; `pids.events` still proves a resource violation. |
+| cache reclaim | A 40 MiB anonymous disk-file workload under 32 MiB reclaims successfully without OOM; native success remains success. |
+| interrupt / timeout | Owned detached, signal-ignoring descendants disappear within the cleanup reserve; the sentinel survives. |
+| supervisor death / OOM | A pidfd guardian survives supervisor SIGKILL or control-leaf OOM and removes all owned descendants. |
+| guardian death | External driver kills the service main PID; systemd removes the entire owned subtree within its stop bound; sentinel survives. |
+
+Every case records source hashes, kernel/runtime, cgroup inode/path, controller
+and event semantics, configured/read-back caps, absolute deadlines, sampled
+memory, native status, cleanup elapsed time and residual state. A nonpass or
+incomplete cleanup stops the experiment; it does not relax any limit.
+`cgroup.events: populated=0`, verified process lifetimes and removed owned
+directories jointly establish cleanup. Uninterruptible processes are no-go.
+
+Run the opt-in maintainer harness with:
+
+```sh
+python3 tools/quality/tests/acceptance/rl00a/rl00a_driver.py \
+  --manager user --output .gstack/tmp/rl00a-local
+```
+
+These standalone acceptance helpers are not collected by ordinary pytest:
+they require explicit delegation and exercise intentional OOM/death. Existing
+Ruff, Pyright, structure, secrets and policy checks still cover retained files.
+The raw evidence stays private or in the CI artifact; a concise evidence
+report links exact source/workflow identities. Readbacks, fake cgroupfs tests
+and a green job without the required evidence cannot establish feasibility.
+
+Kernel semantics: [cgroup v2](https://docs.kernel.org/admin-guide/cgroup-v2.html).
+Provider fallback: [systemd kill procedure](https://www.freedesktop.org/software/systemd/man/latest/systemd.kill.html)
+and [resource control](https://www.freedesktop.org/software/systemd/man/latest/systemd.resource-control.html).
+
+## Recorded fixture amendment before the final local run
+
+The initial 80 MiB / 64 MiB cache fixture hit I/O writeback latency: one
+attempt completed in 2.16 seconds; another wrote only 67.6 MiB before the
+original four-second cutoff. Both attempts remain in the evidence history.
+The final fixture halves both file size and cap, retaining the same pressure
+ratio and requiring observed reclaim plus successful completion. No session
+deadline or project threshold increases. An anonymous temporary disk file
+also ensures kernel cleanup on SIGKILL rather than relying on a Python
+finally block to unlink it. File progress and failed cleanup evidence are retained.

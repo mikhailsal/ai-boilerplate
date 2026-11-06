@@ -67,5 +67,22 @@
   and the [frontend traceability matrix](plan/frontend/traceability.md).
 - [Frontend handoff](plan/frontend/handoff.md): status, contracts,
   versions, startup, verification, hosting, and limitations.
+- [Test resource limits](plan/test-resource-limits.md): reviewed design and
+  per-test contract, implementation phases, and required proof.
+- [Resource-limit scope review](plan/test-resource-limits/ceo-scope.md):
+  scope decisions, review coverage and pending owner choices.
+- [Per-test resource budgets](plan/test-resource-limits/per-test-budgets.md):
+  required individual checks, attribution, and measurement-overhead proof.
+
+- [Resource engineering contract](plan/test-resource-limits/engineering-contract.md):
+  hierarchy, attribution, lifecycle, worker budgets and policy proposal.
+- [Resource verification plan](plan/test-resource-limits/verification.md):
+  feasibility gates, calibration, proof matrix and implementation order.
+- [RL00a experiment protocol](plan/test-resource-limits/rl00a-protocol.md):
+  bounded memory, inheritance and cleanup experiments and expected verdicts.
+- [RL00a local evidence](plan/test-resource-limits/rl00a-evidence.md):
+  observed containment and cleanup, retained nonpasses and pending CI proof.
+- [Resource developer experience](plan/test-resource-limits/developer-experience.md):
+  setup, diagnostics, migration, CLI proposals and adoption trials.
 
 <!-- maintainer-only:end -->

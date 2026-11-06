@@ -1,0 +1,3455 @@
+{
+  "schema": "rl00a-public-evidence-v1",
+  "stage": "RL00a",
+  "status": "local-final-matrix-passed-ci-not-run",
+  "production_integration": false,
+  "expected_full_matrix_pairs": 24,
+  "unique_successful_pairs": 24,
+  "local_environment": {
+    "kernel": "5.15.0-136-generic",
+    "python": "3.10.12 (main, Feb  4 2025, 14:57:36) [GCC 11.4.0]",
+    "machine": "x86_64"
+  },
+  "proof_source_sha256": {
+    ".github/workflows/resource-proof.yml": "9a4c6edec89b3e012b8145ebce5d937c73ef3f812462426ccc47e96e4cc6664e",
+    "docs/plan/test-resource-limits/rl00a-protocol.md": "a851885212dc9276bb4ff4725363735d63b620e7bab770920066527279962e43",
+    "tools/quality/tests/acceptance/rl00a/rl00a_cases.py": "99f0852275c880d07713eef16ed3fbb8804bcc7aacb17cbfd1ea221db3a8bcdc",
+    "tools/quality/tests/acceptance/rl00a/rl00a_cgroup.py": "c2e10f23ae575025420917f16a8442b7bcdf8617dfadece00494f8e4b0f5ffdc",
+    "tools/quality/tests/acceptance/rl00a/rl00a_driver.py": "09e2e72f04eae2ec804e0d891837a0de7ef2e87def47cbb2b87664cc35562de5",
+    "tools/quality/tests/acceptance/rl00a/rl00a_payload.py": "381bc159cfa55970e0baa09776a6745d9f704123b594c8b0b46a60f28cb859c7",
+    "tools/quality/tests/acceptance/rl00a/rl00a_service.py": "be2f3bd4bcfdee147c2ce83a9e640bd17805fe269acebbbcadf87d9472d850a8"
+  },
+  "raw_local_record_sha256": "9a0014e97bbcf364b1267961814aa9bb6aa8f2875029047253ed5d3b7c4e9e60",
+  "raw_record_location": "Retained privately by the maintainer; absolute local paths and process identities are intentionally omitted from this public summary.",
+  "successful_pairs": [
+    {
+      "path": "host",
+      "case": "placement",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 1.2634751970181242,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "before_exec": {
+          "memory.max": "33554432",
+          "memory.current": "0",
+          "memory.swap.max": "0",
+          "pids.max": "8",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "native": 0,
+        "sampled_peak": 7421952
+      },
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "placement",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "1228800",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "73728",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1228800",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 6.0808961279690266e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 4833.966085
+    },
+    {
+      "path": "host",
+      "case": "partial-setup",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.19151941500604153,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "rejected_before_payload": true,
+        "partial_groups_require_cleanup": 2
+      },
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "partial-setup",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "1183744",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "53248",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1183744",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 5.9711048379540443e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5915.641921
+    },
+    {
+      "path": "host",
+      "case": "own-memory",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.32279759203083813,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "expected_verdict": "own-memory-violation",
+        "native": -9,
+        "before": {
+          "memory.max": "33554432",
+          "memory.current": "0",
+          "memory.swap.max": "0",
+          "pids.max": "8",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "after": {
+          "memory.max": "33554432",
+          "memory.current": "20480",
+          "memory.swap.max": "0",
+          "pids.max": "8",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 36,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 36,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "sampled_peak_bytes": 33554432,
+        "sampled_overshoot_bytes": 0,
+        "peak_quality": "sampled-lower-bound"
+      },
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "own-memory",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "1224704",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 36,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "73728",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1224704",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 36,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 6.17919722571969e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5796.202662
+    },
+    {
+      "path": "host",
+      "case": "ancestor-memory",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.45442020695190877,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "expected_verdict": "ancestor-memory-violation-no-case-attribution",
+        "before": {
+          "memory.max": "100663296",
+          "memory.current": "749568",
+          "memory.swap.max": "0",
+          "pids.max": "16",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "after": {
+          "memory.max": "100663296",
+          "memory.current": "786432",
+          "memory.swap.max": "0",
+          "pids.max": "16",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 85,
+            "oom": 3,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 85,
+            "oom": 3,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "leaves": [
+          {
+            "memory.max": "67108864",
+            "memory.current": "12288",
+            "memory.swap.max": "0",
+            "pids.max": "8",
+            "pids.current": "0",
+            "memory.events": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 1
+            },
+            "memory.events.local": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 1
+            },
+            "pids.events": {
+              "max": 0
+            },
+            "cgroup.events": {
+              "populated": 0,
+              "frozen": 0
+            },
+            "memory.peak": null
+          },
+          {
+            "memory.max": "67108864",
+            "memory.current": "24576",
+            "memory.swap.max": "0",
+            "pids.max": "8",
+            "pids.current": "0",
+            "memory.events": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0
+            },
+            "memory.events.local": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0
+            },
+            "pids.events": {
+              "max": 0
+            },
+            "cgroup.events": {
+              "populated": 0,
+              "frozen": 0
+            },
+            "memory.peak": null
+          }
+        ],
+        "native": [
+          -9,
+          0
+        ],
+        "sampled_peak_bytes": 100663296
+      },
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "ancestor-memory",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "2019328",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 85,
+            "oom": 3,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "114688",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "2019328",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 85,
+            "oom": 3,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 8.723896462470293e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5668.05406
+    },
+    {
+      "path": "host",
+      "case": "nested-budgets",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.4035134450532496,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "expected_verdict": "nested-own-memory-violation-with-live-parent-charged",
+        "deadline_enforcement": "independent ancestor guardian; see nested timeout case",
+        "boundaries": [
+          {
+            "memory.max": "100663296",
+            "memory.current": "1159168",
+            "memory.swap.max": "0",
+            "pids.max": "16",
+            "pids.current": "0",
+            "memory.events": {
+              "low": 0,
+              "high": 0,
+              "max": 36,
+              "oom": 1,
+              "oom_kill": 1
+            },
+            "memory.events.local": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0
+            },
+            "pids.events": {
+              "max": 0
+            },
+            "cgroup.events": {
+              "populated": 0,
+              "frozen": 0
+            },
+            "memory.peak": null
+          },
+          {
+            "memory.max": "67108864",
+            "memory.current": "393216",
+            "memory.swap.max": "0",
+            "pids.max": "8",
+            "pids.current": "0",
+            "memory.events": {
+              "low": 0,
+              "high": 0,
+              "max": 36,
+              "oom": 1,
+              "oom_kill": 1
+            },
+            "memory.events.local": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0
+            },
+            "pids.events": {
+              "max": 0
+            },
+            "cgroup.events": {
+              "populated": 0,
+              "frozen": 0
+            },
+            "memory.peak": null
+          },
+          {
+            "memory.max": "33554432",
+            "memory.current": "16384",
+            "memory.swap.max": "0",
+            "pids.max": "4",
+            "pids.current": "0",
+            "memory.events": {
+              "low": 0,
+              "high": 0,
+              "max": 36,
+              "oom": 1,
+              "oom_kill": 1
+            },
+            "memory.events.local": {
+              "low": 0,
+              "high": 0,
+              "max": 36,
+              "oom": 1,
+              "oom_kill": 1
+            },
+            "pids.events": {
+              "max": 0
+            },
+            "cgroup.events": {
+              "populated": 0,
+              "frozen": 0
+            },
+            "memory.peak": null
+          }
+        ],
+        "parent_cleanup_seconds": 0.005461318069137633,
+        "native": -9
+      },
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "nested-budgets",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "2371584",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 36,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "90112",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "2371584",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 36,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 6.402796134352684e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5711.850166
+    },
+    {
+      "path": "host",
+      "case": "caught-task-denial",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.3203900570515543,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "expected_verdict": "caught-own-task-denial-is-violation",
+        "native": 0,
+        "completion": {
+          "children": 1,
+          "denial_errno": 11
+        },
+        "before": {
+          "memory.max": "33554432",
+          "memory.current": "0",
+          "memory.swap.max": "0",
+          "pids.max": "2",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "after": {
+          "memory.max": "33554432",
+          "memory.current": "45056",
+          "memory.swap.max": "0",
+          "pids.max": "2",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 1
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        }
+      },
+      "payload_completion": {
+        "children": 1,
+        "denial_errno": 11
+      },
+      "cleanup": {
+        "scenario": "caught-task-denial",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "1241088",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "73728",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1241088",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 6.235192995518446e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5804.417118
+    },
+    {
+      "path": "host",
+      "case": "cache-reclaim",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.6404163730330765,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "expected_verdict": "successful-reclaim-is-not-violation",
+        "native": 0,
+        "before": {
+          "memory.max": "33554432",
+          "memory.current": "0",
+          "memory.swap.max": "0",
+          "pids.max": "8",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "after": {
+          "memory.max": "33554432",
+          "memory.current": "131072",
+          "memory.swap.max": "0",
+          "pids.max": "8",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 306,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 306,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "sampled_peak_bytes": 33554432
+      },
+      "payload_completion": {
+        "cache_mib": 40,
+        "removed": true
+      },
+      "cleanup": {
+        "scenario": "cache-reclaim",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "1331200",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 306,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "77824",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1331200",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 306,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 6.276997737586498e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5489.814808
+    },
+    {
+      "path": "host",
+      "case": "interrupt",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.2980151700321585,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {},
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "interrupt",
+        "reason": "interrupt",
+        "supervisor_native": -9,
+        "before_cleanup": {
+          "memory.current": "7749632",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "245760",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1236992",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 0.005804624990560114,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5814.525795
+    },
+    {
+      "path": "host",
+      "case": "timeout",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 4.136518563027494,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {},
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "timeout",
+        "reason": "deadline",
+        "supervisor_native": -9,
+        "before_cleanup": {
+          "memory.current": "8384512",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "135168",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "2007040",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 0.005786805995739996,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 1991.709547
+    },
+    {
+      "path": "host",
+      "case": "supervisor-death",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.2801214549690485,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {},
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "supervisor-death",
+        "reason": "supervisor-death",
+        "supervisor_native": -9,
+        "before_cleanup": {
+          "memory.current": "7761920",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "253952",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1232896",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 0.005665431031957269,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5824.103147
+    },
+    {
+      "path": "host",
+      "case": "control-oom",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.3019439739873633,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {},
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "control-oom",
+        "reason": "native-exit",
+        "supervisor_native": -9,
+        "before_cleanup": {
+          "memory.current": "7589888",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 35,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "90112",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 35,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 35,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1175552",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 35,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 0.005627145990729332,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5802.215042
+    },
+    {
+      "path": "host",
+      "case": "guardian-death",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 1.499185879016295,
+      "provider": {
+        "provisioning": "host",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {},
+      "payload_completion": {},
+      "cleanup": {
+        "systemd_cleanup_seconds": 1.2100559680256993,
+        "root_empty_or_removed": true,
+        "proxy_native": 255
+      },
+      "completed_before_original_deadline": null,
+      "deadline_remaining_ms": null
+    },
+    {
+      "path": "prepared",
+      "case": "placement",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 1.312785030924715,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "before_exec": {
+          "memory.max": "33554432",
+          "memory.current": "0",
+          "memory.swap.max": "0",
+          "pids.max": "8",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "native": 0,
+        "sampled_peak": 7569408
+      },
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "placement",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "1212416",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "73728",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1212416",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 7.521000225096941e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 4826.997162
+    },
+    {
+      "path": "prepared",
+      "case": "partial-setup",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.20394058001693338,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "rejected_before_payload": true,
+        "partial_groups_require_cleanup": 2
+      },
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "partial-setup",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "1171456",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "45056",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1171456",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 6.169104017317295e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5906.050066
+    },
+    {
+      "path": "prepared",
+      "case": "own-memory",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.30618552304804325,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "expected_verdict": "own-memory-violation",
+        "native": -9,
+        "before": {
+          "memory.max": "33554432",
+          "memory.current": "0",
+          "memory.swap.max": "0",
+          "pids.max": "8",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "after": {
+          "memory.max": "33554432",
+          "memory.current": "28672",
+          "memory.swap.max": "0",
+          "pids.max": "8",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 36,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 36,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "sampled_peak_bytes": 33554432,
+        "sampled_overshoot_bytes": 0,
+        "peak_quality": "sampled-lower-bound"
+      },
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "own-memory",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "1212416",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 36,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "73728",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1212416",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 36,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 0.00015132303815335035,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5798.849682
+    },
+    {
+      "path": "prepared",
+      "case": "ancestor-memory",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.47429263300728053,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "expected_verdict": "ancestor-memory-violation-no-case-attribution",
+        "before": {
+          "memory.max": "100663296",
+          "memory.current": "749568",
+          "memory.swap.max": "0",
+          "pids.max": "16",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "after": {
+          "memory.max": "100663296",
+          "memory.current": "778240",
+          "memory.swap.max": "0",
+          "pids.max": "16",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 109,
+            "oom": 4,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 109,
+            "oom": 4,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "leaves": [
+          {
+            "memory.max": "67108864",
+            "memory.current": "12288",
+            "memory.swap.max": "0",
+            "pids.max": "8",
+            "pids.current": "0",
+            "memory.events": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0
+            },
+            "memory.events.local": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0
+            },
+            "pids.events": {
+              "max": 0
+            },
+            "cgroup.events": {
+              "populated": 0,
+              "frozen": 0
+            },
+            "memory.peak": null
+          },
+          {
+            "memory.max": "67108864",
+            "memory.current": "16384",
+            "memory.swap.max": "0",
+            "pids.max": "8",
+            "pids.current": "0",
+            "memory.events": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 1
+            },
+            "memory.events.local": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 1
+            },
+            "pids.events": {
+              "max": 0
+            },
+            "cgroup.events": {
+              "populated": 0,
+              "frozen": 0
+            },
+            "memory.peak": null
+          }
+        ],
+        "native": [
+          0,
+          -9
+        ],
+        "sampled_peak_bytes": 100663296
+      },
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "ancestor-memory",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "2072576",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 109,
+            "oom": 4,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "167936",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "2072576",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 109,
+            "oom": 4,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 9.00819431990385e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5641.619179
+    },
+    {
+      "path": "prepared",
+      "case": "nested-budgets",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.39250962098594755,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "expected_verdict": "nested-own-memory-violation-with-live-parent-charged",
+        "deadline_enforcement": "independent ancestor guardian; see nested timeout case",
+        "boundaries": [
+          {
+            "memory.max": "100663296",
+            "memory.current": "1155072",
+            "memory.swap.max": "0",
+            "pids.max": "16",
+            "pids.current": "0",
+            "memory.events": {
+              "low": 0,
+              "high": 0,
+              "max": 34,
+              "oom": 1,
+              "oom_kill": 1
+            },
+            "memory.events.local": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0
+            },
+            "pids.events": {
+              "max": 0
+            },
+            "cgroup.events": {
+              "populated": 0,
+              "frozen": 0
+            },
+            "memory.peak": null
+          },
+          {
+            "memory.max": "67108864",
+            "memory.current": "393216",
+            "memory.swap.max": "0",
+            "pids.max": "8",
+            "pids.current": "0",
+            "memory.events": {
+              "low": 0,
+              "high": 0,
+              "max": 34,
+              "oom": 1,
+              "oom_kill": 1
+            },
+            "memory.events.local": {
+              "low": 0,
+              "high": 0,
+              "max": 0,
+              "oom": 0,
+              "oom_kill": 0
+            },
+            "pids.events": {
+              "max": 0
+            },
+            "cgroup.events": {
+              "populated": 0,
+              "frozen": 0
+            },
+            "memory.peak": null
+          },
+          {
+            "memory.max": "33554432",
+            "memory.current": "16384",
+            "memory.swap.max": "0",
+            "pids.max": "4",
+            "pids.current": "0",
+            "memory.events": {
+              "low": 0,
+              "high": 0,
+              "max": 34,
+              "oom": 1,
+              "oom_kill": 1
+            },
+            "memory.events.local": {
+              "low": 0,
+              "high": 0,
+              "max": 34,
+              "oom": 1,
+              "oom_kill": 1
+            },
+            "pids.events": {
+              "max": 0
+            },
+            "cgroup.events": {
+              "populated": 0,
+              "frozen": 0
+            },
+            "memory.peak": null
+          }
+        ],
+        "parent_cleanup_seconds": 0.005821152008138597,
+        "native": -9
+      },
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "nested-budgets",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "2424832",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 34,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "143360",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "2424832",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 34,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 6.700900848954916e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5709.582184
+    },
+    {
+      "path": "prepared",
+      "case": "caught-task-denial",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.28370278200600296,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "expected_verdict": "caught-own-task-denial-is-violation",
+        "native": 0,
+        "completion": {
+          "children": 1,
+          "denial_errno": 11
+        },
+        "before": {
+          "memory.max": "33554432",
+          "memory.current": "0",
+          "memory.swap.max": "0",
+          "pids.max": "2",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "after": {
+          "memory.max": "33554432",
+          "memory.current": "40960",
+          "memory.swap.max": "0",
+          "pids.max": "2",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 1
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        }
+      },
+      "payload_completion": {
+        "children": 1,
+        "denial_errno": 11
+      },
+      "cleanup": {
+        "scenario": "caught-task-denial",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "1232896",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "69632",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1232896",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 0.00011224695481359959,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5817.426275
+    },
+    {
+      "path": "prepared",
+      "case": "cache-reclaim",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.681521850056015,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {
+        "expected_verdict": "successful-reclaim-is-not-violation",
+        "native": 0,
+        "before": {
+          "memory.max": "33554432",
+          "memory.current": "0",
+          "memory.swap.max": "0",
+          "pids.max": "8",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "after": {
+          "memory.max": "33554432",
+          "memory.current": "40960",
+          "memory.swap.max": "0",
+          "pids.max": "8",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 306,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 306,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "sampled_peak_bytes": 33554432
+      },
+      "payload_completion": {
+        "cache_mib": 40,
+        "removed": true
+      },
+      "cleanup": {
+        "scenario": "cache-reclaim",
+        "reason": "native-exit",
+        "supervisor_native": 0,
+        "before_cleanup": {
+          "memory.current": "1236992",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 306,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "77824",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1236992",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 306,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 6.581901106983423e-05,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5428.090586
+    },
+    {
+      "path": "prepared",
+      "case": "interrupt",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.2702651990111917,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {},
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "interrupt",
+        "reason": "interrupt",
+        "supervisor_native": -9,
+        "before_cleanup": {
+          "memory.current": "7741440",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "245760",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1269760",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 0.00628643692471087,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5827.509315
+    },
+    {
+      "path": "prepared",
+      "case": "timeout",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 4.130544909043238,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {},
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "timeout",
+        "reason": "deadline",
+        "supervisor_native": -9,
+        "before_cleanup": {
+          "memory.current": "8392704",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "143360",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1986560",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 0.00571827101521194,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 1990.109705
+    },
+    {
+      "path": "prepared",
+      "case": "supervisor-death",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.26292093796655536,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {},
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "supervisor-death",
+        "reason": "supervisor-death",
+        "supervisor_native": -9,
+        "before_cleanup": {
+          "memory.current": "7753728",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "249856",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1216512",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 0.005275854025967419,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5845.815658
+    },
+    {
+      "path": "prepared",
+      "case": "control-oom",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 0.3440341840032488,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {},
+      "payload_completion": {},
+      "cleanup": {
+        "scenario": "control-oom",
+        "reason": "native-exit",
+        "supervisor_native": -9,
+        "before_cleanup": {
+          "memory.current": "7532544",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 35,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          }
+        },
+        "control_before_cleanup": {
+          "memory.current": "45056",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 35,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 35,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "after_cleanup": {
+          "memory.current": "1167360",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 35,
+            "oom": 1,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          }
+        },
+        "cleanup_seconds": 0.005623452947475016,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "completed_before_original_deadline": true,
+      "deadline_remaining_ms": 5774.926119
+    },
+    {
+      "path": "prepared",
+      "case": "guardian-death",
+      "proof_passed": true,
+      "unrelated_sentinel_survived": true,
+      "elapsed_seconds": 1.4887500889599323,
+      "provider": {
+        "provisioning": "prepared",
+        "root_limits_and_events": {
+          "memory.max": "268435456",
+          "memory.swap.max": "0",
+          "pids.max": "64"
+        },
+        "guardian_limits_and_events": {
+          "memory.max": "33554432",
+          "memory.swap.max": "0",
+          "pids.max": "8"
+        }
+      },
+      "native_and_resource_observations": {},
+      "payload_completion": {},
+      "cleanup": {
+        "systemd_cleanup_seconds": 1.2319663600064814,
+        "root_empty_or_removed": true,
+        "proxy_native": 255
+      },
+      "completed_before_original_deadline": null,
+      "deadline_remaining_ms": null
+    }
+  ],
+  "prior_successful_pairs_count": 22,
+  "historical_nonpasses": [
+    {
+      "dataset": "rl00a-local-full-1",
+      "path": "host",
+      "case": "cache-reclaim",
+      "proof_passed": false,
+      "observed_cleanup": {},
+      "payload_phase": null,
+      "old_named_temporary_file_cleanup": {}
+    },
+    {
+      "dataset": "rl00a-local-full-2",
+      "path": "host",
+      "case": "cache-reclaim",
+      "proof_passed": false,
+      "observed_cleanup": {},
+      "payload_phase": null,
+      "old_named_temporary_file_cleanup": {
+        "size_before_cleanup": 70901760,
+        "removed_by": "experiment-owner-after-service-exit"
+      }
+    },
+    {
+      "dataset": "rl00a-local-full-3",
+      "path": "host",
+      "case": "cache-reclaim",
+      "proof_passed": false,
+      "observed_cleanup": {
+        "scenario": "cache-reclaim",
+        "reason": "deadline",
+        "supervisor_native": -9,
+        "before_cleanup": {
+          "memory.max": "234881024",
+          "memory.current": "34770944",
+          "memory.swap.max": "0",
+          "pids.max": "48",
+          "pids.current": "2",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 176,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "after_cleanup": {
+          "memory.max": "234881024",
+          "memory.current": "1306624",
+          "memory.swap.max": "0",
+          "pids.max": "48",
+          "pids.current": "0",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 176,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "cleanup_seconds": 0.027930950978770852,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "payload_phase": "reading",
+      "old_named_temporary_file_cleanup": {}
+    },
+    {
+      "dataset": "rl00a-local-containment-cleanup",
+      "path": "host",
+      "case": "ancestor-memory",
+      "proof_passed": false,
+      "observed_cleanup": {
+        "scenario": "ancestor-memory",
+        "reason": "deadline",
+        "supervisor_native": -9,
+        "before_cleanup": {
+          "memory.max": "234881024",
+          "memory.current": "10870784",
+          "memory.swap.max": "0",
+          "pids.max": "48",
+          "pids.current": "2",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 69,
+            "oom": 2,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 1,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "after_cleanup": {
+          "memory.max": "234881024",
+          "memory.current": "4546560",
+          "memory.swap.max": "0",
+          "pids.max": "48",
+          "pids.current": "1",
+          "memory.events": {
+            "low": 0,
+            "high": 0,
+            "max": 69,
+            "oom": 2,
+            "oom_kill": 1
+          },
+          "memory.events.local": {
+            "low": 0,
+            "high": 0,
+            "max": 0,
+            "oom": 0,
+            "oom_kill": 0
+          },
+          "pids.events": {
+            "max": 0
+          },
+          "cgroup.events": {
+            "populated": 0,
+            "frozen": 0
+          },
+          "memory.peak": null
+        },
+        "cleanup_seconds": 0.0054130349308252335,
+        "removed": true,
+        "guardian_survived": true
+      },
+      "payload_phase": null,
+      "old_named_temporary_file_cleanup": {}
+    }
+  ],
+  "reuse_limits": [
+    "The final24-pair matrix ran against one unchanged set of recorded source bytes; its source snapshots are retained.",
+    "Historical successful observations and nonpasses remain separately labeled, with their own source identities.",
+    "One successful final run is not a stability or performance-calibration study."
+  ],
+  "remaining": [
+    "Live GitHub Ubuntu proof and exact workflow commit identity",
+    "Final stage conclusion after local and CI evidence review; RL00b/c and product integration remain unexecuted"
+  ]
+}
