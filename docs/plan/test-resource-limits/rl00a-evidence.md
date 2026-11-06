@@ -1,6 +1,7 @@
-# RL00a: local evidence and remaining gates
+# RL00a: local evidence and first CI nonpass
 
-Status on 2026-11-06: the final local 24-pair matrix passed; GitHub proof not run.
+Status on 2026-11-07: the final local 24-pair matrix passed; the first real CI
+run stopped after six passes and one required-proof failure. RL00a is incomplete.
 The active owner goal authorized the bounded experiment described in the
 [protocol](rl00a-protocol.md). This is not a successful RL00 release decision
 and does not integrate limits into `quality` or exported projects.
@@ -91,7 +92,7 @@ disk file whose descriptor closure also cleans it after SIGKILL; the later
 timeout left no named cache file. Session limits were not increased. This
 failure is relevant to the later residual-charge and workload-cost gates.
 
-## Concrete CI experiment awaiting separate owner approval
+## Approved CI experiment
 
 [resource-proof.yml](../../../.github/workflows/resource-proof.yml) runs only
 when the dedicated `spike/rl00a-proof` branch is pushed. It checks out the exact
@@ -109,18 +110,96 @@ sysctl, host service installation or production deployment. Template export
 excludes this maintainer-only workflow together with the acceptance helpers.
 
 The owner approved publication and the real run on 2026-11-07, following
-[the verification plan](verification.md). A public-safe snapshot keeps the
-seven proved source inputs unchanged while replacing raw local diagnostics
-with this sanitized summary. The original local commit stays unpublished. The workflow content has Git blob SHA
-`3ad0087f77621beecaa78f58d12cef47c1aac471`; its tested CI commit will be recorded
-after publication. No GitHub run or CI pass is claimed. A failed CI observation remains evidence and stops any
-claim of readiness; it is not retried automatically.
+[the verification plan](verification.md). The public snapshot keeps the seven
+locally proved source inputs unchanged while replacing raw developer diagnostics
+with a sanitized summary. The original local commit stays unpublished and is
+not an ancestor of the public branch. The workflow has Git blob SHA
+`3ad0087f77621beecaa78f58d12cef47c1aac471`; the tested CI commit is
+`e91777714a4e5d9097f8d66f7196db9990bb7d2e`.
+
+## First real CI observation: required proof failed
+
+[Run 42308432766, attempt 1](https://github.com/mikhailsal/ai-boilerplate/actions/runs/42308432766)
+started at 2026-11-06 22:56:54 UTC and concluded with failure. It ran on the
+Ubuntu 24.04 image, Linux 7.0.0-1017-azure, x86_64 and Python 3.12.3.
+[The public CI summary](rl00a-ci-evidence.json) records the observations and
+their limits. The
+[raw artifact](https://github.com/mikhailsal/ai-boilerplate/actions/runs/42308432766/artifacts/13546957605)
+has verified ZIP SHA-256
+`9d5bfd25f9f19abf6e4c105748677f922e758372d06201a926308b6d5f89ff60`.
+
+Six host pairs passed: placement, partial setup, own memory, ancestor memory,
+nested budgets and caught task denial. Their sentinel checks passed, and each
+invocation was emptied and removed before its original deadline. The own-memory
+case recorded native SIGKILL and leaf-local OOM under its configured ceiling.
+The ancestor case recorded parent-local OOM and two killed child payloads,
+without either child hitting its own maximum. These are separate limiting
+boundary and victim observations, not an attribution of expensive cases.
+
+The seventh pair, `host/cache-reclaim`, failed before producing a case result.
+Its last payload marker is `writing`, before the explicit `fsync` marker.
+The invocation's hierarchical counters recorded `max=160`, `oom=2` and
+`oom_kill=1`; invocation-local and control-local OOM counters remained zero.
+The guardian survived, emptied and removed the invocation subtree, with
+approximately 5.75 seconds remaining before the original deadline. The
+recorded kill-to-empty call took about 0.034 ms on an already-empty subtree;
+this excludes detection and reporting and is not a scheduling guarantee.
+Residual charged memory before directory removal was 2,265,088 bytes, so this
+does not prove immediate deallocation of all charged pages.
+
+Payload-subtree OOM activity is established. The failed case did not preserve
+its payload wait status, leaf-local counters or post-case sentinel observation.
+It therefore does not establish the exact cause of the nonzero payload status,
+the limiting leaf, sentinel survival for that failure, completed file bytes,
+or the filesystem/writeback mechanism. Dirty-cache pressure is a hypothesis,
+not a proven kernel regression or a successful reclaim observation.
+The kernel documents distinct hierarchical/local counters and
+[filesystem-dependent writeback](https://docs.kernel.org/admin-guide/cgroup-v2.html#writeback);
+the artifact lacks the telemetry to distinguish those paths here.
+
+Seventeen pairs were not executed: all prepared-path cases and the five host
+death/interrupt/timeout cases. There is no full CI matrix or RL00a completion.
+No run was retried and no budget or fixture was changed.
+
+The identity file's seven hashes match the public commit. Six source copies
+are present and hash-verified in the artifact. The workflow copy below
+`source/.github` is absent because artifact upload excludes hidden paths by
+default. Its hash was verified against the exact public Git blob, which does
+not repair the missing captured copy.
+
+## Concrete next observation proposal
+
+Review a diagnostic-only amendment before another live experiment:
+
+1. Keep the dirty 40 MiB file, 32 MiB leaf, original absolute deadlines,
+   hierarchy, task caps and assertion that this required case must complete.
+   Retain this failed run. Do not substitute a sparse or clean-cache workload.
+2. In `rl00a_cases.py`, persist the cache payload's native wait status and
+   before/after leaf snapshots before asserting success. Include keyed
+   `memory.stat` observations and the filesystem backing the artifact directory;
+   preserve evidence on exceptional paths as well.
+3. In `rl00a_driver.py`, record sentinel pidfd liveness on failure before the
+   driver's finalizer stops it. Preserve the original failure if diagnostic
+   capture also fails. Missing diagnostics must remain explicit.
+4. In `resource-proof.yml`, retain the captured workflow under `source/.github`
+   by explicitly including hidden artifact paths, after reviewing the report
+   directory for secrets. Permissions and resource watchdogs stay unchanged.
+5. Review the concrete diff, new source/workflow hashes and bounded local
+   verification before authorizing a further live diagnostic run. A diagnostic
+   result is not a replacement for a later complete unchanged-source matrix.
+
+This proposal changes no implementation yet. It first establishes attribution;
+it does not presume that raising a ceiling, changing the workload or accepting
+an OOM as successful reclaim is justified. A subsequent fixture or contract
+change requires its own evidence and review. The
+[preregistered protocol](rl00a-protocol.md#preregistered-verdicts) stops on a
+required nonpass; this result remains no-go for RL00a completion.
 
 ## Limits and next evidence
 
-Before a go decision, inspect the exact CI revision, every expected pair and
-the uploaded counters/cleanup evidence and record an owner-reviewed RL00a
-conclusion. A green job alone is insufficient. The final local matrix covers
+Before a go decision, resolve the failed required CI proof and evidence gaps,
+inspect every expected pair, and record an owner-reviewed RL00a conclusion.
+A green job alone is insufficient. The final local matrix covers
 all required cases on one recorded source; historical observations remain
 separate and are not substituted for that run. Runtime distributions and
 cost calibration remain RL00c work.
