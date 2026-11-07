@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import logging
 import os
 import platform
 import select
@@ -12,6 +13,8 @@ import subprocess
 import sys
 import time
 import uuid
+from collections.abc import Generator
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import cast
 
@@ -62,6 +65,27 @@ def control(manager: str, *args: str) -> subprocess.CompletedProcess[str]:
         timeout=5,
         check=False,
     )
+
+
+@contextmanager
+def cleanup_service(
+    manager: str, unit: str, proxy: subprocess.Popen[bytes], *, if_running: bool = False
+) -> Generator[None]:
+    failed = False
+    try:
+        yield
+    except BaseException:
+        failed = True
+        raise
+    finally:
+        try:
+            if not if_running or proxy.poll() is None:
+                control(manager, "stop", unit)
+                proxy.communicate(timeout=3)
+        except Exception:
+            logging.exception("RL00a cleanup failed for %s", unit)
+            if not failed:
+                raise
 
 
 def available_memory() -> int:
@@ -154,7 +178,7 @@ def run_case(manager: str, mode: str, scenario: str, output: Path) -> dict[str, 
         stdin=subprocess.DEVNULL,
     )
     started = time.monotonic()
-    try:
+    with cleanup_service(manager, unit, process, if_running=True):
         killed_at = (
             kill_guardian(manager, unit, output, process) if scenario == "guardian-death" else None
         )
@@ -186,10 +210,42 @@ def run_case(manager: str, mode: str, scenario: str, output: Path) -> dict[str, 
         }
         save(output / "result.json", record)
         return record
-    finally:
-        if process.poll() is None:
-            control(manager, "stop", unit)
-            process.communicate(timeout=3)
+
+
+def record_sentinel(watched: int, proxy: subprocess.Popen[bytes], output: Path) -> bool:
+    observation: dict[str, object] = {"observed_ns": time.monotonic_ns(), "survived": None}
+    try:
+        exited = bool(select.select([watched], [], [], 0)[0])
+        native = proxy.poll()
+        observation.update(pidfd_readable=exited, proxy_native=native)
+        if not exited:
+            signal.pidfd_send_signal(watched, 0)
+        observation["survived"] = not exited and native is None
+    except OSError as error:
+        observation["observation_error"] = {"type": type(error).__name__, "message": str(error)}
+    save(output / "sentinel.json", observation)
+    return observation["survived"] is True
+
+
+def observed_case(
+    manager: str,
+    mode: str,
+    scenario: str,
+    output: Path,
+    sentinel: tuple[int, subprocess.Popen[bytes]],
+) -> dict[str, object]:
+    watched, proxy = sentinel
+    try:
+        record = run_case(manager, mode, scenario, output)
+    except BaseException:
+        try:
+            record_sentinel(watched, proxy, output)
+        except Exception:
+            logging.exception("RL00a sentinel evidence unavailable")
+        raise
+    assert record_sentinel(watched, proxy, output), "unrelated sentinel survival was not proved"
+    record["unrelated_sentinel_survived"] = True
+    return record
 
 
 def run(args: argparse.Namespace) -> int:
@@ -205,20 +261,19 @@ def run(args: argparse.Namespace) -> int:
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
-    watched: int | None = None
     results: list[dict[str, object]] = []
-    try:
+    with ExitStack() as cleanup:
+        cleanup.enter_context(cleanup_service(args.manager, unit, sentinel))
         pid = sentinel_pid(args.manager, unit, sentinel)
         watched = os.pidfd_open(pid)
+        cleanup.callback(os.close, watched)
         for mode in args.paths:
             for scenario in args.cases:
                 signal.pidfd_send_signal(watched, 0)
                 assert not select.select([watched], [], [], 0)[0]
-                record = run_case(args.manager, mode, scenario, output / f"{mode}-{scenario}")
-                signal.pidfd_send_signal(watched, 0)
-                assert not select.select([watched], [], [], 0)[0]
-                assert sentinel.poll() is None, "unrelated invocation was stopped"
-                record["unrelated_sentinel_survived"] = True
+                record = observed_case(
+                    args.manager, mode, scenario, output / f"{mode}-{scenario}", (watched, sentinel)
+                )
                 results.append(record)
                 save(
                     output / "summary.json",
@@ -227,11 +282,6 @@ def run(args: argparse.Namespace) -> int:
                 print(f"PASS {mode}/{scenario}", flush=True)
         save(output / "summary.json", {"identity": identity, "cases": results, "complete": True})
         return 0
-    finally:
-        if watched is not None:
-            os.close(watched)
-        control(args.manager, "stop", unit)
-        sentinel.communicate(timeout=3)
 
 
 def main() -> int:

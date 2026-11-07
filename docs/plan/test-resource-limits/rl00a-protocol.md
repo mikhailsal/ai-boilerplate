@@ -110,3 +110,31 @@ ratio and requiring observed reclaim plus successful completion. No session
 deadline or project threshold increases. An anonymous temporary disk file
 also ensures kernel cleanup on SIGKILL rather than relying on a Python
 finally block to unlink it. File progress and failed cleanup evidence are retained.
+
+## Diagnostic amendment prepared after the first CI nonpass
+
+The first CI observation remains a required-proof failure, as recorded in
+[the evidence report](rl00a-evidence.md#first-real-ci-observation-required-proof-failed).
+The resumed goal authorizes preparing and locally checking additional evidence
+under the same workloads, finite caps and original absolute deadlines.
+A further live workflow still needs review of its concrete revision and identity.
+
+The cache case writes `cache-observation.json` before its success assertions
+and on exceptional paths. It retains native wait/poll status, whether the child
+is still live, before/after leaf snapshots with keyed `memory.stat`, and the
+mount backing the artifact directory. Missing diagnostics remain explicit;
+capture failures preserve an existing workload exception. A healthy workload
+without required diagnostics cannot establish a pass.
+
+The driver writes `sentinel.json` after successful and failed cases, before
+stopping the independent sentinel. Observation/capture failures preserve the
+original case failure; a successful case still requires proven sentinel survival.
+Service-cleanup errors are logged alongside an existing case failure. A cleanup
+error after an otherwise successful run remains a nonpass.
+The uploader includes hidden paths in the dedicated report directory so the
+captured workflow under `source/.github` is retained with the other source inputs.
+That directory contains only the experiment's source copies and observations.
+
+The dirty-file cache workload and all expected verdicts remain as preregistered.
+The amendment supplies attribution evidence; it does not establish successful
+reclaim, a filesystem cause, or a complete matrix without observing them.

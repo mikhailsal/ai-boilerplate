@@ -33,3 +33,4 @@ jobs:
           name: rl00a-evidence
           path: reports/rl00a
           if-no-files-found: error
+          include-hidden-files: true

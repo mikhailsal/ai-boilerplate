@@ -94,20 +94,17 @@ failure is relevant to the later residual-charge and workload-cost gates.
 
 ## Approved CI experiment
 
-[resource-proof.yml](../../../.github/workflows/resource-proof.yml) runs only
-when the dedicated `spike/rl00a-proof` branch is pushed. It checks out the exact
-revision, runs the complete 24-pair matrix on Ubuntu 24.04 and uploads source
-identity plus evidence, even on failure. It has read-only repository permission,
-no application secrets, a six-minute job limit and a four-minute outer command
-watchdog. Existing required quality jobs are unchanged.
+The opt-in [workflow](../../../.github/workflows/resource-proof.yml) targets
+only pushes to `spike/rl00a-proof`: Ubuntu 24.04, exact-revision checkout,
+read-only repository access, no application secrets, a six-minute job limit
+and four-minute command watchdog. It uploads source identity and evidence
+on failure too. Existing required quality jobs are unchanged.
 
-The CI system manager needs sudo to create UUID-named transient delegated
-services. Each service sets `User`/`Group` to the ordinary runner identity,
-the same finite caps and manager-side cleanup. The supervisor and payload stay
-unprivileged; the outer provider uses sudo for only those units' creation,
-inspection and stop operations. Units expire independently of the outer driver. There is no persistent
-sysctl, host service installation or production deployment. Template export
-excludes this maintainer-only workflow together with the acceptance helpers.
+CI uses sudo only to create, inspect and stop UUID-named transient services.
+Their supervisors, payloads and guardians use the ordinary runner identity,
+the protocol's finite caps and independent expiry. There are no persistent
+machine changes or deployments. Template export excludes this workflow and
+the acceptance helpers.
 
 The owner approved publication and the real run on 2026-11-07, following
 [the verification plan](verification.md). The public snapshot keeps the seven
@@ -169,7 +166,10 @@ not repair the missing captured copy.
 
 ## Concrete next observation proposal
 
-Review a diagnostic-only amendment before another live experiment:
+The owner resumed the same goal after discussing this proposal. The diagnostic
+amendment is prepared and its local 24-pair matrix passed; no further live run
+has been authorized or executed. Review its concrete revision before another
+experiment:
 
 1. Keep the dirty 40 MiB file, 32 MiB leaf, original absolute deadlines,
    hierarchy, task caps and assertion that this required case must complete.
@@ -188,25 +188,59 @@ Review a diagnostic-only amendment before another live experiment:
    verification before authorizing a further live diagnostic run. A diagnostic
    result is not a replacement for a later complete unchanged-source matrix.
 
-This proposal changes no implementation yet. It first establishes attribution;
+The prepared amendment changes diagnostic capture in the experimental harness.
+Its [protocol addendum](rl00a-protocol.md#diagnostic-amendment-prepared-after-the-first-ci-nonpass)
+keeps the original fixture and budgets. It first establishes attribution;
 it does not presume that raising a ceiling, changing the workload or accepting
 an OOM as successful reclaim is justified. A subsequent fixture or contract
 change requires its own evidence and review. The
 [preregistered protocol](rl00a-protocol.md#preregistered-verdicts) stops on a
 required nonpass; this result remains no-go for RL00a completion.
 
+### Local verification of the diagnostic amendment
+
+The amended seven source inputs passed one complete local matrix on Linux
+5.15.0-136-generic and Python 3.10.12. All 24 unique host/prepared pairs passed,
+and all 24 new sentinel records proved survival. The two cache cases recorded
+native wait/poll status zero, an exited child, empty missing-diagnostic lists,
+ext4 backing and keyed before/after memory statistics. Their complete case
+durations were approximately 0.86 and 0.75 seconds, with positive max events
+and no OOM. These are single-run observations, not calibrated performance bars.
+
+The private raw summary has SHA-256
+`156da6241b7c2d77609271d3ec862203c85e8baa99718f781cae07d832b97563`;
+the seven-input manifest has SHA-256
+`7425a667f22f1d938587d44cfe046a8bf5e8a4550b33fe8b8c2ceb542614622a`.
+The run captured uncommitted source bytes over the prior report revision;
+those exact bytes are retained for comparison with the final diagnostic commit.
+All seven local source copies, including the hidden workflow, were verified.
+Live upload of that hidden copy remains unproved.
+
+A separate controlled fault probe placed the same cache writer on tmpfs under
+the same finite memory/task/time limits. It deliberately failed the original
+required-success assertion: native wait/poll status was SIGKILL, leaf-local
+`oom=1` and `oom_kill=1`, the sentinel survived and the invocation was removed.
+This verifies failed-case evidence retention. It is not an ordinary disk-case
+pass, is not counted in the 24-pair matrix, and does not identify the earlier
+CI filesystem or writeback cause. Its temporary RAM directory was removed.
+
+Controlled mechanism checks also verified primary-exception preservation when
+observation or service cleanup fails, and failure after a healthy run whose
+cleanup or sentinel observation fails. Ruff, strict Pyright and the repository's
+structure metrics passed. The new workflow has Git blob SHA
+`9d9e5221c1f16f2d284d7ea0c28cc317f40cf59d` and SHA-256
+`0018b43c164f5d12df956128a23e7b460a4915527b70d44a52a5a1a7bdadc8ce`.
+Its only workflow change retains hidden report paths; permissions, execution
+commands and watchdogs are preserved. The first CI failure remains unchanged.
+
 ## Limits and next evidence
 
-Before a go decision, resolve the failed required CI proof and evidence gaps,
-inspect every expected pair, and record an owner-reviewed RL00a conclusion.
-A green job alone is insufficient. The final local matrix covers
-all required cases on one recorded source; historical observations remain
-separate and are not substituted for that run. Runtime distributions and
-cost calibration remain RL00c work.
+Before a go decision, resolve the required CI nonpass, inspect every expected
+pair and record an owner-reviewed conclusion. A green job alone is insufficient.
+Historical observations remain separate from the complete local matrices.
 
-The spike proves cgroup primitives on the recorded host shapes. It does not
-prove arbitrary containers, aarch64, nonzero time namespaces, hostile same-UID
-isolation, framework worker allocation, nested `quality` CLI integration,
-per-case attribution, selective-case completeness, canonical native semantics,
-release thresholds or export onboarding. Those obligations remain in RL00b/c
-and RL01–RL06. Product memory enforcement is still absent.
+The observations cover the recorded x86_64 hosts. Arbitrary containers, aarch64,
+nonzero time namespaces and hostile same-UID isolation remain unproved.
+Framework allocation, case attribution/selection, native parity, calibrated
+values, CLI integration and export adoption remain RL00b/c and RL01–RL06 work.
+Product memory enforcement is absent.
