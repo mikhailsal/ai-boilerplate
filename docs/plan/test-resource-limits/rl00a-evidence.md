@@ -1,7 +1,7 @@
-# RL00a: local evidence and first CI nonpass
+# RL00a: local evidence and CI nonpasses
 
-Status on 2026-11-07: the final local 24-pair matrix passed; the first real CI
-run stopped after six passes and one required-proof failure. RL00a is incomplete.
+Status on 2026-11-07: the local 24-pair matrices passed; both real CI runs
+stopped after six passes and a required cache-proof failure. RL00a is incomplete.
 The active owner goal authorized the bounded experiment described in the
 [protocol](rl00a-protocol.md). This is not a successful RL00 release decision
 and does not integrate limits into `quality` or exported projects.
@@ -164,74 +164,27 @@ are present and hash-verified in the artifact. The workflow copy below
 default. Its hash was verified against the exact public Git blob, which does
 not repair the missing captured copy.
 
-## Concrete next observation proposal
+## Diagnostic revision and second CI nonpass
 
-The owner resumed the same goal after discussing this proposal. The diagnostic
-amendment is prepared and its local 24-pair matrix passed; no further live run
-has been authorized or executed. Review its concrete revision before another
-experiment:
+The owner approved diagnostic revision `b951b1733d9898bca5d9981ee13ac38eaec2285f`
+and its workflow separately. Its seven frozen inputs passed a complete local
+24-pair matrix; captured source bytes were verified against the final commit.
+The diagnostic amendment preserved the original workloads, caps, deadlines
+and required-success oracle. The normal pre-commit and pre-push checks passed.
 
-1. Keep the dirty 40 MiB file, 32 MiB leaf, original absolute deadlines,
-   hierarchy, task caps and assertion that this required case must complete.
-   Retain this failed run. Do not substitute a sparse or clean-cache workload.
-2. In `rl00a_cases.py`, persist the cache payload's native wait status and
-   before/after leaf snapshots before asserting success. Include keyed
-   `memory.stat` observations and the filesystem backing the artifact directory;
-   preserve evidence on exceptional paths as well.
-3. In `rl00a_driver.py`, record sentinel pidfd liveness on failure before the
-   driver's finalizer stops it. Preserve the original failure if diagnostic
-   capture also fails. Missing diagnostics must remain explicit.
-4. In `resource-proof.yml`, retain the captured workflow under `source/.github`
-   by explicitly including hidden artifact paths, after reviewing the report
-   directory for secrets. Permissions and resource watchdogs stay unchanged.
-5. Review the concrete diff, new source/workflow hashes and bounded local
-   verification before authorizing a further live diagnostic run. A diagnostic
-   result is not a replacement for a later complete unchanged-source matrix.
+[Run 42327373724, attempt 1](https://github.com/mikhailsal/ai-boilerplate/actions/runs/42327373724)
+again passed six host pairs, then failed `host/cache-reclaim`. This time the
+artifact retains native SIGKILL, leaf-local OOM and an ext4 backing mount,
+plus guardian and sentinel survival. All seven captured sources match the
+approved commit, including the hidden workflow. No prepared-path or remaining
+death-case CI evidence was produced.
 
-The prepared amendment changes diagnostic capture in the experimental harness.
-Its [protocol addendum](rl00a-protocol.md#diagnostic-amendment-prepared-after-the-first-ci-nonpass)
-keeps the original fixture and budgets. It first establishes attribution;
-it does not presume that raising a ceiling, changing the workload or accepting
-an OOM as successful reclaim is justified. A subsequent fixture or contract
-change requires its own evidence and review. The
-[preregistered protocol](rl00a-protocol.md#preregistered-verdicts) stops on a
-required nonpass; this result remains no-go for RL00a completion.
-
-### Local verification of the diagnostic amendment
-
-The amended seven source inputs passed one complete local matrix on Linux
-5.15.0-136-generic and Python 3.10.12. All 24 unique host/prepared pairs passed,
-and all 24 new sentinel records proved survival. The two cache cases recorded
-native wait/poll status zero, an exited child, empty missing-diagnostic lists,
-ext4 backing and keyed before/after memory statistics. Their complete case
-durations were approximately 0.86 and 0.75 seconds, with positive max events
-and no OOM. These are single-run observations, not calibrated performance bars.
-
-The private raw summary has SHA-256
-`156da6241b7c2d77609271d3ec862203c85e8baa99718f781cae07d832b97563`;
-the seven-input manifest has SHA-256
-`7425a667f22f1d938587d44cfe046a8bf5e8a4550b33fe8b8c2ceb542614622a`.
-The run captured uncommitted source bytes over the prior report revision;
-those exact bytes are retained for comparison with the final diagnostic commit.
-All seven local source copies, including the hidden workflow, were verified.
-Live upload of that hidden copy remains unproved.
-
-A separate controlled fault probe placed the same cache writer on tmpfs under
-the same finite memory/task/time limits. It deliberately failed the original
-required-success assertion: native wait/poll status was SIGKILL, leaf-local
-`oom=1` and `oom_kill=1`, the sentinel survived and the invocation was removed.
-This verifies failed-case evidence retention. It is not an ordinary disk-case
-pass, is not counted in the 24-pair matrix, and does not identify the earlier
-CI filesystem or writeback cause. Its temporary RAM directory was removed.
-
-Controlled mechanism checks also verified primary-exception preservation when
-observation or service cleanup fails, and failure after a healthy run whose
-cleanup or sentinel observation fails. Ruff, strict Pyright and the repository's
-structure metrics passed. The new workflow has Git blob SHA
-`9d9e5221c1f16f2d284d7ea0c28cc317f40cf59d` and SHA-256
-`0018b43c164f5d12df956128a23e7b460a4915527b70d44a52a5a1a7bdadc8ce`.
-Its only workflow change retains hidden report paths; permissions, execution
-commands and watchdogs are preserved. The first CI failure remains unchanged.
+[The diagnostic report](rl00a-diagnostic-evidence.md) retains local validation,
+exact live identities, the observed 4 KiB peak overshoot, cleanup limits and
+a proposed cache-fixture amendment for owner review. The
+[second CI summary](rl00a-diagnostic-ci-evidence.json) preserves the observations
+separately from the first failure. Neither run establishes a complete CI pass
+or successful reclaim for the required cache case.
 
 ## Limits and next evidence
 

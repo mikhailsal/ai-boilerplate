@@ -80,8 +80,10 @@
   feasibility gates, calibration, proof matrix and implementation order.
 - [RL00a experiment protocol](plan/test-resource-limits/rl00a-protocol.md):
   bounded memory, inheritance and cleanup experiments and expected verdicts.
-- [RL00a local evidence](plan/test-resource-limits/rl00a-evidence.md):
+- [RL00a local and CI evidence](plan/test-resource-limits/rl00a-evidence.md):
   observed containment and cleanup, retained nonpasses and pending CI proof.
+- [RL00a diagnostic evidence](plan/test-resource-limits/rl00a-diagnostic-evidence.md):
+  exact-revision CI failure attribution and proposed cache-fixture review.
 - [Resource developer experience](plan/test-resource-limits/developer-experience.md):
   setup, diagnostics, migration, CLI proposals and adoption trials.
 

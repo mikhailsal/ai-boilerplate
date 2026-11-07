@@ -2,10 +2,11 @@
 
 Status: owner D4 research amendment accepted on 2026-11-04; affected
 engineering re-review and final owner plan approval completed on 2026-11-06.
-RL00a has a passing local matrix and a required-proof failure in the first
-[real CI observation](rl00a-evidence.md). Full live GitHub proof and the
-complete RL00 go/no-go remain pending. The separate CI approval was granted
-on 2026-11-07; it does not turn the failed observation into a pass.
+RL00a has passing local matrices and required-proof failures in both real
+CI runs, including the [diagnostic observation](rl00a-diagnostic-evidence.md).
+Full live GitHub proof and the complete RL00 go/no-go remain pending.
+Separate approvals for the original and diagnostic workflows were granted
+on 2026-11-07; neither turns a failed observation into a pass.
 The owner selected D5=A on 2026-11-06. No implementation, privileged setup, CI publication or merge is
 authorized by this review. Missing required evidence is no-go, not permission
 to substitute aggregate-only or unbounded certification.
