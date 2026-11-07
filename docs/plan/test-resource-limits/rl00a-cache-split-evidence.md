@@ -1,7 +1,9 @@
 # RL00a: owner-approved cache split and local evidence
 
-Status on 2026-11-07: the amended local 26-pair matrix passed. Live CI for
-this revision is not approved or executed; RL00a remains incomplete. Both
+The initial cache-split revision `165ef689` passed its amended local 26-pair
+matrix. Its subsequent [remote observation](rl00a-remote-evidence.md) passed
+the implemented assertions but exposed a remaining directory-removal evidence
+gap; RL00a remains incomplete. Both
 [earlier CI failures](rl00a-evidence.md) retain their original verdicts.
 
 The owner selected A after reviewing
@@ -38,8 +40,8 @@ an exact per-inode page count. No mapping writes, truncation or explicit
 cache eviction create the result.
 
 Cache helpers moved into `rl00a_cache.py` to meet existing structure limits.
-The provider, guardian, cgroup primitives, driver and workflow remain
-byte-identical to the diagnostic revision. All existing runtime, memory,
+In this initial revision, the provider, guardian, cgroup primitives, driver
+and workflow remain byte-identical to the diagnostic revision. All existing runtime, memory,
 task and swap caps remain. New barriers and instrumentation consume the
 original four-second payload budget and six-second absolute deadline;
 the supervisor also requires observing the native exit before payload stop.
@@ -85,7 +87,8 @@ All captured source copies match those frozen hashes and the unchanged input
 bytes after the matrix. The captured Git HEAD is the preceding report commit
 `06113a4825820d050d406b42c8c2ba9c8e3a11a2`; it does not identify the tested
 worktree bytes. Binding to the review commit is by the eight retained source
-copies and hashes, verified again before publication. No subset from another
+copies and hashes, verified against committed `165ef689` before publication.
+The later driver observation change is validated separately in CI. No subset from another
 revision substitutes for this complete matrix.
 
 ## Fault evidence and normal checks

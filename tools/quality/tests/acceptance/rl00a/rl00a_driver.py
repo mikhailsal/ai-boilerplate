@@ -155,15 +155,66 @@ def kill_guardian(manager: str, unit: str, output: Path, process: subprocess.Pop
     return started
 
 
-def service_empty(path: Path, until: float) -> bool:
-    while path.exists() and time.monotonic() < until:
+def observe_service(root: dict[str, object], until_ns: int, evidence: dict[str, object]) -> None:
+    path = Path(str(root["path"]))
+    while time.monotonic_ns() < until_ns:
         try:
-            if counters((path / "cgroup.events").read_text())["populated"] == 0:
-                return True
+            if path.stat().st_ino != root["inode"]:
+                message = "owned service cgroup inode changed"
+                raise RuntimeError(message)
+            populated = counters((path / "cgroup.events").read_text())["populated"]
+            observed_ns = time.monotonic_ns()
+            if (
+                populated == 0
+                and observed_ns < until_ns
+                and evidence["populated_zero_observed_ns"] is None
+            ):
+                evidence["populated_zero_observed_ns"] = observed_ns
         except FileNotFoundError:
-            return True
+            try:
+                if path.stat().st_ino != root["inode"]:
+                    message = "owned service cgroup inode changed"
+                    raise RuntimeError(message)
+            except FileNotFoundError:
+                observed_ns = time.monotonic_ns()
+                if observed_ns < until_ns:
+                    evidence.update(root_removed=True, root_removed_observed_ns=observed_ns)
+                break
         time.sleep(0.005)
-    return not path.exists()
+
+
+def service_cleanup(
+    root: dict[str, object],
+    output: Path,
+    original_deadline_ns: int,
+    killed_at: float | None,
+    proxy_native: int | None,
+) -> dict[str, object]:
+    initial_ns = time.monotonic_ns()
+    start_ns = int(killed_at * 1_000_000_000) if killed_at is not None else initial_ns
+    until_ns = min(original_deadline_ns, start_ns + 2_000_000_000)
+    evidence: dict[str, object] = {
+        "root": root,
+        "initial_check_ns": initial_ns,
+        "original_deadline_ns": original_deadline_ns,
+        "cleanup_deadline_ns": until_ns,
+        "proxy_native": proxy_native,
+        "populated_zero_observed_ns": None,
+        "root_removed": False,
+        "root_removed_observed_ns": None,
+    }
+    try:
+        observe_service(root, until_ns, evidence)
+    finally:
+        evidence["finished_ns"] = time.monotonic_ns()
+        failed = sys.exc_info()[0] is not None
+        try:
+            save(output / "service-cleanup.json", evidence)
+        except Exception:
+            if not failed:
+                raise
+            logging.exception("RL00a service cleanup evidence could not be saved")
+    return evidence
 
 
 def run_case(manager: str, mode: str, scenario: str, output: Path) -> dict[str, object]:
@@ -184,22 +235,28 @@ def run_case(manager: str, mode: str, scenario: str, output: Path) -> dict[str, 
         )
         stdout, stderr = process.communicate(timeout=20)
         (output / "service.log").write_bytes(stdout[:65536] + stderr[:65536])
-        expected = process.returncode != 0 if killed_at else process.returncode == 0
+        expected = process.returncode != 0 if killed_at is not None else process.returncode == 0
         assert expected, stderr.decode(errors="replace")[-4096:]
         provider = load(output / "provider.json")
-        root = Path(str(cast(dict[str, object], provider["root"])["path"]))
-        assert service_empty(root, (killed_at or time.monotonic()) + 2), (
-            "owned service remained populated"
+        root = cast(dict[str, object], provider["root"])
+        evidence = load(output / ("armed.json" if killed_at is not None else "guardian.json"))
+        deadline_key = (
+            "effective_ancestor_deadline_ns" if killed_at is not None else "original_deadline_ns"
         )
-        if killed_at:
+        deadline_ns = cast(int, evidence[deadline_key])
+        cleanup = service_cleanup(root, output, deadline_ns, killed_at, process.returncode)
+        assert cleanup["root_removed"] is True, "owned service directory was not removed in time"
+        if killed_at is not None:
             evidence = {
-                "systemd_cleanup_seconds": time.monotonic() - killed_at,
+                "systemd_cleanup_seconds": (cast(int, cleanup["root_removed_observed_ns"]) / 1e9)
+                - killed_at,
                 "root_empty_or_removed": True,
                 "proxy_native": process.returncode,
+                "service_cleanup": cleanup,
             }
             assert evidence["systemd_cleanup_seconds"] < 2
         else:
-            evidence = load(output / "guardian.json")
+            evidence["service_cleanup"] = cleanup
         record: dict[str, object] = {
             "path": mode,
             "case": scenario,

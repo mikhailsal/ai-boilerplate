@@ -1,8 +1,10 @@
 # RL00a: local evidence and CI nonpasses
 
-Status on 2026-11-07: the local 24-pair matrices and the owner-approved
-[amended 26-pair matrix](rl00a-cache-split-evidence.md) passed; both real CI
-runs stopped after six passes and a required cache-proof failure. RL00a is incomplete.
+The local 24-pair matrices and owner-approved
+[amended 26-pair matrix](rl00a-cache-split-evidence.md) passed. The first two
+real CI runs failed; the amended [remote matrix](rl00a-remote-evidence.md)
+passed its assertions, with stronger directory-removal evidence still pending.
+RL00a remains incomplete.
 The active owner goal authorized the bounded experiment described in the
 [protocol](rl00a-protocol.md). This is not a successful RL00 release decision
 and does not integrate limits into `quality` or exported projects.

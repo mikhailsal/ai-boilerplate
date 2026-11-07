@@ -2,11 +2,14 @@
 
 Status: owner D4 research amendment accepted on 2026-11-04; affected
 engineering re-review and final owner plan approval completed on 2026-11-06.
-RL00a has passing local matrices and required-proof failures in both real
+RL00a has passing local matrices and required-proof failures in the first two
 CI runs, including the [diagnostic observation](rl00a-diagnostic-evidence.md).
 Full live GitHub proof and the complete RL00 go/no-go remain pending.
 The owner-approved [cache-split local matrix](rl00a-cache-split-evidence.md)
-passed all 26 pairs; its separate exact-revision live approval remains pending.
+passed all 26 pairs. The [amended remote run](rl00a-remote-evidence.md) passed
+its implemented assertions; direct directory-removal verification is pending.
+The owner subsequently required remote-only heavy validation and explicitly
+permitted current-task local hook skips; the full remote gates still apply.
 Separate approvals for the original and diagnostic workflows were granted
 on 2026-11-07; neither turns a failed observation into a pass.
 The owner selected D5=A on 2026-11-06. No implementation, privileged setup, CI publication or merge is
