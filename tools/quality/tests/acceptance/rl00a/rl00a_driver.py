@@ -247,14 +247,14 @@ def run_case(manager: str, mode: str, scenario: str, output: Path) -> dict[str, 
         cleanup = service_cleanup(root, output, deadline_ns, killed_at, process.returncode)
         assert cleanup["root_removed"] is True, "owned service directory was not removed in time"
         if killed_at is not None:
+            cleanup_seconds = cast(int, cleanup["root_removed_observed_ns"]) / 1e9 - killed_at
             evidence = {
-                "systemd_cleanup_seconds": (cast(int, cleanup["root_removed_observed_ns"]) / 1e9)
-                - killed_at,
+                "systemd_cleanup_seconds": cleanup_seconds,
                 "root_empty_or_removed": True,
                 "proxy_native": process.returncode,
                 "service_cleanup": cleanup,
             }
-            assert evidence["systemd_cleanup_seconds"] < 2
+            assert cleanup_seconds < 2
         else:
             evidence["service_cleanup"] = cleanup
         record: dict[str, object] = {
