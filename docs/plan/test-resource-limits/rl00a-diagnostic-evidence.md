@@ -2,8 +2,9 @@
 
 Status on 2026-11-07: diagnostics are verified; the required CI proof failed
 again. This report supplements [the local and first CI evidence](rl00a-evidence.md).
-The [preregistered protocol](rl00a-protocol.md) remains unchanged. No fixture
-amendment below has been approved or implemented.
+The [preregistered protocol](rl00a-protocol.md) records the subsequent owner
+decision A to split cache verdicts. The diagnostic observations below retain
+their original failed verdicts; the amended matrix needs separate evidence.
 
 ## Local verification of the diagnostic amendment
 
@@ -95,21 +96,22 @@ assertion or wrote `result.json`; guardian invocation removal is the observed
 cleanup evidence. Neither immediate zero residual charge nor complete service
 cleanup certification is inferred from it. Both real failures remain retained.
 
-## Proposed next decision: separate cache verdicts
+## Owner-approved next step: separate cache verdicts
 
-This is a material fixture/oracle proposal for owner review, not an implemented
-fix. The evidence rejects treating the current writer as a portable proof of
+The owner selected A on 2026-11-07. This authorizes the material fixture/oracle
+amendment and local verification, with a separate exact-revision live CI gate.
+The evidence rejects treating the current writer as a portable proof of
 successful reclaim; it does not identify a kernel regression. Kernel containment
 does not require every workload to finish successfully. The plan still requires
 positive evidence that successful reclaim is not reported as a violation.
 
-The recommended amendment would retain the original writer unchanged as an
-additional required dirty-cache characterization, and introduce a separate
+The approved amendment retains the original writer unchanged as an
+additional required dirty-cache characterization and introduces a separate
 required reclaim fixture. This explicitly relaxes the original dirty-writer
 success gate for future matrices: a proven own OOM may satisfy containment
 characterization while still being reported as a resource violation. Only the
 separate reclaim fixture would require native success without OOM. The
-proposed contract is:
+approved contract is:
 
 1. Keep the original dirty writer, file size, cap and all historical nonpasses.
    A future native zero without own OOM is native success. Proven own OOM is
@@ -135,7 +137,7 @@ proposed contract is:
    Existing 24-pair attempts remain historical failures under their original
    oracle; they cannot be relabeled as the amended 26-pair proof.
 
-This changes the experiment's coverage and expected outcomes; it needs explicit
-review rather than an automatic retry. Keeping the existing oracle instead
-requires further bounded investigation of the original write path. Neither
-option authorizes product integration or an RL00 go decision today.
+This changes future coverage and expected outcomes under the owner's explicit
+decision; it does not relabel an earlier failed run. Concrete implementation,
+local evidence and the final source identity still need review before live CI.
+Product integration and an RL00 go decision remain outside this approval.

@@ -83,7 +83,9 @@
 - [RL00a local and CI evidence](plan/test-resource-limits/rl00a-evidence.md):
   observed containment and cleanup, retained nonpasses and pending CI proof.
 - [RL00a diagnostic evidence](plan/test-resource-limits/rl00a-diagnostic-evidence.md):
-  exact-revision CI failure attribution and proposed cache-fixture review.
+  exact-revision CI failure attribution and approved cache-fixture amendment.
+- [RL00a cache-split evidence](plan/test-resource-limits/rl00a-cache-split-evidence.md):
+  approved cache verdicts, complete local 26-pair matrix and pending live proof.
 - [Resource developer experience](plan/test-resource-limits/developer-experience.md):
   setup, diagnostics, migration, CLI proposals and adoption trials.
 

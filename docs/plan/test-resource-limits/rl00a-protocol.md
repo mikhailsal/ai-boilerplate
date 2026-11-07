@@ -70,7 +70,8 @@ strings alone never authorize cleanup.
 | ancestor memory | Two bounded leaves fit individually but exhaust their 96 MiB parent; parent-local cause, no invented offending case. |
 | nested budgets | Two nested branches retain memory/task ceilings and the original deadline; oversized requests fail promptly while parents remain charged. |
 | caught task denial | A two-task leaf catches EAGAIN and exits zero; `pids.events` still proves a resource violation. |
-| cache reclaim | A 40 MiB anonymous disk-file workload under 32 MiB reclaims successfully without OOM; native success remains success. |
+| dirty cache | Retain the original 40 MiB writer under 32 MiB. Native zero without own/ancestor OOM is native success; SIGKILL requires matching own-leaf OOM and kill events with no ancestor-local OOM, and remains a resource violation. Unexpected statuses or mismatched evidence are nonpasses. |
+| cache reclaim | A separate 40 MiB anonymous disk-file workload under 32 MiB fsyncs every 4 MiB and must complete without OOM. Held-open file residency, charged-file snapshots and file-refault evidence must prove actual cache eviction and reread. |
 | interrupt / timeout | Owned detached, signal-ignoring descendants disappear within the cleanup reserve; the sentinel survives. |
 | supervisor death / OOM | A pidfd guardian survives supervisor SIGKILL or control-leaf OOM and removes all owned descendants. |
 | guardian death | External driver kills the service main PID; systemd removes the entire owned subtree within its stop bound; sentinel survives. |
@@ -138,3 +139,42 @@ That directory contains only the experiment's source copies and observations.
 The dirty-file cache workload and all expected verdicts remain as preregistered.
 The amendment supplies attribution evidence; it does not establish successful
 reclaim, a filesystem cause, or a complete matrix without observing them.
+
+## Owner-approved cache split after the diagnostic CI failure
+
+The owner selected A on 2026-11-07 after reviewing
+[the second real CI failure](rl00a-diagnostic-evidence.md#second-real-ci-observation).
+This explicitly changes the original dirty-writer success oracle for future
+runs. Both historical 24-pair attempts retain their original nonpass verdicts.
+The original writer function, 40 MiB size and 32 MiB cap remain unchanged;
+it becomes the required `dirty-cache` characterization. A caught or unexpected
+exit cannot be silently treated as successful reclaim. Proven own OOM remains
+a resource violation even when the characterization correctly detects it.
+
+The separate required `cache-reclaim` action writes every byte of a fresh,
+nonsparse anonymous disk file inside its fresh 32 MiB leaf. It flushes and
+fsyncs each 4 MiB batch before continuing. The child holds the descriptor open
+at `written` and `reread` checkpoints, and the supervisor captures file size,
+allocated blocks, stable device/inode, zero links, keyed `memory.stat` and leaf
+events. Read-only `mincore` observations of this exact file must show that
+some previously written pages are no longer resident; no mapping write,
+truncation or explicit cache eviction is used. Charged-file observations and
+positive local max/reclaim counters accompany that file-specific evidence.
+The controlled full reread must increase `workingset_refault_file` while the
+file remains open. Generic reclaim counters alone cannot certify file reclaim.
+The refault counter covers the whole leaf, including evidence-file activity;
+it corroborates the exact-file residency observation, not a per-inode count.
+
+Native success, all 40 MiB written/read, all ten fsyncs, zero own/ancestor OOM
+and complete evidence are required. Unsupported allocation/residency evidence,
+tmpfs backing, timeout or missing counters is a nonpass, never a relaxed oracle.
+The barriers and instrumentation consume the original four-second payload
+budget and six-second absolute deadline; the two-second cleanup reserve stays.
+No runtime, memory, task or swap ceiling changes. The fixture is not a promise
+that every filesystem or runner will complete it.
+
+A complete amended matrix contains 13 cases on each of the host and prepared
+paths: 26 unique pairs from one frozen source revision. All eight source inputs,
+including the extracted cache helper and hidden workflow, must be captured and
+hash-verified. Local proof and concrete review precede separately approved live
+CI publication; this owner decision alone does not authorize another CI run.

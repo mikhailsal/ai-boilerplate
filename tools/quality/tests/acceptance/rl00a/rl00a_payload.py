@@ -183,19 +183,145 @@ def _cache(path: Path, mib: int) -> int:
     return 0
 
 
+def _required_path(record: dict[str, Any], key: str) -> Path:
+    value = record.get(key)
+    if not isinstance(value, str) or not value:
+        msg = f"{key} must be a nonempty path string"
+        raise ValueError(msg)
+    return Path(value)
+
+
+def _reclaim_inputs(record: dict[str, Any]) -> tuple[Path, int, Path, Path]:
+    directory = _required_path(record, "artifact_dir")
+    deadline = record.get("payload_stop_ns")
+    if not directory.is_dir():
+        msg = "artifact_dir must be an existing directory"
+        raise ValueError(msg)
+    if (
+        isinstance(deadline, bool)
+        or not isinstance(deadline, int)
+        or deadline <= time.monotonic_ns()
+    ):
+        msg = "payload_stop_ns must be a future monotonic deadline"
+        raise ValueError(msg)
+    return (
+        directory,
+        deadline,
+        _required_path(record, "read_barrier"),
+        _required_path(record, "close_barrier"),
+    )
+
+
+def _reclaim_wait(barrier: Path, deadline: int) -> None:
+    while True:
+        if time.monotonic_ns() >= deadline:
+            msg = "payload deadline expired while waiting for barrier"
+            raise TimeoutError(msg)
+        if barrier.exists():
+            return
+        time.sleep(0.005)
+
+
+def _file_observation(descriptor: int) -> dict[str, Any]:
+    # ACCESS_COPY supplies an address for mincore without dirtying the file.
+    import ctypes
+    import mmap
+    import stat
+
+    info = os.fstat(descriptor)
+    page_size = os.sysconf("SC_PAGE_SIZE")
+    page_count = (info.st_size + page_size - 1) // page_size
+    with mmap.mmap(descriptor, info.st_size, access=mmap.ACCESS_COPY) as mapping:
+        address = ctypes.c_char.from_buffer(mapping)
+        try:
+            vector = (ctypes.c_ubyte * page_count)()
+            libc = ctypes.CDLL(None, use_errno=True)
+            mincore = libc.mincore
+            mincore.argtypes = (ctypes.c_void_p, ctypes.c_size_t, ctypes.POINTER(ctypes.c_ubyte))
+            mincore.restype = ctypes.c_int
+            if mincore(ctypes.addressof(address), info.st_size, vector) != 0:
+                error = ctypes.get_errno()
+                raise OSError(error, os.strerror(error))
+            resident = sum(1 for page in vector if page & 1) * page_size
+        finally:
+            del address
+    return {
+        "device": info.st_dev,
+        "inode": info.st_ino,
+        "links": info.st_nlink,
+        "regular_file": stat.S_ISREG(info.st_mode),
+        "size_bytes": info.st_size,
+        "allocated_bytes": info.st_blocks * 512,
+        "page_size": page_size,
+        "resident_bytes": min(resident, info.st_size),
+    }
+
+
+def _cache_reclaim(path: Path, mib: int) -> int:
+    record = _ready(path)
+    directory, deadline, read_barrier, close_barrier = _reclaim_inputs(record)
+    bytes_written = 0
+    fsync_count = 0
+    bytes_read = 0
+    with tempfile.TemporaryFile(mode="w+b", dir=directory) as stream:
+        block = bytes([0xA5]) * MIB
+        for index in range(mib):
+            written = stream.write(block)
+            if written != len(block):
+                msg = "short cache payload write"
+                raise OSError(msg)
+            bytes_written += written
+            if (index + 1) % 4 == 0 or index + 1 == mib:
+                stream.flush()
+                os.fsync(stream.fileno())
+                fsync_count += 1
+        record.update(
+            phase="written",
+            bytes_written=bytes_written,
+            fsync_count=fsync_count,
+            file_observation=_file_observation(stream.fileno()),
+        )
+        _write_json(path, record)
+        _reclaim_wait(read_barrier, deadline)
+        stream.seek(0)
+        while chunk := stream.read(MIB):
+            bytes_read += len(chunk)
+        if bytes_read != bytes_written:
+            msg = "cache payload reread length differs from write length"
+            raise OSError(msg)
+        record.update(
+            phase="reread",
+            bytes_read=bytes_read,
+            file_observation=_file_observation(stream.fileno()),
+        )
+        _write_json(path, record)
+        _reclaim_wait(close_barrier, deadline)
+    record["phase"] = "closed"
+    _write_json(path, record)
+    _complete(
+        path,
+        record,
+        cache_mib=mib,
+        removed=True,
+        bytes_written=bytes_written,
+        bytes_read=bytes_read,
+        fsync_count=fsync_count,
+    )
+    return 0
+
+
 def main(arguments: list[str]) -> int:
     if len(arguments) not in (2, 3):
         message = "usage: rl00a_payload.py ACTION READY_PATH [MIB]"
         raise ValueError(message)
     action, raw_path, *values = arguments
     path = Path(raw_path)
-    if action in {"memory", "cache"} and len(values) == 1:
-        mib = _positive_mib(values[0])
-        return _memory(path, mib) if action == "memory" else _cache(path, mib)
-    if action == "hold" and not values:
-        return _hold(path)
-    if action == "fork-denial" and not values:
-        return _fork_denial(path)
+    sized_actions = {"memory": _memory, "cache": _cache, "cache-reclaim": _cache_reclaim}
+    simple_actions = {"hold": _hold, "fork-denial": _fork_denial}
+    if action in sized_actions and len(values) == 1:
+        return sized_actions[action](path, _positive_mib(values[0]))
+    if action in simple_actions and not values:
+        return simple_actions[action](path)
     message = "invalid action or argument count"
     raise ValueError(message)
 

@@ -3,20 +3,16 @@
 from __future__ import annotations
 
 import errno
-import logging
 import os
-import re
 import signal
-import subprocess
-import sys
 import time
 import uuid
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
-from rl00a_cgroup import CGROUP, MIB, Group, counters, load, payload, sampled_wait, save, wait_ready
+from rl00a_cache import run_cache
+from rl00a_cgroup import CGROUP, MIB, Group, load, payload, sampled_wait, save, wait_ready
 
 
 @dataclass
@@ -164,146 +160,12 @@ def caught_task_denial(case: Case) -> dict[str, object]:
     }
 
 
-def output_mount(output: Path) -> dict[str, str]:
-    """Identify the deepest mount containing the resolved output directory."""
-    target = output.resolve()
-    device_id = target.stat().st_dev
-    device = f"{os.major(device_id)}:{os.minor(device_id)}"
-    matches: list[tuple[int, dict[str, str]]] = []
-    for line in Path("/proc/self/mountinfo").read_text().splitlines():
-        left, right = line.split(" - ", 1)
-        fields, filesystem = left.split(), right.split()
-        mountpoint = re.sub(r"\\([0-7]{3})", lambda match: chr(int(match[1], 8)), fields[4])
-        path = Path(mountpoint)
-        if fields[2] == device and (target == path or path in target.parents):
-            matches.append(
-                (
-                    len(path.parts),
-                    {
-                        "mountpoint": mountpoint,
-                        "filesystem": filesystem[0],
-                        "device": device,
-                        "source": filesystem[1],
-                        "mountinfo": line,
-                    },
-                )
-            )
-    if not matches:
-        message = f"no mount found for {target}"
-        raise ValueError(message)
-    return max(matches, key=lambda item: item[0])[1]
-
-
-def observe(record: dict[str, object], name: str, read: Callable[[], object]) -> None:
-    try:
-        record[name] = read()
-    except Exception as error:
-        logging.exception("Could not capture cache diagnostic %s", name)
-        record[name] = None
-        cast(list[str], record["missing_diagnostics"]).append(f"{name}: {error!r}")
-
-
-def save_observation(output: Path, record: dict[str, object]) -> None:
-    try:
-        save(output / "cache-observation.json", record)
-    except Exception as error:
-        logging.exception("Could not save cache observation")
-        cast(list[str], record["missing_diagnostics"]).append(f"save: {error!r}")
-        print(f"could not save cache observation: {error!r}; {record!r}", file=sys.stderr)
-
-
-def finish_observation(
-    output: Path, group: Group, child: subprocess.Popen[bytes] | None, record: dict[str, object]
-) -> None:
-    missing = cast(list[str], record["missing_diagnostics"])
-    for name in ("before", "memory_stat_before"):
-        if name not in record:
-            record[name] = None
-            missing.append(f"{name}: not collected")
-    if "after" not in record:
-        observe(record, "after", group.snapshot)
-    if "memory_stat_after" not in record:
-        observe(record, "memory_stat_after", lambda: counters(group.read("memory.stat")))
-    record["child_live"] = None
-    if child is None:
-        missing.append("child was not launched")
-    else:
-        count = len(missing)
-        observe(record, "native_poll_status", child.poll)
-        if len(missing) == count:
-            record["child_live"] = record["native_poll_status"] is None
-    save_observation(output, record)
-
-
-def assert_cache_events(case: Case, before: dict[str, object], after: dict[str, object]) -> None:
-    assert event(after, "memory.events.local", "oom") == 0
-    assert event(after, "memory.events.local", "max") > event(before, "memory.events.local", "max")
-    assert not list(case.output.glob("rl00a-cache-*"))
-
-
-def conclude_observation(
-    output: Path, group: Group, child: subprocess.Popen[bytes] | None, record: dict[str, object]
-) -> None:
-    active_error = sys.exc_info()[0] is not None
-    try:
-        finish_observation(output, group, child, record)
-    except Exception:
-        logging.exception("Could not finish cache observation")
-        if not active_error:
-            raise
-    if record["missing_diagnostics"] and not active_error:
-        message = f"missing cache diagnostics: {record['missing_diagnostics']}"
-        raise AssertionError(message)
-
-
 def cache_reclaim(case: Case) -> dict[str, object]:
-    group = case.leaf(32)
-    observation: dict[str, object] = {
-        "missing_diagnostics": [],
-        "exception": None,
-        "native_wait_status": None,
-        "native_poll_status": None,
-        "identity": None,
-        "sampled_peak_bytes": None,
-    }
-    child = None
-    try:
-        observe(observation, "mount", lambda: output_mount(case.output))
-        before = group.snapshot()
-        observation["before"] = before
-        observe(observation, "memory_stat_before", lambda: counters(group.read("memory.stat")))
-        ready = case.output / "payload.json"
-        save(ready, {"artifact_dir": str(case.output)})
-        child = payload(group, "cache", ready, "40")
-        until = time.monotonic() + 1
-        while "cgroup" not in load(ready) and time.monotonic() < until:
-            time.sleep(0.005)
-        identity = wait_ready(child, ready, group)
-        observation["identity"] = identity
-        status, high = sampled_wait(child, group, case.deadline_ns - 2_000_000_000)
-        observation["native_wait_status"] = status
-        observation["sampled_peak_bytes"] = high
-        observe(observation, "after", group.snapshot)
-        observe(observation, "memory_stat_after", lambda: counters(group.read("memory.stat")))
-        after = cast(dict[str, object], observation["after"])
-        save_observation(case.output, observation)
-        assert status == 0
-        assert not observation["missing_diagnostics"], observation["missing_diagnostics"]
-        assert_cache_events(case, before, after)
-    except BaseException as error:
-        observation["exception"] = {"type": type(error).__name__, "message": str(error)}
-        raise
-    finally:
-        conclude_observation(case.output, group, child, observation)
+    return run_cache(case.leaf(32), case.output, case.deadline_ns - 2_000_000_000, reclaim=True)
 
-    return {
-        "expected_verdict": "successful-reclaim-is-not-violation",
-        "identity": identity,
-        "native": status,
-        "before": before,
-        "after": after,
-        "sampled_peak_bytes": high,
-    }
+
+def dirty_cache(case: Case) -> dict[str, object]:
+    return run_cache(case.leaf(32), case.output, case.deadline_ns - 2_000_000_000, reclaim=False)
 
 
 def nested_budgets(case: Case) -> dict[str, object]:
@@ -386,6 +248,7 @@ CASES = {
     "ancestor-memory": ancestor_memory,
     "nested-budgets": nested_budgets,
     "caught-task-denial": caught_task_denial,
+    "dirty-cache": dirty_cache,
     "cache-reclaim": cache_reclaim,
 }
 DEATH_CASES = ("interrupt", "timeout", "supervisor-death", "control-oom", "guardian-death")
