@@ -8,7 +8,7 @@ import re
 from pathlib import Path
 
 
-SHARED = r'''import { writeFileSync } from 'node:fs';
+SHARED = r"""import { writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, isAbsolute } from 'node:path';
 const env = process.env;
@@ -55,9 +55,9 @@ export async function work(name) {
   return held;
 }
 export const allocation = () => allocate(mib);
-'''
+"""
 
-VITEST = r'''import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from 'vitest';
+VITEST = r"""import { afterAll, afterEach, beforeAll, beforeEach, expect, test } from 'vitest';
 import { active, sharedAllocation, allocation, cases, event, work, subjectValue } from './shared.mjs';
 let shared;
 let fixture;
@@ -67,9 +67,9 @@ afterAll(() => { shared = undefined; });
 beforeEach((context) => { current = context.task.name; event(current, 'setup'); if (current === 'fixture' && active('setup')) fixture = allocation(); });
 afterEach(() => { event(current, 'teardown'); if (current === 'fixture' && active('teardown')) fixture = allocation(); fixture = undefined; });
 test.each(cases)('%s', async (name) => { event(name, 'call'); fixture = await work(name); expect(subjectValue(name.length > 0)).toBe(1); expect(subjectValue(false)).toBe(0); });
-'''
+"""
 
-PLAYWRIGHT = r'''import { test, expect } from '@playwright/test';
+PLAYWRIGHT = r"""import { test, expect } from '@playwright/test';
 import { createServer } from 'node:net';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
@@ -102,7 +102,7 @@ test.afterAll(async () => { shared = undefined; if (server && server.exitCode ==
 test.beforeEach(async ({}, info) => { event(info.title, 'setup', info.project.name); if (info.title === 'parameter:fixture' && active('setup')) fixture = allocation(); });
 test.afterEach(async ({}, info) => { event(info.title, 'teardown', info.project.name); if (info.title === 'parameter:fixture' && active('teardown')) fixture = allocation(); fixture = undefined; });
 for (const name of cases) test(`parameter:${name}`, async ({page}, info) => { event(name, 'call', info.project.name); fixture = await work(name); await page.goto(url); await expect(page.locator('h1')).toHaveText('Ready'); await expect(page.locator('h1')).toHaveAttribute('data-source', 'executed'); });
-'''
+"""
 
 
 def _required(name: str) -> Path:
@@ -119,13 +119,27 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
         raise ValueError("invalid Node profile")
     root.mkdir(parents=True, exist_ok=True)
     (root / "node_modules").symlink_to(_required("RL00_NODE_MODULES"), target_is_directory=True)
-    (root / "package.json").write_text('{"name":"rl00bc","private":true,"type":"module"}\n', encoding="utf-8")
+    (root / "package.json").write_text(
+        '{"name":"rl00bc","private":true,"type":"module"}\n', encoding="utf-8"
+    )
     (root / "shared.mjs").write_text(SHARED, encoding="utf-8")
     if profile == "browser":
-        (root / "index.html").write_text('<!doctype html><html><head><title>RL00</title></head><body><h1>Loading</h1><script type="module" src="/src.js"></script></body></html>', encoding="utf-8")
-        (root / "src.js").write_text("const heading = document.querySelector('h1');\nheading.textContent = 'Ready';\nheading.dataset.source = 'executed';\n", encoding="utf-8")
-    (root / "resource.test.mjs").write_text(VITEST if profile == "node" else PLAYWRIGHT, encoding="utf-8")
-    selector = "resource.test.mjs::parameter:ordinary" if profile == "browser" else "resource.test.mjs::ordinary"
+        (root / "index.html").write_text(
+            '<!doctype html><html><head><title>RL00</title></head><body><h1>Loading</h1><script type="module" src="/src.js"></script></body></html>',
+            encoding="utf-8",
+        )
+        (root / "src.js").write_text(
+            "const heading = document.querySelector('h1');\nheading.textContent = 'Ready';\nheading.dataset.source = 'executed';\n",
+            encoding="utf-8",
+        )
+    (root / "resource.test.mjs").write_text(
+        VITEST if profile == "node" else PLAYWRIGHT, encoding="utf-8"
+    )
+    selector = (
+        "resource.test.mjs::parameter:ordinary"
+        if profile == "browser"
+        else "resource.test.mjs::ordinary"
+    )
     level = "e2e" if profile == "browser" else "unit"
     capability = "ui" if profile == "browser" else "library"
     boundary = 'boundary = "local Vite preview"\n' if profile == "browser" else ""
@@ -133,10 +147,21 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
         'schema_version = 1\ncomponent = "rl00bc"\n[[scenarios]]\n'
         f'id = "subject-value"\nsummary = "The subject produces its expected value"\n'
         f'capability = "{capability}"\nlevel = "{level}"\nstage = "commit"\n'
-        f'tests = [{json.dumps(selector)}]\n{boundary}', encoding="utf-8")
+        f"tests = [{json.dumps(selector)}]\n{boundary}",
+        encoding="utf-8",
+    )
 
 
-def command(root: Path, repo: Path, output: Path, selected: str | None, *, profile: str, workers: int, coverage: bool) -> list[str]:
+def command(
+    root: Path,
+    repo: Path,
+    output: Path,
+    selected: str | None,
+    *,
+    profile: str,
+    workers: int,
+    coverage: bool,
+) -> list[str]:
     """Return native command. Caller verifies exactly one matching produced identity."""
     if profile not in ("node", "browser") or workers not in (1, 2):
         raise ValueError("invalid profile or worker count")
@@ -144,29 +169,97 @@ def command(root: Path, repo: Path, output: Path, selected: str | None, *, profi
     node = str(_required("RL00_NODE"))
     modules = _required("RL00_NODE_MODULES")
     if profile == "node":
-        config = {"test": {"include": ["resource.test.mjs"], "watch": False, "retry": 0, "allowOnly": False, "maxWorkers": workers, "reporters": ["json", "junit"], "outputFile": {"json": str(output / "vitest.json"), "junit": str(output / "junit.xml")}, "coverage": {"enabled": coverage, "provider": "v8", "reporter": ["lcov"], "reportsDirectory": str(output / "coverage"), "include": ["shared.mjs"]}}}
+        config = {
+            "test": {
+                "include": ["resource.test.mjs"],
+                "watch": False,
+                "retry": 0,
+                "allowOnly": False,
+                "maxWorkers": workers,
+                "reporters": ["json", "junit"],
+                "outputFile": {
+                    "json": str(output / "vitest.json"),
+                    "junit": str(output / "junit.xml"),
+                },
+                "coverage": {
+                    "enabled": coverage,
+                    "provider": "v8",
+                    "reporter": ["lcov"],
+                    "reportsDirectory": str(output / "coverage"),
+                    "include": ["shared.mjs"],
+                },
+            }
+        }
         config_path = root / "vitest.config.mjs"
         config_path.write_text("export default " + json.dumps(config) + ";\n", encoding="utf-8")
-        argv = [node, str(modules / "vitest" / "vitest.mjs"), "run", "--root", str(root), "--config", str(config_path)]
+        argv = [
+            node,
+            str(modules / "vitest" / "vitest.mjs"),
+            "run",
+            "--root",
+            str(root),
+            "--config",
+            str(config_path),
+        ]
         if selected is not None:
             argv.extend(["--testNamePattern", f"^{re.escape(selected)}$"])
         return argv
     if coverage:
         raise ValueError("Playwright scenarios do not produce canonical unit coverage")
     config_path = root / "playwright.config.mjs"
-    reporter_source = (repo / "tools/quality/src/quality/adapters/typescript/playwright.py").read_text(encoding="utf-8")
+    reporter_source = (
+        repo / "tools/quality/src/quality/adapters/typescript/playwright.py"
+    ).read_text(encoding="utf-8")
     reporter_body = reporter_source.split('REPORTER_BODY = """\\', 1)[1].split('"""', 1)[0]
     reporter_path = output / "quality-reporter.mjs"
-    reporter_settings = {"directory": str(root), "output": str(output), "results": str(output / "quality-playwright.json"), "projects": ["desktop", "mobile"]}
-    reporter_path.write_text("const settings = " + json.dumps(reporter_settings) + ";\n" + reporter_body, encoding="utf-8")
-    config = {"testDir": str(root), "testMatch": "resource.test.mjs", "workers": workers, "retries": 0, "forbidOnly": True, "reporter": [["json", {"outputFile": str(output / "playwright.json")}], [str(reporter_path)]], "outputDir": str(output / "artifacts"), "use": {"browserName": "chromium", "launchOptions": {"executablePath": str(_required("RL00_CHROMIUM"))}, "serviceWorkers": "block", "trace": "on"}, "projects": [{"name": "desktop", "use": {"viewport": {"width": 1280, "height": 720}}}, {"name": "mobile", "use": {"viewport": {"width": 390, "height": 844}}}]}
+    reporter_settings = {
+        "directory": str(root),
+        "output": str(output),
+        "results": str(output / "quality-playwright.json"),
+        "projects": ["desktop", "mobile"],
+    }
+    reporter_path.write_text(
+        "const settings = " + json.dumps(reporter_settings) + ";\n" + reporter_body,
+        encoding="utf-8",
+    )
+    config = {
+        "testDir": str(root),
+        "testMatch": "resource.test.mjs",
+        "workers": workers,
+        "retries": 0,
+        "forbidOnly": True,
+        "reporter": [
+            ["json", {"outputFile": str(output / "playwright.json")}],
+            [str(reporter_path)],
+        ],
+        "outputDir": str(output / "artifacts"),
+        "use": {
+            "browserName": "chromium",
+            "launchOptions": {"executablePath": str(_required("RL00_CHROMIUM"))},
+            "serviceWorkers": "block",
+            "trace": "on",
+        },
+        "projects": [
+            {"name": "desktop", "use": {"viewport": {"width": 1280, "height": 720}}},
+            {"name": "mobile", "use": {"viewport": {"width": 390, "height": 844}}},
+        ],
+    }
     config_path.write_text("export default " + json.dumps(config) + ";\n", encoding="utf-8")
-    argv = [node, str(modules / "@playwright" / "test" / "cli.js"), "test", "--config", str(config_path)]
+    argv = [
+        node,
+        str(modules / "@playwright" / "test" / "cli.js"),
+        "test",
+        "--config",
+        str(config_path),
+    ]
     if selected is not None:
         name, separator, project = selected.rpartition("[")
         if not separator or not project.endswith("]") or project[:-1] not in ("desktop", "mobile"):
             raise ValueError("browser identity must be name[viewport]")
-        if not re.fullmatch(r"parameter:(?:ordinary|fixture|child|parameter-heavy|parameter-cheap|cheap-(?:[0-9]|10))", name):
+        if not re.fullmatch(
+            r"parameter:(?:ordinary|fixture|child|parameter-heavy|parameter-cheap|cheap-(?:[0-9]|10))",
+            name,
+        ):
             raise ValueError("unknown browser case identity")
         # Playwright greps project, file and title together; these fixtures have
         # no tags, so the title is a unique suffix. The caller still verifies
@@ -179,21 +272,42 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
     """Retain native status and every browser project; malformed output fails."""
     if profile == "node":
         report = json.loads((output / "vitest.json").read_text(encoding="utf-8"))
-        cases = [{"id": case["fullName"], "outcome": case["status"], "coverage": str(output / "coverage" / "lcov.info"), "native_report": str(output / "vitest.json"), "junit": str(output / "junit.xml")} for suite in report["testResults"] for case in suite["assertionResults"]]
+        cases = [
+            {
+                "id": case["fullName"],
+                "outcome": case["status"],
+                "coverage": str(output / "coverage" / "lcov.info"),
+                "native_report": str(output / "vitest.json"),
+                "junit": str(output / "junit.xml"),
+            }
+            for suite in report["testResults"]
+            for case in suite["assertionResults"]
+        ]
     elif profile == "browser":
         report = json.loads((output / "playwright.json").read_text(encoding="utf-8"))
         cases = []
+
         def visit(suite: dict[str, object]) -> None:
             for spec in suite.get("specs", []):
                 for case in spec["tests"]:
                     project = case["projectName"]
-                    cases.append({"id": f"{spec['title']}[{project}]", "variant": project, "outcome": case["status"], "native_results": case["results"], "native_report": str(output / "playwright.json"), "artifacts": str(output / "artifacts")})
+                    cases.append(
+                        {
+                            "id": f"{spec['title']}[{project}]",
+                            "variant": project,
+                            "outcome": case["status"],
+                            "native_results": case["results"],
+                            "native_report": str(output / "playwright.json"),
+                            "artifacts": str(output / "artifacts"),
+                        }
+                    )
             for child_suite in suite.get("suites", []):
                 visit(child_suite)
+
         for suite in report["suites"]:
             visit(suite)
     else:
         raise ValueError("invalid Node profile")
-    if not cases or len({str(case['id']) for case in cases}) != len(cases):
+    if not cases or len({str(case["id"]) for case in cases}) != len(cases):
         raise ValueError("missing or duplicate native identities")
     return cases

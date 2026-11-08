@@ -49,7 +49,6 @@ jobs:
           mkdir -p reports/preparation
           tools/quality/.venv/bin/python - <<'PY'
           import json
-          import dataclasses
           import subprocess
           import sys
           import tomllib
@@ -59,7 +58,7 @@ jobs:
           source = 'tools/quality/tests/acceptance/rl00bc'
           checks = [
               ('format', [str(tools / 'ruff'), 'format', source]),
-              ('lint', [str(tools / 'ruff'), 'check', source, '--output-format', 'json']),
+              ('lint', [str(tools / 'ruff'), 'check', source, '--fix', '--output-format', 'json']),
               ('types', [str(tools / 'pyright'), '--project', 'tools/quality/pyproject.toml', '--outputjson']),
           ]
           observations = []
@@ -73,6 +72,7 @@ jobs:
           Path('reports/preparation/observations.json').write_text(json.dumps(observations, indent=2) + '\n')
           sys.path.insert(0, str(root / 'tools/quality/src'))
           from quality.adapters.python.structure import PythonStructure
+          from quality.diagnostics.render import diagnostic_to_dict
           from quality.policy import Thresholds
           from quality.rules.structure import check_structure
           policy = tomllib.loads(Path('quality.toml').read_text())
@@ -82,7 +82,7 @@ jobs:
           for path in sorted(Path(source).glob('*.py')):
               data = path.read_bytes()
               metrics = PythonStructure().analyze(path.as_posix(), data)
-              diagnostics.extend(dataclasses.asdict(item) for item in check_structure(metrics, thresholds))
+              diagnostics.extend(diagnostic_to_dict(item) for item in check_structure(metrics, thresholds))
               sizes.append({'path': path.as_posix(), 'physical_lines': len(data.splitlines())})
           Path('reports/preparation/structure.json').write_text(json.dumps(diagnostics, indent=2, default=str) + '\n')
           Path('reports/preparation/sizes.json').write_text(json.dumps(sizes, indent=2) + '\n')

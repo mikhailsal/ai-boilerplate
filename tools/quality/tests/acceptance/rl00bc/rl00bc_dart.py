@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 
-DART_SOURCE = r'''import 'dart:async';
+DART_SOURCE = r"""import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -85,7 +85,7 @@ void main() {
     });
   }
 }
-'''
+"""
 
 
 def _required(name: str) -> Path:
@@ -106,25 +106,52 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
     package_config = json.loads(config.read_text(encoding="utf-8"))
     for package in package_config["packages"]:
         package["rootUri"] = urljoin(config.as_uri(), package["rootUri"])
-    (root / ".dart_tool" / "package_config.json").write_text(json.dumps(package_config), encoding="utf-8")
-    (root / "pubspec.yaml").write_text("name: rl00bc_dart\nenvironment:\n  sdk: '>=3.0.0 <4.0.0'\n", encoding="utf-8")
+    (root / ".dart_tool" / "package_config.json").write_text(
+        json.dumps(package_config), encoding="utf-8"
+    )
+    (root / "pubspec.yaml").write_text(
+        "name: rl00bc_dart\nenvironment:\n  sdk: '>=3.0.0 <4.0.0'\n", encoding="utf-8"
+    )
     (root / "lib").mkdir(exist_ok=True)
-    (root / "lib" / "subject.dart").write_text("int subjectValue(bool enabled) => enabled ? 1 : 0;\n", encoding="utf-8")
+    (root / "lib" / "subject.dart").write_text(
+        "int subjectValue(bool enabled) => enabled ? 1 : 0;\n", encoding="utf-8"
+    )
     (root / "test").mkdir(exist_ok=True)
     (root / "test" / "resource_test.dart").write_text(DART_SOURCE, encoding="utf-8")
     (root / "scenarios.toml").write_text(
         'schema_version = 1\ncomponent = "rl00bc"\n[[scenarios]]\n'
         'id = "subject-value"\nsummary = "The subject produces its expected value"\n'
         'capability = "library"\nlevel = "unit"\nstage = "commit"\n'
-        'tests = ["test/resource_test.dart::ordinary case"]\n', encoding="utf-8")
+        'tests = ["test/resource_test.dart::ordinary case"]\n',
+        encoding="utf-8",
+    )
 
 
-def command(root: Path, repo: Path, output: Path, selected: str | None, *, profile: str, workers: int, coverage: bool) -> list[str]:
+def command(
+    root: Path,
+    repo: Path,
+    output: Path,
+    selected: str | None,
+    *,
+    profile: str,
+    workers: int,
+    coverage: bool,
+) -> list[str]:
     """Return a native command; caller must compare selected ID with the producer output."""
     if profile != "dart" or workers not in (1, 2):
         raise ValueError("invalid profile or workers")
     output.mkdir(parents=True, exist_ok=True)
-    argv = [str(_required("RL00_DART")), "test", "--platform", "vm", "--no-retry", "--concurrency", str(workers), "--reporter=failures-only", f"--file-reporter=json:{output / 'dart.json'}"]
+    argv = [
+        str(_required("RL00_DART")),
+        "test",
+        "--platform",
+        "vm",
+        "--no-retry",
+        "--concurrency",
+        str(workers),
+        "--reporter=failures-only",
+        f"--file-reporter=json:{output / 'dart.json'}",
+    ]
     if coverage:
         argv.extend(["--branch-coverage", f"--coverage={output / 'coverage'}"])
     if selected is not None:
@@ -141,10 +168,18 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
         event = json.loads(line)
         if event.get("type") == "testStart":
             case = event["test"]
-            tests[case["id"]] = {"id": case["name"], "native_id": case["id"], "outcome": None, "native_report": str(output / "dart.json"), "raw_coverage": str(output / "coverage")}
+            tests[case["id"]] = {
+                "id": case["name"],
+                "native_id": case["id"],
+                "outcome": None,
+                "native_report": str(output / "dart.json"),
+                "raw_coverage": str(output / "coverage"),
+            }
         elif event.get("type") == "testDone" and event["testID"] in tests:
             tests[event["testID"]]["outcome"] = event["result"]
             tests[event["testID"]]["hidden"] = event.get("hidden") is True
     if not tests or any(case["outcome"] is None for case in tests.values()):
         raise ValueError("missing or incomplete native Dart results")
-    return [case for case in tests.values() if not (case.get("hidden") and case["outcome"] == "success")]
+    return [
+        case for case in tests.values() if not (case.get("hidden") and case["outcome"] == "success")
+    ]

@@ -16,7 +16,7 @@ from tests.acceptance.rl00bc import rl00bc_kernel, rl00bc_trials
 
 # Executed by the pinned quality Python, not the controller's interpreter.
 # Keep the parser's output separate from its bounded kernel stdout.
-_PARSER = r'''
+_PARSER = r"""
 import json, sys, zipfile
 from pathlib import Path
 from quality.coverage.python import parse_coverage_json
@@ -101,7 +101,7 @@ if manifest.is_file() and parsed is not None:
 else:
     result["errors"].append("scenario: missing provider manifest or parsed suite results")
 destination.write_text(json.dumps(result, sort_keys=True) + "\n", encoding="utf-8")
-'''
+"""
 
 
 def _identities(cases: object) -> dict[str, str]:
@@ -120,8 +120,16 @@ def _identities(cases: object) -> dict[str, str]:
     return result
 
 
-def reconcile(work: Group, repo: Path, scratch: Path, output: Path, profile: str,
-              environment: dict[str, str], *, ancestor_deadline_ns: int) -> dict[str, object]:
+def reconcile(
+    work: Group,
+    repo: Path,
+    scratch: Path,
+    output: Path,
+    profile: str,
+    environment: dict[str, str],
+    *,
+    ancestor_deadline_ns: int,
+) -> dict[str, object]:
     """Run one canonical trial and compare its reports through quality's parsers.
 
     Providers may supply ``scenarios.toml`` in their generated root. Its component
@@ -132,10 +140,20 @@ def reconcile(work: Group, repo: Path, scratch: Path, output: Path, profile: str
     if profile not in rl00bc_trials.PROVIDERS:
         raise ValueError("unknown profile")
     output.mkdir(parents=True, exist_ok=False)
-    native_env = {key: value for key, value in environment.items() if key in rl00bc_trials.PATH_KEYS}
-    trial = rl00bc_trials.one(work, repo, scratch, output / "canonical", profile, native_env,
-                              size="small", coverage=profile != "browser",
-                              ancestor_deadline_ns=ancestor_deadline_ns)
+    native_env = {
+        key: value for key, value in environment.items() if key in rl00bc_trials.PATH_KEYS
+    }
+    trial = rl00bc_trials.one(
+        work,
+        repo,
+        scratch,
+        output / "canonical",
+        profile,
+        native_env,
+        size="small",
+        coverage=profile != "browser",
+        ancestor_deadline_ns=ancestor_deadline_ns,
+    )
     gaps: list[str] = []
     errors: list[str] = []
     try:
@@ -150,9 +168,14 @@ def reconcile(work: Group, repo: Path, scratch: Path, output: Path, profile: str
     native = output.absolute() / "canonical" / "native"
     parser_result = output.absolute() / "parsed.json"
     home = root / "home"
-    env = {"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": str(home),
-           "TMPDIR": str(root / "tmp"), "PYTHONDONTWRITEBYTECODE": "1",
-           "PYTHONPATH": str(repo.absolute() / "tools/quality/src"), "CI": "1"}
+    env = {
+        "PATH": "/usr/local/bin:/usr/bin:/bin",
+        "HOME": str(home),
+        "TMPDIR": str(root / "tmp"),
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONPATH": str(repo.absolute() / "tools/quality/src"),
+        "CI": "1",
+    }
     parser = Path(native_env.get("RL00_PYTHON", ""))
     if not parser.is_absolute() or not parser.is_file():
         raise ValueError("RL00_PYTHON must be the pinned quality Python interpreter")
@@ -161,19 +184,45 @@ def reconcile(work: Group, repo: Path, scratch: Path, output: Path, profile: str
         dart = Path(native_env.get("RL00_DART", ""))
         if not dart.is_absolute() or not dart.is_file():
             raise ValueError("RL00_DART must name the pinned Dart executable")
-        formatter = rl00bc_kernel.execute(work, [str(dart), "run", "coverage:format_coverage",
-            "--lcov", f"--in={native / 'coverage'}", f"--out={native / 'dart.lcov'}",
-            f"--package={root}", f"--report-on={root / 'lib'}"], root, env,
-            output / "formatter", memory_mib=3072, tasks=256, native_seconds=60,
-            ancestor_deadline_ns=ancestor_deadline_ns)
+        formatter = rl00bc_kernel.execute(
+            work,
+            [
+                str(dart),
+                "run",
+                "coverage:format_coverage",
+                "--lcov",
+                f"--in={native / 'coverage'}",
+                f"--out={native / 'dart.lcov'}",
+                f"--package={root}",
+                f"--report-on={root / 'lib'}",
+            ],
+            root,
+            env,
+            output / "formatter",
+            memory_mib=3072,
+            tasks=256,
+            native_seconds=60,
+            ancestor_deadline_ns=ancestor_deadline_ns,
+        )
         if not formatter.get("success") or not formatter.get("cleanup_complete"):
             errors.append("Dart coverage formatter failed")
-    parsed_kernel = rl00bc_kernel.execute(work, [str(parser), "-c", _PARSER, profile,
-        str(root), str(native), str(parser_result)], root, env, output / "parser",
-        memory_mib=3072, tasks=256, native_seconds=60,
-        ancestor_deadline_ns=ancestor_deadline_ns)
+    parsed_kernel = rl00bc_kernel.execute(
+        work,
+        [str(parser), "-c", _PARSER, profile, str(root), str(native), str(parser_result)],
+        root,
+        env,
+        output / "parser",
+        memory_mib=3072,
+        tasks=256,
+        native_seconds=60,
+        ancestor_deadline_ns=ancestor_deadline_ns,
+    )
     parsed: dict[str, object] = {}
-    if parsed_kernel.get("success") and parsed_kernel.get("cleanup_complete") and parser_result.is_file():
+    if (
+        parsed_kernel.get("success")
+        and parsed_kernel.get("cleanup_complete")
+        and parser_result.is_file()
+    ):
         parsed = json.loads(parser_result.read_text(encoding="utf-8"))
         errors.extend(cast(list[str], parsed.get("errors", [])))
     else:
@@ -185,7 +234,10 @@ def reconcile(work: Group, repo: Path, scratch: Path, output: Path, profile: str
                 errors.append("native and adapter identities or outcomes differ")
         elif profile == "browser":
             browser = parsed.get("browser_projects")
-            if not isinstance(browser, dict) or set(browser.get("projects", [])) != {"desktop", "mobile"}:
+            if not isinstance(browser, dict) or set(browser.get("projects", [])) != {
+                "desktop",
+                "mobile",
+            }:
                 errors.append("browser project declarations differ")
             else:
                 adapted: dict[str, str] = {}
@@ -195,7 +247,10 @@ def reconcile(work: Group, repo: Path, scratch: Path, output: Path, profile: str
                     if key in adapted or not item.get("traces"):
                         errors.append(f"duplicate browser identity or missing trace: {key}")
                     adapted[key] = str(item["outcome"])
-                normalized = {key: "passed" if value == "expected" else value for key, value in native_ids.items()}
+                normalized = {
+                    key: "passed" if value == "expected" else value
+                    for key, value in native_ids.items()
+                }
                 if normalized != adapted:
                     errors.append("browser native project identities or outcomes differ")
         else:
@@ -203,7 +258,9 @@ def reconcile(work: Group, repo: Path, scratch: Path, output: Path, profile: str
             # test root. Compare exact suffixes and preserve one-to-one mapping.
             unmatched = set(parsed_ids)
             for name, outcome in native_ids.items():
-                matches = [value for value in unmatched if value == name or value.endswith("::" + name)]
+                matches = [
+                    value for value in unmatched if value == name or value.endswith("::" + name)
+                ]
                 normalized_outcome = "passed" if outcome == "success" else outcome
                 if len(matches) != 1 or parsed_ids[matches[0]] != normalized_outcome:
                     errors.append(f"native identity/outcome has no unique adapter match: {name}")
@@ -216,7 +273,12 @@ def reconcile(work: Group, repo: Path, scratch: Path, output: Path, profile: str
     if profile != "browser":
         coverage = parsed.get("coverage")
         files = coverage.get("files") if isinstance(coverage, dict) else None
-        expected = {"python": "src/subject.py", "php": "subject.php", "node": "shared.mjs", "dart": "lib/subject.dart"}[profile]
+        expected = {
+            "python": "src/subject.py",
+            "php": "subject.php",
+            "node": "shared.mjs",
+            "dart": "lib/subject.dart",
+        }[profile]
         if not isinstance(files, dict) or expected not in files:
             errors.append(f"native source coverage is missing {expected}")
         elif not files[expected].get("covered"):
@@ -224,10 +286,26 @@ def reconcile(work: Group, repo: Path, scratch: Path, output: Path, profile: str
         # Fixture source assertions are required independently of raw coverage.
         # They are encoded by each provider, not inferred from coverage counts.
     scenario = parsed.get("scenario")
-    if not isinstance(scenario, dict) or not scenario.get("required") or scenario.get("passed") != scenario.get("required") or scenario.get("findings"):
-        gaps.append("provider must supply and pass a real scenario manifest mapped to native case IDs")
-    result: dict[str, object] = {"profile": profile, "trial": trial, "formatter": formatter,
-        "parser_kernel": parsed_kernel, "parsed": parsed, "errors": errors, "gaps": gaps,
-        "verdict": "pass" if not errors and not gaps else "unproved"}
-    (output / "compatibility.json").write_text(json.dumps(result, sort_keys=True) + "\n", encoding="utf-8")
+    if (
+        not isinstance(scenario, dict)
+        or not scenario.get("required")
+        or scenario.get("passed") != scenario.get("required")
+        or scenario.get("findings")
+    ):
+        gaps.append(
+            "provider must supply and pass a real scenario manifest mapped to native case IDs"
+        )
+    result: dict[str, object] = {
+        "profile": profile,
+        "trial": trial,
+        "formatter": formatter,
+        "parser_kernel": parsed_kernel,
+        "parsed": parsed,
+        "errors": errors,
+        "gaps": gaps,
+        "verdict": "pass" if not errors and not gaps else "unproved",
+    }
+    (output / "compatibility.json").write_text(
+        json.dumps(result, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return result

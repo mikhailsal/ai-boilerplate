@@ -29,14 +29,26 @@ def _json(path: Path) -> Any:
 
 def _tool(cache: Path, manifest: dict[str, Any], name: str) -> Path:
     entry = manifest["tools"][name]
-    return _file(cache / "toolchains" / f"{name}-{entry['version']}" /
-                 entry.get("executable", entry["binary"]), executable=True)
+    return _file(
+        cache
+        / "toolchains"
+        / f"{name}-{entry['version']}"
+        / entry.get("executable", entry["binary"]),
+        executable=True,
+    )
 
 
 def _node_modules(repo: Path, prepared: Path) -> Path:
     lock = _json(repo / "tools/quality/src/quality/testkit/browserseed/package-lock.json")
     modules = prepared / "node/node_modules"
-    for name in ("vitest", "@vitest/coverage-v8", "@playwright/test", "playwright", "playwright-core", "vite"):
+    for name in (
+        "vitest",
+        "@vitest/coverage-v8",
+        "@playwright/test",
+        "playwright",
+        "playwright-core",
+        "vite",
+    ):
         expected = lock["packages"][f"node_modules/{name}"]["version"]
         actual = _json(modules / name / "package.json").get("version")
         if actual != expected:
@@ -70,8 +82,7 @@ def _php_files(repo: Path, prepared: Path) -> tuple[Path, Path]:
     actual = [p["version"] for p in entries if p["name"] == "phpunit/phpunit"]
     if len(expected) != 1 or actual != expected:
         raise ValueError("installed PHPUnit does not match the helper lock")
-    return (_file(prepared / "php/vendor/bin/phpunit"),
-            _file(prepared / "php/vendor/autoload.php"))
+    return (_file(prepared / "php/vendor/bin/phpunit"), _file(prepared / "php/vendor/autoload.php"))
 
 
 def _context(repo: Path) -> tuple[Path, dict[str, Any], Path, Path]:
@@ -80,8 +91,14 @@ def _context(repo: Path) -> tuple[Path, dict[str, Any], Path, Path]:
     cache_home = os.environ.get("XDG_CACHE_HOME") or str(Path.home() / ".cache")
     cache = Path(cache_home).absolute() / "quality"
     # This is the same fixed search order used by the PHP profile, not PATH.
-    php = next((p for p in (Path("/usr/local/bin/php"), Path("/usr/bin/php"), Path("/bin/php"))
-                if p.is_file()), None)
+    php = next(
+        (
+            p
+            for p in (Path("/usr/local/bin/php"), Path("/usr/bin/php"), Path("/bin/php"))
+            if p.is_file()
+        ),
+        None,
+    )
     if php is None:
         raise ValueError("system PHP missing from quality's fixed system directories")
     return core, manifest, cache, _file(php, executable=True)
@@ -121,18 +138,53 @@ def materialization(repo: Path, root: Path) -> list[tuple[Path, list[str], dict[
     npmrc.write_text("", encoding="utf-8")
     globalrc.write_text("", encoding="utf-8")
     return [
-        (node_dir, [str(node), str(npm), "ci", "--offline", "--ignore-scripts",
-                    "--include=dev", "--no-audit", "--no-fund", "--no-update-notifier",
-                    "--no-progress", "--loglevel=error", f"--cache={cache / 'npm'}",
-                    f"--userconfig={npmrc}", f"--globalconfig={globalrc}"],
-         {**env, "NODE_DISABLE_COMPILE_CACHE": "1"}),
-        (dart_dir, [str(dart), "--suppress-analytics", "pub", "get", "--offline", "--enforce-lockfile"],
-         {**env, "PUB_CACHE": str(cache / "pub"), "DART_SUPPRESS_ANALYTICS": "true"}),
-        (php_dir, [str(php), "-d", "display_errors=stderr", str(composer), "install",
-                   "--no-progress", "--no-scripts", "--no-plugins"],
-         {**env, "COMPOSER_HOME": str(home / "composer"), "COMPOSER_CACHE_DIR": str(cache / "composer"),
-          "COMPOSER_NO_INTERACTION": "1", "COMPOSER_NO_AUDIT": "1",
-          "COMPOSER_DISABLE_NETWORK": "1", "XDEBUG_MODE": "off"}),
+        (
+            node_dir,
+            [
+                str(node),
+                str(npm),
+                "ci",
+                "--offline",
+                "--ignore-scripts",
+                "--include=dev",
+                "--no-audit",
+                "--no-fund",
+                "--no-update-notifier",
+                "--no-progress",
+                "--loglevel=error",
+                f"--cache={cache / 'npm'}",
+                f"--userconfig={npmrc}",
+                f"--globalconfig={globalrc}",
+            ],
+            {**env, "NODE_DISABLE_COMPILE_CACHE": "1"},
+        ),
+        (
+            dart_dir,
+            [str(dart), "--suppress-analytics", "pub", "get", "--offline", "--enforce-lockfile"],
+            {**env, "PUB_CACHE": str(cache / "pub"), "DART_SUPPRESS_ANALYTICS": "true"},
+        ),
+        (
+            php_dir,
+            [
+                str(php),
+                "-d",
+                "display_errors=stderr",
+                str(composer),
+                "install",
+                "--no-progress",
+                "--no-scripts",
+                "--no-plugins",
+            ],
+            {
+                **env,
+                "COMPOSER_HOME": str(home / "composer"),
+                "COMPOSER_CACHE_DIR": str(cache / "composer"),
+                "COMPOSER_NO_INTERACTION": "1",
+                "COMPOSER_NO_AUDIT": "1",
+                "COMPOSER_DISABLE_NETWORK": "1",
+                "XDEBUG_MODE": "off",
+            },
+        ),
     ]
 
 

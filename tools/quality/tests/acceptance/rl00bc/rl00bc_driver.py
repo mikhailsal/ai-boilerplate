@@ -17,7 +17,12 @@ from pathlib import Path
 from typing import cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group, load, save
-from tests.acceptance.rl00bc import rl00bc_adoption, rl00bc_candidates, rl00bc_compat, rl00bc_correctness
+from tests.acceptance.rl00bc import (
+    rl00bc_adoption,
+    rl00bc_candidates,
+    rl00bc_compat,
+    rl00bc_correctness,
+)
 from tests.acceptance.rl00bc import rl00bc_kernel, rl00bc_measure, rl00bc_tools
 
 HERE = Path(__file__).resolve().parent
@@ -28,32 +33,47 @@ MIB = 1024 * 1024
 
 
 def git(*args: str) -> str:
-    return subprocess.run(["git", *args], cwd=REPO, check=True, capture_output=True,
-                          text=True, timeout=5).stdout.strip()
+    return subprocess.run(
+        ["git", *args], cwd=REPO, check=True, capture_output=True, text=True, timeout=5
+    ).stdout.strip()
 
 
 def identity(output: Path) -> dict[str, object]:
     if git("status", "--porcelain", "--untracked-files=no"):
         raise ValueError("experiment source must be a clean committed candidate")
-    paths = [*HERE.glob("*.py"), HERE.parent / "rl00a/rl00a_cgroup.py",
-             REPO / "docs/plan/test-resource-limits/rl00bc-protocol.md",
-             REPO / ".github/workflows/resource-methods.yml",
-             REPO / ".github/workflows/resource-methods-job.yml",
-             REPO / "quality.toml", REPO / "tools/quality/toolchains.toml"]
-    paths.extend(REPO / relative for relative in (
-        "tools/quality/uv.lock", "tools/quality/helpers/dart/pubspec.yaml",
-        "tools/quality/helpers/dart/pubspec.lock", "tools/quality/helpers/php/composer.json",
-        "tools/quality/helpers/php/composer.lock",
-        "tools/quality/src/quality/testkit/browserseed/package-lock.json",
-    ))
+    paths = [
+        *HERE.glob("*.py"),
+        HERE.parent / "rl00a/rl00a_cgroup.py",
+        REPO / "docs/plan/test-resource-limits/rl00bc-protocol.md",
+        REPO / ".github/workflows/resource-methods.yml",
+        REPO / ".github/workflows/resource-methods-job.yml",
+        REPO / "quality.toml",
+        REPO / "tools/quality/toolchains.toml",
+    ]
+    paths.extend(
+        REPO / relative
+        for relative in (
+            "tools/quality/uv.lock",
+            "tools/quality/helpers/dart/pubspec.yaml",
+            "tools/quality/helpers/dart/pubspec.lock",
+            "tools/quality/helpers/php/composer.json",
+            "tools/quality/helpers/php/composer.lock",
+            "tools/quality/src/quality/testkit/browserseed/package-lock.json",
+        )
+    )
     hashes: dict[str, str] = {}
     for path in sorted(paths):
         if path.stat().st_size > 2 * MIB:
             raise ValueError("source input exceeds the declared capture bound")
         relative = str(path.relative_to(REPO))
         content = path.read_bytes()
-        committed = subprocess.run(["git", "show", f"HEAD:{relative}"], cwd=REPO,
-                                   check=True, capture_output=True, timeout=5).stdout
+        committed = subprocess.run(
+            ["git", "show", f"HEAD:{relative}"],
+            cwd=REPO,
+            check=True,
+            capture_output=True,
+            timeout=5,
+        ).stdout
         if content != committed:
             raise ValueError(f"source does not match candidate: {relative}")
         hashes[relative] = hashlib.sha256(content).hexdigest()
@@ -61,47 +81,77 @@ def identity(output: Path) -> dict[str, object]:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
     result: dict[str, object] = {
-        "commit": git("rev-parse", "HEAD"), "tree": git("rev-parse", "HEAD^{tree}"),
-        "base": git("rev-parse", "HEAD^"), "source_sha256": hashes,
+        "commit": git("rev-parse", "HEAD"),
+        "tree": git("rev-parse", "HEAD^{tree}"),
+        "base": git("rev-parse", "HEAD^"),
+        "source_sha256": hashes,
         "source_digest": hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest(),
-        "kernel": platform.release(), "machine": platform.machine(), "libc": platform.libc_ver(),
+        "kernel": platform.release(),
+        "machine": platform.machine(),
+        "libc": platform.libc_ver(),
         "controller_python": sys.version,
-        "run_id": os.environ.get("GITHUB_RUN_ID"), "attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+        "run_id": os.environ.get("GITHUB_RUN_ID"),
+        "attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
     }
     save(output / "identity.json", result)
     return result
 
 
 def unit(name: str, argv: list[str], *, sentinel: bool = False) -> list[str]:
-    properties = {"User": str(os.getuid()), "Group": str(os.getgid()),
-                  "MemoryMax": "32M" if sentinel else "4096M", "MemorySwapMax": "0",
-                  "TasksMax": "8" if sentinel else "512",
-                  "RuntimeMaxSec": "3000s" if sentinel else "2660s",
-                  "TimeoutStopSec": "1s", "KillMode": "control-group", "SendSIGKILL": "yes",
-                  "OOMPolicy": "continue", "LimitCORE": "0"}
+    properties = {
+        "User": str(os.getuid()),
+        "Group": str(os.getgid()),
+        "MemoryMax": "32M" if sentinel else "4096M",
+        "MemorySwapMax": "0",
+        "TasksMax": "8" if sentinel else "512",
+        "RuntimeMaxSec": "3000s" if sentinel else "2660s",
+        "TimeoutStopSec": "1s",
+        "KillMode": "control-group",
+        "SendSIGKILL": "yes",
+        "OOMPolicy": "continue",
+        "LimitCORE": "0",
+    }
     if not sentinel:
         properties["Delegate"] = "yes"
-    return ["sudo", "-n", "systemd-run", "--quiet", "--wait", "--pipe", "--collect",
-            f"--unit={name}", f"--working-directory={REPO}",
-            f"--setenv=PYTHONPATH={REPO / 'tools/quality'}",
-            *[f"--property={key}={value}" for key, value in properties.items()], *argv]
+    return [
+        "sudo",
+        "-n",
+        "systemd-run",
+        "--quiet",
+        "--wait",
+        "--pipe",
+        "--collect",
+        f"--unit={name}",
+        f"--working-directory={REPO}",
+        f"--setenv=PYTHONPATH={REPO / 'tools/quality'}",
+        *[f"--property={key}={value}" for key, value in properties.items()],
+        *argv,
+    ]
 
 
 def stop(name: str) -> None:
-    subprocess.run(["sudo", "-n", "systemctl", "stop", name], capture_output=True,
-                   check=False, timeout=5)
+    subprocess.run(
+        ["sudo", "-n", "systemctl", "stop", name], capture_output=True, check=False, timeout=5
+    )
 
 
 def sentinel(name: str) -> tuple[subprocess.Popen[bytes], int]:
-    proxy = subprocess.Popen(unit(name, ["/bin/sleep", "2990"], sentinel=True),
-                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
+    proxy = subprocess.Popen(
+        unit(name, ["/bin/sleep", "2990"], sentinel=True),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
     try:
         until = time.monotonic() + 3
         while proxy.poll() is None and time.monotonic() < until:
-            value = subprocess.run(["sudo", "-n", "systemctl", "show", name,
-                                    "--property=MainPID", "--value"], check=False,
-                                   capture_output=True, text=True, timeout=1).stdout.strip()
+            value = subprocess.run(
+                ["sudo", "-n", "systemctl", "show", name, "--property=MainPID", "--value"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=1,
+            ).stdout.strip()
             if value.isdecimal() and int(value):
                 return proxy, os.pidfd_open(int(value))
             time.sleep(0.02)
@@ -123,19 +173,50 @@ def outer(args: argparse.Namespace) -> int:
     name = f"quality-rl00bc-{uuid.uuid4().hex}"
     peer = f"quality-rl00bc-sentinel-{uuid.uuid4().hex}"
     proxy, watched = sentinel(peer)
-    result: dict[str, object] = {"unit": name, "original_deadline_ns": deadline,
-                                "collector_complete": False, "integration_verdict": "unproved"}
+    result: dict[str, object] = {
+        "unit": name,
+        "original_deadline_ns": deadline,
+        "collector_complete": False,
+        "integration_verdict": "unproved",
+    }
     try:
-        coordinator = [sys.executable, "-m", f"{MODULE}.rl00bc_driver", "--inside",
-                       "--phase", args.phase, "--profile", args.profile, "--output", str(output),
-                       "--scratch", str(args.scratch.absolute()), "--criterion", args.criterion,
-                       "--samples", str(args.samples)]
-        command = [sys.executable, "-m", f"{MODULE}.rl00bc_service", "--mode", args.mode,
-                   "--output", str(output), "--deadline-ns", str(deadline),
-                   "--unit-name", f"{name}.service", "--", *coordinator]
+        coordinator = [
+            sys.executable,
+            "-m",
+            f"{MODULE}.rl00bc_driver",
+            "--inside",
+            "--phase",
+            args.phase,
+            "--profile",
+            args.profile,
+            "--output",
+            str(output),
+            "--scratch",
+            str(args.scratch.absolute()),
+            "--criterion",
+            args.criterion,
+            "--samples",
+            str(args.samples),
+        ]
+        command = [
+            sys.executable,
+            "-m",
+            f"{MODULE}.rl00bc_service",
+            "--mode",
+            args.mode,
+            "--output",
+            str(output),
+            "--deadline-ns",
+            str(deadline),
+            "--unit-name",
+            f"{name}.service",
+            "--",
+            *coordinator,
+        ]
         with (output / "service.log").open("wb") as log:
-            child = subprocess.Popen(unit(name, command), stdin=subprocess.DEVNULL,
-                                     stdout=log, stderr=subprocess.STDOUT)
+            child = subprocess.Popen(
+                unit(name, command), stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT
+            )
             try:
                 status = child.wait(timeout=max(0.001, (deadline - time.monotonic_ns()) / 1e9))
             finally:
@@ -207,8 +288,12 @@ def work_group(args: argparse.Namespace) -> Group:
         ack = load(args.output / "work-ack.json")
         if ack.get("inode") != group.inode or ack.get("lifecycle_inode") != lock.st_ino:
             raise ValueError("guardian did not acknowledge the work identity")
-    if (group.read("memory.max") != str(3840 * MIB) or group.read("pids.max") != "480"
-            or group.read("memory.swap.max") != "0" or group.read("cgroup.procs")):
+    if (
+        group.read("memory.max") != str(3840 * MIB)
+        or group.read("pids.max") != "480"
+        or group.read("memory.swap.max") != "0"
+        or group.read("cgroup.procs")
+    ):
         raise ValueError("work handoff constraints mismatch")
     os.close(current.fd)
     return group
@@ -216,18 +301,36 @@ def work_group(args: argparse.Namespace) -> Group:
 
 def prepare(work: Group, args: argparse.Namespace) -> dict[str, str]:
     env = {"HOME": str(Path.home()), "PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"}
-    bootstrap = rl00bc_kernel.execute(work, [str(REPO / "quality"), "bootstrap"], REPO, env,
-                                      args.output / "prepare-0", memory_mib=3072, tasks=256,
-                                      native_seconds=600, ancestor_deadline_ns=args.deadline_ns)
+    bootstrap = rl00bc_kernel.execute(
+        work,
+        [str(REPO / "quality"), "bootstrap"],
+        REPO,
+        env,
+        args.output / "prepare-0",
+        memory_mib=3072,
+        tasks=256,
+        native_seconds=600,
+        ancestor_deadline_ns=args.deadline_ns,
+    )
     if bootstrap.get("success") is not True or bootstrap.get("native_status") != 0:
         raise RuntimeError("bounded bootstrap failed; see retained native evidence")
     requests = rl00bc_tools.materialization(REPO, args.scratch / "prepared")
     for index, (cwd, argv, environment) in enumerate(requests, start=1):
-        raw = rl00bc_kernel.execute(work, argv, cwd, environment, args.output / f"prepare-{index}",
-                                    memory_mib=3072, tasks=256, native_seconds=600,
-                                    ancestor_deadline_ns=args.deadline_ns)
+        raw = rl00bc_kernel.execute(
+            work,
+            argv,
+            cwd,
+            environment,
+            args.output / f"prepare-{index}",
+            memory_mib=3072,
+            tasks=256,
+            native_seconds=600,
+            ancestor_deadline_ns=args.deadline_ns,
+        )
         if raw.get("success") is not True or raw.get("native_status") != 0:
-            raise RuntimeError("bounded prerequisite preparation failed; see retained native evidence")
+            raise RuntimeError(
+                "bounded prerequisite preparation failed; see retained native evidence"
+            )
     resolved = rl00bc_tools.resolve(REPO, args.scratch / "prepared")
     save(args.output / "runtime-paths.json", resolved)
     return resolved
@@ -240,39 +343,77 @@ def inside(args: argparse.Namespace) -> int:
         source = load(args.output / "identity.json")
         policy = hashlib.sha256((REPO / "quality.toml").read_bytes()).hexdigest()
         runtime = hashlib.sha256(json.dumps(environment, sort_keys=True).encode()).hexdigest()
-        context = {"RL00_CONTEXT_CANDIDATE": str(source["commit"]),
-                   "RL00_CONTEXT_BASE": str(source["base"]),
-                   "RL00_CONTEXT_TESTED_TREE": str(source["tree"]),
-                   "RL00_CONTEXT_POLICY": policy, "RL00_CONTEXT_RUNTIME": runtime,
-                   "RL00_CONTEXT_SOURCE": str(source["source_digest"])}
+        context = {
+            "RL00_CONTEXT_CANDIDATE": str(source["commit"]),
+            "RL00_CONTEXT_BASE": str(source["base"]),
+            "RL00_CONTEXT_TESTED_TREE": str(source["tree"]),
+            "RL00_CONTEXT_POLICY": policy,
+            "RL00_CONTEXT_RUNTIME": runtime,
+            "RL00_CONTEXT_SOURCE": str(source["source_digest"]),
+        }
         if args.phase == "prepare":
             result: dict[str, object] = {"prepared": True}
         elif args.phase == "correctness":
-            result = rl00bc_correctness.check(group, REPO, args.scratch / "corpus",
-                                             args.output / "correctness", args.profile,
-                                             {**environment, **context}, ancestor_deadline_ns=args.deadline_ns)
+            result = rl00bc_correctness.check(
+                group,
+                REPO,
+                args.scratch / "corpus",
+                args.output / "correctness",
+                args.profile,
+                {**environment, **context},
+                ancestor_deadline_ns=args.deadline_ns,
+            )
         elif args.phase == "compatibility":
-            result = rl00bc_compat.reconcile(group, REPO, args.scratch / "corpus",
-                                            args.output / "compatibility", args.profile,
-                                            environment, ancestor_deadline_ns=args.deadline_ns)
+            result = rl00bc_compat.reconcile(
+                group,
+                REPO,
+                args.scratch / "corpus",
+                args.output / "compatibility",
+                args.profile,
+                environment,
+                ancestor_deadline_ns=args.deadline_ns,
+            )
         elif args.phase == "candidates":
-            result = rl00bc_candidates.prove(group, REPO, args.scratch / "candidates",
-                                             args.output / "candidates", environment,
-                                             ancestor_deadline_ns=args.deadline_ns)
+            result = rl00bc_candidates.prove(
+                group,
+                REPO,
+                args.scratch / "candidates",
+                args.output / "candidates",
+                environment,
+                ancestor_deadline_ns=args.deadline_ns,
+            )
         elif args.phase == "adoption":
-            result = rl00bc_adoption.adopt(group, REPO, args.scratch / "adoption",
-                                           args.output / "adoption", environment,
-                                           ancestor_deadline_ns=args.deadline_ns)
+            result = rl00bc_adoption.adopt(
+                group,
+                REPO,
+                args.scratch / "adoption",
+                args.output / "adoption",
+                environment,
+                ancestor_deadline_ns=args.deadline_ns,
+            )
         else:
-            result = rl00bc_measure.measure(group, REPO, args.scratch / "corpus",
-                                            args.output / "measurement", args.profile, environment,
-                                            ancestor_deadline_ns=args.deadline_ns,
-                                            samples=args.samples, criterion=args.criterion)
+            result = rl00bc_measure.measure(
+                group,
+                REPO,
+                args.scratch / "corpus",
+                args.output / "measurement",
+                args.profile,
+                environment,
+                ancestor_deadline_ns=args.deadline_ns,
+                samples=args.samples,
+                criterion=args.criterion,
+            )
         accepted = comparison_passed(args.phase, result)
-        save(args.output / "phase.json", {"phase": args.phase, "result": result,
-                                           "collection_complete": True,
-                                           "comparison_passed": accepted,
-                                           "stage_acceptance": "separate-audit-required"})
+        save(
+            args.output / "phase.json",
+            {
+                "phase": args.phase,
+                "result": result,
+                "collection_complete": True,
+                "comparison_passed": accepted,
+                "stage_acceptance": "separate-audit-required",
+            },
+        )
         return 0 if accepted else 2
     finally:
         os.close(group.fd)
@@ -300,8 +441,14 @@ def adoption_commands_passed(result: dict[str, object]) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--phase", required=True, choices=("prepare", "correctness", "compatibility", "candidates", "adoption", "measure"))
-    parser.add_argument("--profile", choices=("dart", "node", "browser", "php", "python"), default="python")
+    parser.add_argument(
+        "--phase",
+        required=True,
+        choices=("prepare", "correctness", "compatibility", "candidates", "adoption", "measure"),
+    )
+    parser.add_argument(
+        "--profile", choices=("dart", "node", "browser", "php", "python"), default="python"
+    )
     parser.add_argument("--mode", choices=("host", "prepared"), default="host")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--scratch", type=Path, required=True)

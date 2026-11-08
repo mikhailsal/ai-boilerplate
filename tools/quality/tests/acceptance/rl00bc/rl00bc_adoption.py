@@ -30,7 +30,9 @@ def _component(project: Path) -> None:
         name = pending.pop()
         if name not in found:
             found.add(name)
-            pending.extend(str(dep["name"]) for dep in tomllib.loads(blocks[name]).get("dependencies", []))
+            pending.extend(
+                str(dep["name"]) for dep in tomllib.loads(blocks[name]).get("dependencies", [])
+            )
     root = project / "libs/pricing"
     (root / "src/pricing").mkdir(parents=True)
     (root / "tests").mkdir()
@@ -39,29 +41,48 @@ def _component(project: Path) -> None:
     pins = ", ".join(f'"{name}=={versions[name]}"' for name in names)
     (root / "pyproject.toml").write_text(
         f'[project]\nname = "pricing"\nversion = "0.1.0"\nrequires-python = "=={series}.*"\n'
-        f'dependencies = []\n\n[dependency-groups]\ndev = [{pins}]\n'
-        '\n[tool.uv]\npackage = false\n\n[tool.ruff]\nline-length = 100\n'
+        f"dependencies = []\n\n[dependency-groups]\ndev = [{pins}]\n"
+        "\n[tool.uv]\npackage = false\n\n[tool.ruff]\nline-length = 100\n"
         '\n[tool.ruff.lint]\nselect = ["E", "F", "I"]\n'
         '\n[tool.pyright]\ntypeCheckingMode = "strict"\n'
-        '\n[tool.pytest.ini_options]\npythonpath = ["src"]\n', encoding="utf-8")
-    requirements = "".join(f'    {{ name = "{name}", specifier = "=={versions[name]}" }},\n' for name in names)
+        '\n[tool.pytest.ini_options]\npythonpath = ["src"]\n',
+        encoding="utf-8",
+    )
+    requirements = "".join(
+        f'    {{ name = "{name}", specifier = "=={versions[name]}" }},\n' for name in names
+    )
     dependencies = "".join(f'    {{ name = "{name}" }},\n' for name in names)
-    blocks["pricing"] = (f'name = "pricing"\nversion = "0.1.0"\nsource = {{ virtual = "." }}\n'
-                         f'\n[package.dev-dependencies]\ndev = [\n{dependencies}]\n'
-                         f'\n[package.metadata]\n\n[package.metadata.requires-dev]\ndev = [\n{requirements}]\n')
-    (root / "uv.lock").write_text(header + "".join(
-        "\n[[package]]\n" + blocks[name] for name in sorted(found | {"pricing"})), encoding="utf-8")
+    blocks["pricing"] = (
+        f'name = "pricing"\nversion = "0.1.0"\nsource = {{ virtual = "." }}\n'
+        f"\n[package.dev-dependencies]\ndev = [\n{dependencies}]\n"
+        f"\n[package.metadata]\n\n[package.metadata.requires-dev]\ndev = [\n{requirements}]\n"
+    )
+    (root / "uv.lock").write_text(
+        header + "".join("\n[[package]]\n" + blocks[name] for name in sorted(found | {"pricing"})),
+        encoding="utf-8",
+    )
     (root / ".python-version").write_text(version + "\n", encoding="utf-8")
     (root / "src/pricing/__init__.py").write_text("", encoding="utf-8")
     (root / "src/pricing/core.py").write_text(
-        '"""Small adoption fixture."""\n\n\ndef sign(value: int) -> int:\n    return -1 if value < 0 else 1\n', encoding="utf-8")
+        '"""Small adoption fixture."""\n\n\ndef sign(value: int) -> int:\n    return -1 if value < 0 else 1\n',
+        encoding="utf-8",
+    )
     (root / "tests/test_pricing.py").write_text(
         '"""Exercise the fixture."""\n\nfrom pricing.core import sign\n\n\ndef test_sign() -> None:\n'
-        '    assert sign(-3) == -1\n    assert sign(4) == 1\n', encoding="utf-8")
+        "    assert sign(-3) == -1\n    assert sign(4) == 1\n",
+        encoding="utf-8",
+    )
 
 
-def adopt(work: Group, repo: Path, scratch: Path, output: Path, environment: dict[str, str], *,
-          ancestor_deadline_ns: int) -> dict[str, object]:
+def adopt(
+    work: Group,
+    repo: Path,
+    scratch: Path,
+    output: Path,
+    environment: dict[str, str],
+    *,
+    ancestor_deadline_ns: int,
+) -> dict[str, object]:
     """Exercise native export, onboarding, update and rollback under one deadline."""
     started = time.monotonic_ns()
     repo, scratch, output = repo.absolute(), scratch.absolute(), output.absolute()
@@ -72,11 +93,20 @@ def adopt(work: Group, repo: Path, scratch: Path, output: Path, environment: dic
     home = root / "home"
     home.mkdir()
     cache = home / ".cache"
-    env = {"PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"), "HOME": str(home),
-           "XDG_CACHE_HOME": str(cache), "UV_CACHE_DIR": str(cache / "uv"), "CI": "1",
-           "LANG": "C.UTF-8", "GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": "/dev/null",
-           "GIT_AUTHOR_NAME": "RL00 fixture", "GIT_AUTHOR_EMAIL": "rl00@example.invalid",
-           "GIT_COMMITTER_NAME": "RL00 fixture", "GIT_COMMITTER_EMAIL": "rl00@example.invalid"}
+    env = {
+        "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+        "HOME": str(home),
+        "XDG_CACHE_HOME": str(cache),
+        "UV_CACHE_DIR": str(cache / "uv"),
+        "CI": "1",
+        "LANG": "C.UTF-8",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_AUTHOR_NAME": "RL00 fixture",
+        "GIT_AUTHOR_EMAIL": "rl00@example.invalid",
+        "GIT_COMMITTER_NAME": "RL00 fixture",
+        "GIT_COMMITTER_EMAIL": "rl00@example.invalid",
+    }
     # Provider paths are explicitly recorded; no inherited developer caches are used.
     for key in ("RL00_PYTHON", "RL00_CHILD_PYTHON"):
         if key in environment:
@@ -91,18 +121,35 @@ def adopt(work: Group, repo: Path, scratch: Path, output: Path, environment: dic
             remaining = (ancestor_deadline_ns - time.monotonic_ns()) / 1e9
             if remaining <= 3:
                 raise TimeoutError("original deadline exhausted")
-            result = rl00bc_kernel.execute(work, argv, cwd, env, output / name,
-                memory_mib=3072, tasks=256, native_seconds=remaining,
-                ancestor_deadline_ns=ancestor_deadline_ns)
-            phases[name] = {"argv": argv, "cwd": str(cwd), "evidence": str(output / name / "result.json"),
-                            "success": result.get("success"), "cause": result.get("cause"),
-                            "native_status": result.get("native_status"),
-                            "cleanup_complete": result.get("cleanup_complete"),
-                            "elapsed_seconds": result.get("elapsed_seconds")}
+            result = rl00bc_kernel.execute(
+                work,
+                argv,
+                cwd,
+                env,
+                output / name,
+                memory_mib=3072,
+                tasks=256,
+                native_seconds=remaining,
+                ancestor_deadline_ns=ancestor_deadline_ns,
+            )
+            phases[name] = {
+                "argv": argv,
+                "cwd": str(cwd),
+                "evidence": str(output / name / "result.json"),
+                "success": result.get("success"),
+                "cause": result.get("cause"),
+                "native_status": result.get("native_status"),
+                "cleanup_complete": result.get("cleanup_complete"),
+                "elapsed_seconds": result.get("elapsed_seconds"),
+            }
             active += float(result.get("elapsed_seconds", 0.0))
             return bool(result.get("success") and result.get("cleanup_complete"))
         except Exception as error:
-            phases[name] = {"argv": argv, "cwd": str(cwd), "error": f"{type(error).__name__}: {error}"}
+            phases[name] = {
+                "argv": argv,
+                "cwd": str(cwd),
+                "error": f"{type(error).__name__}: {error}",
+            }
             return False
 
     def require(name: str, argv: list[str], cwd: Path) -> None:
@@ -113,7 +160,8 @@ def adopt(work: Group, repo: Path, scratch: Path, output: Path, environment: dic
     template = root / "template-source"
     git = "/usr/bin/git"
     phases["missing_delegation"] = {
-        "status": "unrun", "reason": "An actual undelegated branch was not provided; simulated preflight is not proof."
+        "status": "unrun",
+        "reason": "An actual undelegated branch was not provided; simulated preflight is not proof.",
     }
     try:
         # The scratch clone changes only a benign exported document. This is a
@@ -127,7 +175,11 @@ def adopt(work: Group, repo: Path, scratch: Path, output: Path, environment: dic
         marker = "\n<!-- RL00 lifecycle fixture: template update -->\n"
         readme.write_text(readme.read_text(encoding="utf-8") + marker, encoding="utf-8")
         require("stage-template-update", [git, "add", "README.md"], template)
-        require("commit-template-update", [git, "commit", "-m", "Add lifecycle fixture marker"], template)
+        require(
+            "commit-template-update",
+            [git, "commit", "-m", "Add lifecycle fixture marker"],
+            template,
+        )
         require("source-new-revision", [git, "rev-parse", "HEAD"], template)
         require("export-new", [quality, "template", "export", str(new)], template)
         require("bootstrap-after-export", [str(project / "quality"), "bootstrap"], project)
@@ -135,22 +187,47 @@ def adopt(work: Group, repo: Path, scratch: Path, output: Path, environment: dic
         _component(project)
         customization = project / "libs/pricing/src/pricing/core.py"
         custom_text = customization.read_text(encoding="utf-8").replace(
-            "Small adoption fixture.", "Downstream customized pricing fixture.")
+            "Small adoption fixture.", "Downstream customized pricing fixture."
+        )
         customization.write_text(custom_text, encoding="utf-8")
-        require("component-add", [str(project / "quality"), "component", "add", "libs/pricing",
-                "--no-boundary-reason", "Pure calculations without a boundary."], project)
+        require(
+            "component-add",
+            [
+                str(project / "quality"),
+                "component",
+                "add",
+                "libs/pricing",
+                "--no-boundary-reason",
+                "Pure calculations without a boundary.",
+            ],
+            project,
+        )
         require("stage-component", [git, "add", "quality.toml", "libs/pricing"], project)
         require("bootstrap-component", [str(project / "quality"), "bootstrap"], project)
         require("native-check", [str(project / "quality"), "check"], project)
-        require("first-protected-own-test", [str(project / "quality"), "test", "--component", "pricing"], project)
+        require(
+            "first-protected-own-test",
+            [str(project / "quality"), "test", "--component", "pricing"],
+            project,
+        )
         require("commit-component", [git, "commit", "-m", "Add pricing fixture"], project)
-        branch = str(tomllib.loads((project / "quality.toml").read_text(encoding="utf-8"))["repository"].get("default_branch", "main"))
+        branch = str(
+            tomllib.loads((project / "quality.toml").read_text(encoding="utf-8"))["repository"].get(
+                "default_branch", "main"
+            )
+        )
         require("fetch-old", [git, "fetch", str(old), f"{branch}:template-old"], project)
         require("fetch-new", [git, "fetch", str(new), f"{branch}:template-new"], project)
         patch = root / "update.patch"
-        require("update-diff", [git, "diff", "--binary", f"--output={patch}", "template-old", "template-new"], project)
+        require(
+            "update-diff",
+            [git, "diff", "--binary", f"--output={patch}", "template-old", "template-new"],
+            project,
+        )
         if patch.stat().st_size == 0:
-            gaps.append("Old and new exports have no difference; update and rollback cannot be demonstrated.")
+            gaps.append(
+                "Old and new exports have no difference; update and rollback cannot be demonstrated."
+            )
         else:
             require("update-apply", [git, "apply", "--3way", str(patch)], project)
             if marker not in (project / "README.md").read_text(encoding="utf-8"):
@@ -168,26 +245,43 @@ def adopt(work: Group, repo: Path, scratch: Path, output: Path, environment: dic
             require("rollback-diff", [git, "diff", "--cached", "--exit-code"], project)
     except Exception as error:
         gaps.append(f"Native adoption stopped: {type(error).__name__}: {error}")
-    gaps.extend(["Human understanding, administrator wait and novice usability are unmeasured.",
-                 "Only the Python onboarding fixture is exercised; other profile adoption remains unproved.",
-                 "The standalone experimental kernel overlay is not integrated into exported quality or hooks.",
-                 "Missing-delegation failure is unrun; actual host provisioning is a separate parent-mode observation.",
-                 "The update fixture changes an exported document, not a matched resource-policy core or schema."])
+    gaps.extend(
+        [
+            "Human understanding, administrator wait and novice usability are unmeasured.",
+            "Only the Python onboarding fixture is exercised; other profile adoption remains unproved.",
+            "The standalone experimental kernel overlay is not integrated into exported quality or hooks.",
+            "Missing-delegation failure is unrun; actual host provisioning is a separate parent-mode observation.",
+            "The update fixture changes an exported document, not a matched resource-policy core or schema.",
+        ]
+    )
     result: dict[str, object] = {
-        "phases": phases, "required_gaps": gaps, "fixture": str(project),
-        "source_revisions": {"old": "scratch clone initial HEAD; see source-old-revision log",
-                             "new": "scratch clone fixture commit; see source-new-revision log"},
-        "cache": {"initial": "fresh isolated HOME and XDG/uv caches before export",
-                  "bootstrap_after_export": "cache may have been populated by template exports",
-                  "warm": "same cache after first project bootstrap",
-                  "network_downloads": "see bounded bootstrap logs; not separately counted"},
-        "timing": {"total_seconds": (time.monotonic_ns() - started) / 1e9,
-                   "active_command_seconds": active, "human_wait_seconds": None,
-                   "administrator_wait_seconds": None, "understanding_seconds": None},
+        "phases": phases,
+        "required_gaps": gaps,
+        "fixture": str(project),
+        "source_revisions": {
+            "old": "scratch clone initial HEAD; see source-old-revision log",
+            "new": "scratch clone fixture commit; see source-new-revision log",
+        },
+        "cache": {
+            "initial": "fresh isolated HOME and XDG/uv caches before export",
+            "bootstrap_after_export": "cache may have been populated by template exports",
+            "warm": "same cache after first project bootstrap",
+            "network_downloads": "see bounded bootstrap logs; not separately counted",
+        },
+        "timing": {
+            "total_seconds": (time.monotonic_ns() - started) / 1e9,
+            "active_command_seconds": active,
+            "human_wait_seconds": None,
+            "administrator_wait_seconds": None,
+            "understanding_seconds": None,
+        },
         "limits": {"memory_mib": 3072, "tasks": 256, "ancestor_deadline_ns": ancestor_deadline_ns},
         "protection": "experimental standalone overlay only; unmodified export and hooks do not enforce resource policy",
         "provisioning": "parent service supplies prepared or administrator-required host mode",
-        "profile": "python", "result_understood_by_human": None,
+        "profile": "python",
+        "result_understood_by_human": None,
     }
-    (output / "adoption.json").write_text(json.dumps(result, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    (output / "adoption.json").write_text(
+        json.dumps(result, sort_keys=True, indent=2) + "\n", encoding="utf-8"
+    )
     return result

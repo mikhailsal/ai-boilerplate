@@ -12,7 +12,7 @@ from tests.acceptance.rl00a.rl00a_cgroup import Group
 from tests.acceptance.rl00bc import rl00bc_kernel
 
 # This source is persisted before execution so the executed experiment is reviewable.
-CHILD = r'''from __future__ import annotations
+CHILD = r"""from __future__ import annotations
 import hashlib, json, os, subprocess, sys, traceback, unittest
 from pathlib import Path
 
@@ -184,11 +184,18 @@ except BaseException as error:
     progress["traceback"] = traceback.format_exc(limit=8)[-4000:]
     save()
     raise
-'''
+"""
 
 
-def prove(work: Group, repo: Path, scratch: Path, output: Path, environment: dict[str, str], *,
-          ancestor_deadline_ns: int) -> dict[str, object]:
+def prove(
+    work: Group,
+    repo: Path,
+    scratch: Path,
+    output: Path,
+    environment: dict[str, str],
+    *,
+    ancestor_deadline_ns: int,
+) -> dict[str, object]:
     """Run the frozen experiment in one resource-bound child, preserving nonpasses."""
     repo, scratch, output = repo.absolute(), scratch.absolute(), output.absolute()
     python = Path(environment["RL00_PYTHON"])
@@ -204,29 +211,77 @@ def prove(work: Group, repo: Path, scratch: Path, output: Path, environment: dic
     (output / "kernel").mkdir()
     home = scratch / "candidate-home"
     home.mkdir(exist_ok=False)
-    env = {"PATH": f"{python.parent}:/usr/local/bin:/usr/bin:/bin", "HOME": str(home),
-           "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1",
-           "PYTHONDONTWRITEBYTECODE": "1", "CI": "1"}
+    env = {
+        "PATH": f"{python.parent}:/usr/local/bin:/usr/bin:/bin",
+        "HOME": str(home),
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "CI": "1",
+    }
     deadline = min(ancestor_deadline_ns - 3_000_000_000, time.monotonic_ns() + 90_000_000_000)
-    raw = rl00bc_kernel.execute(work, [str(python), str(source), str(repo), str(root), str(output)],
-                                scratch, env, output / "kernel", memory_mib=3072, tasks=256,
-                                native_seconds=90.0, ancestor_deadline_ns=ancestor_deadline_ns,
-                                payload_deadline_ns=deadline)
+    raw = rl00bc_kernel.execute(
+        work,
+        [str(python), str(source), str(repo), str(root), str(output)],
+        scratch,
+        env,
+        output / "kernel",
+        memory_mib=3072,
+        tasks=256,
+        native_seconds=90.0,
+        ancestor_deadline_ns=ancestor_deadline_ns,
+        payload_deadline_ns=deadline,
+    )
     evidence: dict[str, object] = {}
     try:
         value = json.loads((output / "candidate-evidence.json").read_text(encoding="utf-8"))
         if isinstance(value, dict):
             evidence = value
-    except (OSError, ValueError):
+    except OSError, ValueError:
         pass
-    required = {"native-discovery", "candidate-identities", "fallback-and-rename",
-                "strict-evidence-rejections", "revision-drift"} | {
-        "mutation-" + kind for kind in ("test", "source", "fixture", "data", "parameter", "dependency", "runtime", "config", "unknown", "volatile")}
+    required = {
+        "native-discovery",
+        "candidate-identities",
+        "fallback-and-rename",
+        "strict-evidence-rejections",
+        "revision-drift",
+    } | {
+        "mutation-" + kind
+        for kind in (
+            "test",
+            "source",
+            "fixture",
+            "data",
+            "parameter",
+            "dependency",
+            "runtime",
+            "config",
+            "unknown",
+            "volatile",
+        )
+    }
     completed = evidence.get("completed")
-    valid = isinstance(completed, list) and len(completed) == len(set(completed)) and set(completed) == required
-    return {"success": bool(raw.get("success") and raw.get("cleanup_complete") and evidence.get("success") is True and valid),
-            "classification": "observed-success" if raw.get("success") and raw.get("cleanup_complete") and evidence.get("success") is True and valid else "nonpass",
-            "completed": completed if isinstance(completed, list) else [],
-            "child_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
-            "kernel_cause": raw.get("cause"), "cleanup_complete": raw.get("cleanup_complete"),
-            "claim_limit": "Finite fixture and conservative fallback only; no selection soundness, strict execution success, or cached verdict is claimed."}
+    valid = (
+        isinstance(completed, list)
+        and len(completed) == len(set(completed))
+        and set(completed) == required
+    )
+    return {
+        "success": bool(
+            raw.get("success")
+            and raw.get("cleanup_complete")
+            and evidence.get("success") is True
+            and valid
+        ),
+        "classification": "observed-success"
+        if raw.get("success")
+        and raw.get("cleanup_complete")
+        and evidence.get("success") is True
+        and valid
+        else "nonpass",
+        "completed": completed if isinstance(completed, list) else [],
+        "child_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        "kernel_cause": raw.get("cause"),
+        "cleanup_complete": raw.get("cleanup_complete"),
+        "claim_limit": "Finite fixture and conservative fallback only; no selection soundness, strict execution success, or cached verdict is claimed.",
+    }

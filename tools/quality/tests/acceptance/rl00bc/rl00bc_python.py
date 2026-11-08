@@ -8,7 +8,7 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 # The parent invokes these commands inside its finite cgroup and deadline.
-CORPUS = r'''import json
+CORPUS = r"""import json
 import os
 import subprocess
 import time
@@ -87,9 +87,9 @@ def test_subject(phases, retained, request):
         time.sleep(delay)
     assert value is not None and retained is not None and subject.value() == 1
     event(label, "call-end")
-'''
+"""
 
-PLUGIN = r'''import json
+PLUGIN = r"""import json
 import os
 import time
 from pathlib import Path
@@ -103,7 +103,7 @@ def pytest_collection_finish(session):
     payload = {"phase": "collection", "pid": os.getpid(), "monotonic_ns": stamp,
                "native_ids": [item.nodeid for item in session.items]}
     (directory / (str(os.getpid()) + "-" + str(stamp) + ".json")).write_text(json.dumps(payload))
-'''
+"""
 
 
 def prepare(root: Path, repo: Path, profile: str) -> None:
@@ -120,27 +120,62 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
         'schema_version = 1\ncomponent = "rl00bc"\n[[scenarios]]\n'
         'id = "subject-value"\nsummary = "The subject produces its expected value"\n'
         'capability = "library"\nlevel = "unit"\nstage = "commit"\n'
-        'tests = ["test_subject::test_subject[ordinary]"]\n', encoding="utf-8")
+        'tests = ["test_subject::test_subject[ordinary]"]\n',
+        encoding="utf-8",
+    )
     python = Path(os.environ["RL00_PYTHON"])
     if not python.is_absolute() or not python.is_file():
         raise ValueError("RL00_PYTHON must name the bootstrapped absolute interpreter")
 
 
-def command(root: Path, repo: Path, output: Path, selected: str | None, *, profile: str, workers: int, coverage: bool) -> list[str]:
+def command(
+    root: Path,
+    repo: Path,
+    output: Path,
+    selected: str | None,
+    *,
+    profile: str,
+    workers: int,
+    coverage: bool,
+) -> list[str]:
     """Construct pytest execution; selection is one discovered parameter ID."""
     if profile != "python" or workers not in (1, 2):
         raise ValueError("unsupported profile or worker count")
-    if selected is not None and (not selected or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in selected)):
+    if selected is not None and (
+        not selected or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in selected)
+    ):
         raise ValueError("invalid opaque parameter identity")
     output.mkdir(parents=True, exist_ok=True)
     (output / "selection.json").write_text(json.dumps({"selected": selected}), encoding="utf-8")
     rc = output / "coveragerc"
     rc.write_text(f"[run]\nbranch = True\ndata_file = {output / '.coverage'}\n", encoding="utf-8")
-    argv = [os.environ["RL00_PYTHON"], "-m", "pytest", "-c", str(root / "pytest.ini"), f"--rootdir={root}", "-p", "no:cacheprovider", "-q", f"--junitxml={output / 'junit.xml'}", "-o", "xfail_strict=true", "-p", "no:rerunfailures", "-p", "no:flaky"]
+    argv = [
+        os.environ["RL00_PYTHON"],
+        "-m",
+        "pytest",
+        "-c",
+        str(root / "pytest.ini"),
+        f"--rootdir={root}",
+        "-p",
+        "no:cacheprovider",
+        "-q",
+        f"--junitxml={output / 'junit.xml'}",
+        "-o",
+        "xfail_strict=true",
+        "-p",
+        "no:rerunfailures",
+        "-p",
+        "no:flaky",
+    ]
     if workers == 2:
         argv += ["-n", "2"]
     if coverage:
-        argv += [f"--cov={root / 'src'}", "--cov-branch", f"--cov-config={rc}", f"--cov-report=json:{output / 'coverage.json'}"]
+        argv += [
+            f"--cov={root / 'src'}",
+            "--cov-branch",
+            f"--cov-config={rc}",
+            f"--cov-report=json:{output / 'coverage.json'}",
+        ]
     target = str(root / "test_subject.py")
     argv.append(target if selected is None else f"{target}::test_subject[{selected}]")
     return argv
@@ -156,10 +191,25 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
         name = case.get("name", "")
         identity = f"{case.get('classname', '')}::{name}"
         variant = name.removeprefix("test_subject[").removesuffix("]")
-        outcome = next((tag for tag in ("error", "failure", "skipped") if case.find(tag) is not None), "passed")
-        cases.append({"id": identity, "variant": variant, "outcome": outcome, "coverage": str(output / "coverage.json") if (output / "coverage.json").is_file() else None})
+        outcome = next(
+            (tag for tag in ("error", "failure", "skipped") if case.find(tag) is not None), "passed"
+        )
+        cases.append(
+            {
+                "id": identity,
+                "variant": variant,
+                "outcome": outcome,
+                "coverage": str(output / "coverage.json")
+                if (output / "coverage.json").is_file()
+                else None,
+            }
+        )
     selected = json.loads((output / "selection.json").read_text(encoding="utf-8"))["selected"]
     ids = [str(case["id"]) for case in cases]
-    if not cases or len(ids) != len(set(ids)) or (selected is not None and (len(cases) != 1 or cases[0]["variant"] != selected)):
+    if (
+        not cases
+        or len(ids) != len(set(ids))
+        or (selected is not None and (len(cases) != 1 or cases[0]["variant"] != selected))
+    ):
         raise ValueError("native result identity mismatch")
     return cases

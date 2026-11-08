@@ -61,9 +61,18 @@ def _percentile(values: list[float], percentile: float) -> float:
     return ordered[math.ceil(percentile * len(ordered)) - 1]
 
 
-def measure(work: Group, repo: Path, scratch: Path, output: Path, profile: str,
-            environment: dict[str, str], *, ancestor_deadline_ns: int, samples: int = 20,
-            criterion: str = "A") -> dict[str, object]:
+def measure(
+    work: Group,
+    repo: Path,
+    scratch: Path,
+    output: Path,
+    profile: str,
+    environment: dict[str, str],
+    *,
+    ancestor_deadline_ns: int,
+    samples: int = 20,
+    criterion: str = "A",
+) -> dict[str, object]:
     """Capture AB/BA pairs, stopping at the first incomplete or invalid attempt."""
     if profile not in rl00bc_trials.PROVIDERS or not 1 <= samples <= 100:
         raise ValueError("invalid profile or finite sample count")
@@ -73,15 +82,29 @@ def measure(work: Group, repo: Path, scratch: Path, output: Path, profile: str,
     output.mkdir(parents=True, exist_ok=False)
     coverage = profile != "browser"
     summary: dict[str, object] = {
-        "profile": profile, "requested_samples_per_size": samples, "criterion": criterion,
-        "criterion_status": "proposed-not-owner-approved", "workers": 1,
-        "canonical_coverage": coverage, "strict_coverage": False,
+        "profile": profile,
+        "requested_samples_per_size": samples,
+        "criterion": criterion,
+        "criterion_status": "proposed-not-owner-approved",
+        "workers": 1,
+        "canonical_coverage": coverage,
+        "strict_coverage": False,
         "baseline": "canonical native under finite suite protection, no instrumentation",
         "protected": "instrumented canonical plus fresh strict probes for every discovered case",
         "independent_measurements": ["native canonical", "protected canonical plus strict all"],
-        "not_measured": ["shared-worker instrumentation", "narrow selective checking", "adoption", "verdict usefulness"],
-        "runtime_inputs": {key: value for key, value in environment.items() if key in rl00bc_trials.PATH_KEYS},
-        "shared_mib": 64, "mode": "performance", "cells": {}, "attempts": [],
+        "not_measured": [
+            "shared-worker instrumentation",
+            "narrow selective checking",
+            "adoption",
+            "verdict usefulness",
+        ],
+        "runtime_inputs": {
+            key: value for key, value in environment.items() if key in rl00bc_trials.PATH_KEYS
+        },
+        "shared_mib": 64,
+        "mode": "performance",
+        "cells": {},
+        "attempts": [],
         "status": "in-progress",
     }
     cells = summary["cells"]
@@ -93,8 +116,13 @@ def measure(work: Group, repo: Path, scratch: Path, output: Path, profile: str,
         name = "protected" if protected else "native"
         directory = output / size / f"sample-{index:03d}" / name
         directory.mkdir(parents=True)
-        attempt: dict[str, object] = {"size": size, "sample": index, "arm": name,
-                                      "status": "in-progress", "trials": []}
+        attempt: dict[str, object] = {
+            "size": size,
+            "sample": index,
+            "arm": name,
+            "status": "in-progress",
+            "trials": [],
+        }
         attempts.append(attempt)
         _write(output / "measurement.json", summary)
         paths = attempt["trials"]
@@ -108,14 +136,28 @@ def measure(work: Group, repo: Path, scratch: Path, output: Path, profile: str,
             paths.append(str(path))
             _write(output / "measurement.json", summary)
             record = rl00bc_trials.one(
-                work, repo, scratch, path, profile, environment,
-                selected=selected, size=size, mode="performance", target="", allocation_mib=1,
-                shared_mib=64, workers=1, coverage=False if strict else coverage,
-                instrument=protected, ancestor_deadline_ns=ancestor_deadline_ns,
+                work,
+                repo,
+                scratch,
+                path,
+                profile,
+                environment,
+                selected=selected,
+                size=size,
+                mode="performance",
+                target="",
+                allocation_mib=1,
+                shared_mib=64,
+                workers=1,
+                coverage=False if strict else coverage,
+                instrument=protected,
+                ancestor_deadline_ns=ancestor_deadline_ns,
             )
             records.append(record)
             if record.get("classification") != "observed-success":
-                raise ValueError(f"trial did not produce observed success: {record.get('classification')}")
+                raise ValueError(
+                    f"trial did not produce observed success: {record.get('classification')}"
+                )
             return record
 
         canonical = run(None, 0, False)
@@ -133,12 +175,18 @@ def measure(work: Group, repo: Path, scratch: Path, output: Path, profile: str,
         max_tasks = max(_metric(record, "max_tasks") for record in records)
         if wall_seconds <= 0 or not math.isfinite(wall_seconds):
             raise ValueError("invalid full-arm wall observation")
-        attempt.update({"status": "observed", "wall_seconds": wall_seconds,
-                        "native_cpu_seconds": native_cpu_seconds,
-                        "controller_cpu_seconds": controller_cpu_seconds,
-                        "total_cpu_seconds": native_cpu_seconds + controller_cpu_seconds,
-                        "max_leaf_memory_peak_bytes": memory_peak, "max_leaf_tasks": max_tasks,
-                        "strict_cases": len(identities) if protected else 0})
+        attempt.update(
+            {
+                "status": "observed",
+                "wall_seconds": wall_seconds,
+                "native_cpu_seconds": native_cpu_seconds,
+                "controller_cpu_seconds": controller_cpu_seconds,
+                "total_cpu_seconds": native_cpu_seconds + controller_cpu_seconds,
+                "max_leaf_memory_peak_bytes": memory_peak,
+                "max_leaf_tasks": max_tasks,
+                "strict_cases": len(identities) if protected else 0,
+            }
+        )
         _write(output / "measurement.json", summary)
         return attempt
 
@@ -151,10 +199,12 @@ def measure(work: Group, repo: Path, scratch: Path, output: Path, profile: str,
             cells[size] = cell
             for index in range(samples):
                 results: dict[str, dict[str, object]] = {}
-                for is_protected in ((False, True) if index % 2 == 0 else (True, False)):
+                for is_protected in (False, True) if index % 2 == 0 else (True, False):
                     result = arm(size, index, is_protected)
                     results[str(result["arm"])] = result
-                if set(results["native"]["canonical_identities"]) != set(results["protected"]["canonical_identities"]):
+                if set(results["native"]["canonical_identities"]) != set(
+                    results["protected"]["canonical_identities"]
+                ):
                     raise ValueError("canonical identity set differs across paired arms")
                 native.append(float(results["native"]["wall_seconds"]))
                 protected.append(float(results["protected"]["wall_seconds"]))
@@ -166,26 +216,45 @@ def measure(work: Group, repo: Path, scratch: Path, output: Path, profile: str,
             protected_p95 = _percentile(protected, 0.95)
             multiplier, offset = (2.0, 2.0) if criterion == "A" else (1.5, 1.0)
             bound = multiplier * native_p95 + offset
-            cell.update({"native_p50_seconds": _percentile(native, 0.50),
-                         "native_p95_seconds": native_p95,
-                         "protected_p50_seconds": _percentile(protected, 0.50),
-                         "protected_p95_seconds": protected_p95,
-                         "proposed_limit_seconds": bound,
-                         "status": ("insufficient-samples" if samples < 20 else
-                                    "proposed-criterion-pass" if protected_p95 <= bound else "no-go")})
+            cell.update(
+                {
+                    "native_p50_seconds": _percentile(native, 0.50),
+                    "native_p95_seconds": native_p95,
+                    "protected_p50_seconds": _percentile(protected, 0.50),
+                    "protected_p95_seconds": protected_p95,
+                    "proposed_limit_seconds": bound,
+                    "status": (
+                        "insufficient-samples"
+                        if samples < 20
+                        else "proposed-criterion-pass"
+                        if protected_p95 <= bound
+                        else "no-go"
+                    ),
+                }
+            )
             distributions: dict[str, dict[str, dict[str, float]]] = {}
             for arm_name, records in observations.items():
                 distributions[arm_name] = {}
-                for metric in ("wall_seconds", "total_cpu_seconds", "max_leaf_memory_peak_bytes", "max_leaf_tasks"):
+                for metric in (
+                    "wall_seconds",
+                    "total_cpu_seconds",
+                    "max_leaf_memory_peak_bytes",
+                    "max_leaf_tasks",
+                ):
                     values = [float(record[metric]) for record in records]
                     distributions[arm_name][metric] = {
-                        "p50": _percentile(values, 0.50), "p95": _percentile(values, 0.95),
+                        "p50": _percentile(values, 0.50),
+                        "p95": _percentile(values, 0.95),
                     }
             cell["nearest_rank_distributions"] = distributions
             _write(output / "measurement.json", summary)
-        summary["status"] = ("insufficient-samples" if samples < 20 else
-                             "no-go" if any(cell["status"] == "no-go" for cell in cells.values()) else
-                             "proposed-criteria-pass")
+        summary["status"] = (
+            "insufficient-samples"
+            if samples < 20
+            else "no-go"
+            if any(cell["status"] == "no-go" for cell in cells.values())
+            else "proposed-criteria-pass"
+        )
     except Exception as error:
         if attempts and attempts[-1].get("status") == "in-progress":
             attempts[-1]["status"] = "nonpass"

@@ -51,11 +51,20 @@ def _lifecycle() -> tuple[int, Path]:
     closing = Path(os.environ["RL00_LIFECYCLE_CLOSING"])
     expected = int(os.environ["RL00_LIFECYCLE_INODE"])
     info = os.fstat(fd)
-    if not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid() or info.st_ino != expected or not closing.is_absolute():
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_ino != expected
+        or not closing.is_absolute()
+    ):
         raise ValueError("invalid lifecycle authority")
     independent = os.open(f"/proc/self/fd/{fd}", os.O_RDWR | os.O_CLOEXEC)
     reopened = os.fstat(independent)
-    if (reopened.st_dev, reopened.st_ino, reopened.st_uid) != (info.st_dev, info.st_ino, info.st_uid):
+    if (reopened.st_dev, reopened.st_ino, reopened.st_uid) != (
+        info.st_dev,
+        info.st_ino,
+        info.st_uid,
+    ):
         os.close(independent)
         raise ValueError("lifecycle descriptor identity mismatch")
     return independent, closing
@@ -90,13 +99,27 @@ def _admit(work: Group, memory_mib: int, tasks: int) -> dict[str, int]:
         raise ValueError("insufficient checker capacity")
     if int(work.read("memory.max")) != memory_limit or int(work.read("pids.max")) != task_limit:
         raise ValueError("work capacity changed during admission")
-    return {"memory_reserved_bytes": memory_used, "tasks_reserved": tasks_used,
-            "memory_limit_bytes": memory_limit, "tasks_limit": task_limit}
+    return {
+        "memory_reserved_bytes": memory_used,
+        "tasks_reserved": tasks_used,
+        "memory_limit_bytes": memory_limit,
+        "tasks_limit": task_limit,
+    }
 
 
-def execute(work: Group, argv: list[str], cwd: Path, env: dict[str, str], output: Path, *,
-            memory_mib: int, tasks: int, native_seconds: float,
-            ancestor_deadline_ns: int, payload_deadline_ns: int | None = None) -> dict[str, object]:
+def execute(
+    work: Group,
+    argv: list[str],
+    cwd: Path,
+    env: dict[str, str],
+    output: Path,
+    *,
+    memory_mib: int,
+    tasks: int,
+    native_seconds: float,
+    ancestor_deadline_ns: int,
+    payload_deadline_ns: int | None = None,
+) -> dict[str, object]:
     """Run one bounded leaf, preserving failures and cleanup evidence.
 
     An observed absence time is an upper bound on removal, not its exact time.
@@ -105,10 +128,15 @@ def execute(work: Group, argv: list[str], cwd: Path, env: dict[str, str], output
     now = time.monotonic_ns()
     if not argv or native_seconds <= 0 or now >= ancestor_deadline_ns - RESERVE_NS:
         raise ValueError("invalid command or insufficient original deadline")
-    if work.read("cgroup.procs") or not {"memory", "pids"} <= set(work.read("cgroup.subtree_control").split()):
+    if work.read("cgroup.procs") or not {"memory", "pids"} <= set(
+        work.read("cgroup.subtree_control").split()
+    ):
         raise ValueError("work branch is not empty and delegated")
-    stop = min(now + int(native_seconds * 1_000_000_000), ancestor_deadline_ns - RESERVE_NS,
-               payload_deadline_ns if payload_deadline_ns is not None else ancestor_deadline_ns)
+    stop = min(
+        now + int(native_seconds * 1_000_000_000),
+        ancestor_deadline_ns - RESERVE_NS,
+        payload_deadline_ns if payload_deadline_ns is not None else ancestor_deadline_ns,
+    )
     if stop <= now:
         raise ValueError("payload deadline already expired")
     output.mkdir(parents=True, exist_ok=True)
@@ -121,11 +149,18 @@ def execute(work: Group, argv: list[str], cwd: Path, env: dict[str, str], output
     locked = True
     leaf: Group | None = None
     process: subprocess.Popen[bytes] | None = None
-    result: dict[str, object] = {"cause": "environment-unavailable", "success": False,
-                                 "native_status": None, "elapsed_seconds": 0.0,
-                                 "cpu_seconds": 0.0, "memory_peak_bytes": None,
-                                 "sampled_memory_peak_bytes": 0, "max_tasks": 0,
-                                 "resource_violation": None, "cleanup_complete": False}
+    result: dict[str, object] = {
+        "cause": "environment-unavailable",
+        "success": False,
+        "native_status": None,
+        "elapsed_seconds": 0.0,
+        "cpu_seconds": 0.0,
+        "memory_peak_bytes": None,
+        "sampled_memory_peak_bytes": 0,
+        "max_tasks": 0,
+        "resource_violation": None,
+        "cleanup_complete": False,
+    }
     failure: str | None = None
     timed_out = False
     streams: dict[str, bytearray] = {"stdout": bytearray(), "stderr": bytearray()}
@@ -143,15 +178,29 @@ def execute(work: Group, argv: list[str], cwd: Path, env: dict[str, str], output
         before, parent_before = _snapshot(leaf), _snapshot(work)
         fd = os.open("cgroup.procs", os.O_WRONLY | os.O_NOFOLLOW, dir_fd=leaf.fd)
         read_fd, write_fd = os.pipe2(os.O_CLOEXEC | os.O_NONBLOCK)
-        placement_shim = SHIM.replace('shift; exec', 'eval "exec $1>&-"; shift; exec')
+        placement_shim = SHIM.replace("shift; exec", 'eval "exec $1>&-"; shift; exec')
         repo = Path(__file__).resolve().parents[5]
         try:
             process = subprocess.Popen(
-                ["/bin/bash", "-c", placement_shim, "rl00bc-placement", str(fd),
-                 sys.executable, str(Path(__file__).with_name("rl00bc_exec.py")),
-                 str(write_fd), str(cwd.absolute()), *argv],
-                cwd=repo, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE, pass_fds=(fd, write_fd))
+                [
+                    "/bin/bash",
+                    "-c",
+                    placement_shim,
+                    "rl00bc-placement",
+                    str(fd),
+                    sys.executable,
+                    str(Path(__file__).with_name("rl00bc_exec.py")),
+                    str(write_fd),
+                    str(cwd.absolute()),
+                    *argv,
+                ],
+                cwd=repo,
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                pass_fds=(fd, write_fd),
+            )
         finally:
             os.close(fd)
             os.close(write_fd)
@@ -181,7 +230,9 @@ def execute(work: Group, argv: list[str], cwd: Path, env: dict[str, str], output
             finally:
                 if process.poll() is None:
                     process.kill()
-                process.wait(timeout=max(0.001, min(1.0, (ancestor_deadline_ns - time.monotonic_ns()) / 1e9)))
+                process.wait(
+                    timeout=max(0.001, min(1.0, (ancestor_deadline_ns - time.monotonic_ns()) / 1e9))
+                )
             raise
         finally:
             os.close(read_fd)
@@ -213,15 +264,31 @@ def execute(work: Group, argv: list[str], cwd: Path, env: dict[str, str], output
                 streams[label].extend(chunk[:space])
                 truncated[label] = truncated[label] or len(chunk) > space
         after, parent_after = _snapshot(leaf), _snapshot(work)
-        own_memory = any(_delta(before, after, "memory.events.local", key) > 0 for key in ("oom", "oom_kill"))
+        own_memory = any(
+            _delta(before, after, "memory.events.local", key) > 0 for key in ("oom", "oom_kill")
+        )
         own_tasks = _delta(before, after, "pids.events.local", "max") > 0
-        parent_memory = any(_delta(parent_before, parent_after, "memory.events.local", key) > 0 for key in ("oom", "oom_kill"))
+        parent_memory = any(
+            _delta(parent_before, parent_after, "memory.events.local", key) > 0
+            for key in ("oom", "oom_kill")
+        )
         parent_tasks = _delta(parent_before, parent_after, "pids.events.local", "max") > 0
         status = process.poll()
-        cause = ("ancestor-resource" if parent_memory or parent_tasks else
-                 "own-memory" if own_memory else "own-tasks" if own_tasks else
-                 "timeout" if timed_out else "native-signal-unknown" if status is not None and status < 0 else
-                 "native-exit" if status is not None else "environment-unavailable")
+        cause = (
+            "ancestor-resource"
+            if parent_memory or parent_tasks
+            else "own-memory"
+            if own_memory
+            else "own-tasks"
+            if own_tasks
+            else "timeout"
+            if timed_out
+            else "native-signal-unknown"
+            if status is not None and status < 0
+            else "native-exit"
+            if status is not None
+            else "environment-unavailable"
+        )
         elapsed_seconds = (time.monotonic_ns() - start) / 1_000_000_000
         cpu_before = before["cpu.stat"]
         cpu_after = after["cpu.stat"]
@@ -230,18 +297,35 @@ def execute(work: Group, argv: list[str], cwd: Path, env: dict[str, str], output
         cpu_seconds = (int(cpu_after["usage_usec"]) - int(cpu_before["usage_usec"])) / 1_000_000
         peak_value = after["memory.peak"]
         memory_peak = int(str(peak_value)) if peak_value is not None else None
-        violation = cause if cause in ("own-memory", "own-tasks", "ancestor-resource", "timeout") else None
-        result = {"cause": cause, "success": cause == "native-exit" and status == 0,
-                  "native_status": status, "timed_out": timed_out, "before": before, "after": after,
-                  "work_before": parent_before, "work_after": parent_after,
-                  "sampled_memory_high_bytes": high_memory, "sampled_tasks_high": high_tasks,
-                  "elapsed_seconds": elapsed_seconds, "cpu_seconds": cpu_seconds,
-                  "memory_peak_bytes": memory_peak, "sampled_memory_peak_bytes": high_memory,
-                  "max_tasks": high_tasks, "resource_violation": violation,
-                  "cleanup_complete": False, "launch_resolved": launch_resolved,
-                  "launch_resolution": "exec_or_dead", "launch_resolved_ns": launch_resolved_ns,
-                  "admission_ns": admission_ns, "closing_absent_at_admission": True,
-                  "capacity_at_admission": capacity, "truncated": truncated}
+        violation = (
+            cause if cause in ("own-memory", "own-tasks", "ancestor-resource", "timeout") else None
+        )
+        result = {
+            "cause": cause,
+            "success": cause == "native-exit" and status == 0,
+            "native_status": status,
+            "timed_out": timed_out,
+            "before": before,
+            "after": after,
+            "work_before": parent_before,
+            "work_after": parent_after,
+            "sampled_memory_high_bytes": high_memory,
+            "sampled_tasks_high": high_tasks,
+            "elapsed_seconds": elapsed_seconds,
+            "cpu_seconds": cpu_seconds,
+            "memory_peak_bytes": memory_peak,
+            "sampled_memory_peak_bytes": high_memory,
+            "max_tasks": high_tasks,
+            "resource_violation": violation,
+            "cleanup_complete": False,
+            "launch_resolved": launch_resolved,
+            "launch_resolution": "exec_or_dead",
+            "launch_resolved_ns": launch_resolved_ns,
+            "admission_ns": admission_ns,
+            "closing_absent_at_admission": True,
+            "capacity_at_admission": capacity,
+            "truncated": truncated,
+        }
     except BaseException as error:
         failure = f"{type(error).__name__}: {error}"
         result["success"] = False
@@ -260,7 +344,9 @@ def execute(work: Group, argv: list[str], cwd: Path, env: dict[str, str], output
                 raise RuntimeError("leaf was not created")
             leaf.kill()
             if process is not None:
-                process.wait(timeout=max(0.001, min(1.0, (ancestor_deadline_ns - time.monotonic_ns()) / 1e9)))
+                process.wait(
+                    timeout=max(0.001, min(1.0, (ancestor_deadline_ns - time.monotonic_ns()) / 1e9))
+                )
             leaf.remove()
             fcntl.flock(lifecycle, fcntl.LOCK_UN)
             absent_ns = time.monotonic_ns()

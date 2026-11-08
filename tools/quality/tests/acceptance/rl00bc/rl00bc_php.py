@@ -10,8 +10,21 @@ from xml.etree import ElementTree
 from xml.sax.saxutils import escape, quoteattr
 
 SMALL = ("ordinary", "setup", "teardown", "child")
-LARGE = SMALL + ("allocation", "retained", "parameterCheap", "parameterHeavy", "slow", "justified", "cheap01", "cheap02", "cheap03", "cheap04", "cheap05", "cheap06")
-PHP = r'''<?php
+LARGE = SMALL + (
+    "allocation",
+    "retained",
+    "parameterCheap",
+    "parameterHeavy",
+    "slow",
+    "justified",
+    "cheap01",
+    "cheap02",
+    "cheap03",
+    "cheap04",
+    "cheap05",
+    "cheap06",
+)
+PHP = r"""<?php
 use PHPUnit\Framework\TestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 final class SubjectTest extends TestCase {
@@ -93,7 +106,7 @@ final class SubjectTest extends TestCase {
     public function testparameter(string $label): void { $this->subject($label); }
 __METHODS__
 }
-'''
+"""
 
 
 def _path(name: str) -> Path:
@@ -111,7 +124,11 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
         _path(name)
     root.mkdir(parents=True, exist_ok=True)
     names = LARGE if os.environ.get("RL00_SIZE") == "large" else SMALL
-    methods = "\n".join(f"    public function test{name}(): void {{ $this->subject('{name}'); }}" for name in names if not name.startswith("parameter"))
+    methods = "\n".join(
+        f"    public function test{name}(): void {{ $this->subject('{name}'); }}"
+        for name in names
+        if not name.startswith("parameter")
+    )
     if len(names) == len(SMALL):
         # Small corpus has exactly four native cases; omit the provider method.
         start = PHP.index("    public static function parameters(): array {")
@@ -120,15 +137,28 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
     else:
         fixture = PHP
     (root / "SubjectTest.php").write_text(fixture.replace("__METHODS__", methods), encoding="utf-8")
-    (root / "subject.php").write_text("<?php\nfunction rl00_value(): int { return 1; }\n", encoding="utf-8")
+    (root / "subject.php").write_text(
+        "<?php\nfunction rl00_value(): int { return 1; }\n", encoding="utf-8"
+    )
     (root / "scenarios.toml").write_text(
         'schema_version = 1\ncomponent = "rl00bc"\n[[scenarios]]\n'
         'id = "subject-value"\nsummary = "The subject produces its expected value"\n'
         'capability = "library"\nlevel = "unit"\nstage = "commit"\n'
-        'tests = ["SubjectTest::testordinary"]\n', encoding="utf-8")
+        'tests = ["SubjectTest::testordinary"]\n',
+        encoding="utf-8",
+    )
 
 
-def command(root: Path, repo: Path, output: Path, selected: str | None, *, profile: str, workers: int, coverage: bool) -> list[str]:
+def command(
+    root: Path,
+    repo: Path,
+    output: Path,
+    selected: str | None,
+    *,
+    profile: str,
+    workers: int,
+    coverage: bool,
+) -> list[str]:
     """Build the adapter-style command; PHPUnit here supports serial execution only."""
     if profile != "php" or workers != 1:
         raise ValueError("PHP fixture supports only one worker")
@@ -138,8 +168,15 @@ def command(root: Path, repo: Path, output: Path, selected: str | None, *, profi
     (output / "selection.json").write_text(json.dumps({"selected": selected}), encoding="utf-8")
     autoload = str(_path("RL00_PHP_AUTOLOAD")).replace("\\", "\\\\").replace("'", "\\'")
     bootstrap = output / "bootstrap.php"
-    bootstrap.write_text(f"<?php\nrequire_once '{autoload}';\nrequire_once '{root / 'subject.php'}';\n", encoding="utf-8")
-    source = f'<source><include><file>{escape(str(root / "subject.php"))}</file></include></source><coverage includeUncoveredFiles="true" branchCoverage="true" disableCodeCoverageIgnore="true" ignoreDeprecatedCodeUnits="false"/>' if coverage else ""
+    bootstrap.write_text(
+        f"<?php\nrequire_once '{autoload}';\nrequire_once '{root / 'subject.php'}';\n",
+        encoding="utf-8",
+    )
+    source = (
+        f'<source><include><file>{escape(str(root / "subject.php"))}</file></include></source><coverage includeUncoveredFiles="true" branchCoverage="true" disableCodeCoverageIgnore="true" ignoreDeprecatedCodeUnits="false"/>'
+        if coverage
+        else ""
+    )
     xml = f'<?xml version="1.0"?><phpunit bootstrap={quoteattr(str(bootstrap))} cacheDirectory={quoteattr(str(output / "cache"))} colors="false" recordTestRunHistory="false"><testsuites><testsuite name="unit"><file>{escape(str(root / "SubjectTest.php"))}</file></testsuite></testsuites>{source}</phpunit>'
     config = output / "phpunit.xml"
     config.write_text(xml, encoding="utf-8")
@@ -147,9 +184,17 @@ def command(root: Path, repo: Path, output: Path, selected: str | None, *, profi
     argv = [str(_path("RL00_PHP")), "-d", "display_errors=stderr", "-d", "memory_limit=-1"]
     if coverage and os.environ.get("RL00_XDEBUG_LOADED") != "1":
         argv += ["-d", "zend_extension=xdebug"]
-    argv += [str(_path("RL00_PHPUNIT")), f"--configuration={config}", f"--log-junit={output / 'junit.xml'}", "--no-progress"]
+    argv += [
+        str(_path("RL00_PHPUNIT")),
+        f"--configuration={config}",
+        f"--log-junit={output / 'junit.xml'}",
+        "--no-progress",
+    ]
     if coverage:
-        argv += [f"--coverage-clover={output / 'clover.xml'}", f"--coverage-jsonl={output / 'coverage-jsonl'}"]
+        argv += [
+            f"--coverage-clover={output / 'clover.xml'}",
+            f"--coverage-jsonl={output / 'coverage-jsonl'}",
+        ]
     if selected is not None:
         # The parser validates the exact native result after this coarse filter.
         pattern = selected if selected.startswith("parameter") else f"test{selected}"
@@ -167,14 +212,32 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
         identity = f"{case.get('classname', '')}::{name}"
         variant = name.removeprefix("test")
         if name.startswith("testparameter"):
-            match = re.search(r'parameter(?:Cheap|Heavy)', name)
+            match = re.search(r"parameter(?:Cheap|Heavy)", name)
             if match is None:
                 raise ValueError(f"unrecognized native PHPUnit data-set identity: {name}")
             variant = match.group(0)
-        outcome = next((tag for tag in ("error", "failure", "skipped") if case.find(tag) is not None), "passed")
-        cases.append({"id": identity, "variant": variant, "outcome": outcome, "coverage": str(output / "clover.xml") if (output / "clover.xml").is_file() else None, "coverage_jsonl": str(output / "coverage-jsonl") if (output / "coverage-jsonl").is_dir() else None})
+        outcome = next(
+            (tag for tag in ("error", "failure", "skipped") if case.find(tag) is not None), "passed"
+        )
+        cases.append(
+            {
+                "id": identity,
+                "variant": variant,
+                "outcome": outcome,
+                "coverage": str(output / "clover.xml")
+                if (output / "clover.xml").is_file()
+                else None,
+                "coverage_jsonl": str(output / "coverage-jsonl")
+                if (output / "coverage-jsonl").is_dir()
+                else None,
+            }
+        )
     selected = json.loads((output / "selection.json").read_text(encoding="utf-8"))["selected"]
     ids = [str(case["id"]) for case in cases]
-    if not cases or len(ids) != len(set(ids)) or (selected is not None and (len(cases) != 1 or cases[0]["variant"] != selected)):
+    if (
+        not cases
+        or len(ids) != len(set(ids))
+        or (selected is not None and (len(cases) != 1 or cases[0]["variant"] != selected))
+    ):
         raise ValueError("native result identity mismatch")
     return cases
