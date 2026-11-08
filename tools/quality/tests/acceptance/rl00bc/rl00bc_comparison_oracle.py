@@ -15,9 +15,10 @@ def _shared_bound(phases: dict[str, object]) -> bool:
 
 def _memory_bound(phases: dict[str, object]) -> bool:
     resource = phases.get("resource")
-    return isinstance(resource, dict) and cast(dict[str, object], resource).get(
-        "own_memory_after_entry"
-    ) is True
+    return (
+        isinstance(resource, dict)
+        and cast(dict[str, object], resource).get("own_memory_after_entry") is True
+    )
 
 
 def matches(oracle: dict[str, object], *, memory: bool, shared: bool = False) -> bool:

@@ -118,7 +118,9 @@ def _same_clock(selected: list[dict[str, object]]) -> bool:
         return False
     if any(event.get("worker") != selected[0].get("worker") for event in selected):
         return False
-    return not any(("monotonic_ns" in event) != ("monotonic_ns" in selected[0]) for event in selected)
+    return not any(
+        ("monotonic_ns" in event) != ("monotonic_ns" in selected[0]) for event in selected
+    )
 
 
 def _increasing(times: list[int | None]) -> bool:

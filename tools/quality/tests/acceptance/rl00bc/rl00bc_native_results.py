@@ -25,7 +25,9 @@ def _selection_problem(
 ) -> str | None:
     if selected is None:
         return None
-    if partial is not None and (partial.get("focused") is True or partial.get("truncated_tail") is True):
+    if partial is not None and (
+        partial.get("focused") is True or partial.get("truncated_tail") is True
+    ):
         return "partial native stream leaves selection trust or exclusivity unproved"
     matches = [case for case in cases if selected in (case.get("id"), case.get("variant"))]
     if len(cases) != 1 or len(matches) != 1:
@@ -63,9 +65,12 @@ def read(
     parse_error: str | None = None
     selection_error: str | None = None
     try:
-        if (profile == "dart" and kernel.get("success") is False
-            and kernel.get("resource_violation") in
-            ("own-memory", "own-tasks", "ancestor-resource", "timeout")):
+        if (
+            profile == "dart"
+            and kernel.get("success") is False
+            and kernel.get("resource_violation")
+            in ("own-memory", "own-tasks", "ancestor-resource", "timeout")
+        ):
             partial = rl00bc_dart.partial_results(root, output, profile=profile, kernel=kernel)
             cases = _rows(partial.get("native_cases"))
         else:
@@ -76,7 +81,9 @@ def read(
         logging.exception("Native result parsing failed")
         parse_error = f"{type(error).__name__}: {error}"[:1024]
     return {
-        "native_cases": cases, "partial_native_evidence": partial,
-        "parse_error": parse_error, "selection_error": selection_error,
+        "native_cases": cases,
+        "partial_native_evidence": partial,
+        "parse_error": parse_error,
+        "selection_error": selection_error,
         "classification": _classification(kernel, cases, parse_error),
     }

@@ -71,9 +71,14 @@ def _php_bridge(
     )
 
 
-def _bridge(profile: str, canonical: list[dict[str, object]],
-            original: list[dict[str, object]], strict: list[dict[str, object]],
-            variant: str, eligible: bool) -> tuple[bool, bool]:
+def _bridge(
+    profile: str,
+    canonical: list[dict[str, object]],
+    original: list[dict[str, object]],
+    strict: list[dict[str, object]],
+    variant: str,
+    eligible: bool,
+) -> tuple[bool, bool]:
     compatible = profile != "php" or _php_bridge(canonical, strict, original, variant)
     bridge = eligible and bool(original) and bool(strict) and profile != "dart" and compatible
     return bridge, compatible
@@ -94,7 +99,11 @@ def select(
     canonical_rows = [event for event in canonical if _matches(event, profile, identity, variant)]
     strict_rows = [event for event in strict if _matches(event, profile, identity, variant)]
     bridge, compatible = _bridge(
-        profile, canonical, canonical_rows, strict_rows, variant,
+        profile,
+        canonical,
+        canonical_rows,
+        strict_rows,
+        variant,
         strict_scope_valid and canonical_report,
     )
     strict_report = strict_report and compatible

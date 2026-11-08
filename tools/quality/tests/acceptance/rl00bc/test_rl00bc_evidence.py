@@ -58,22 +58,24 @@ class DartPartialEvidenceTests(unittest.TestCase):
             "native_status": -9,
             "cleanup_complete": True,
         }
-        native = rl00bc_native_results.read("dart", self.root, self.root / "native", _TARGET, kernel)
+        native = rl00bc_native_results.read(
+            "dart", self.root, self.root / "native", _TARGET, kernel
+        )
         cases = cast(list[dict[str, object]], native["native_cases"])
         error = cast(str | None, native["parse_error"])
         self.assertEqual(kernel["cause"], "own-memory")
         self.assertEqual(kernel["resource_violation"], "own-memory")
         self.assertEqual(kernel["native_status"], -9)
-        self.assertEqual(
-            native["classification"], "own-boundary-resource-violation"
-        )
+        self.assertEqual(native["classification"], "own-boundary-resource-violation")
         self.assertIsNotNone(native["partial_native_evidence"])
         return cases, error, cast(dict[str, object], native["partial_native_evidence"]), kernel
 
     def _assert_unbound(self, cases: list[dict[str, object]], error: str | None) -> None:
         self.assertIsNotNone(error)
         record: dict[str, object] = {
-            "native_cases": cases, "parse_error": error, "selection_error": error
+            "native_cases": cases,
+            "parse_error": error,
+            "selection_error": error,
         }
         self.assertFalse(rl00bc_event_binding.report_has(record, _TARGET, "default", single=True))
 
@@ -175,8 +177,11 @@ class DartSourceBindingTests(unittest.TestCase):
         canonical: dict[str, object] = {
             "corpus_root": str(self.canonical_root),
             "native_cases": [
-                {"id": _TARGET, "source": str(self.canonical_root / "test/resource_a_test.dart"),
-                 "native_id": 11}
+                {
+                    "id": _TARGET,
+                    "source": str(self.canonical_root / "test/resource_a_test.dart"),
+                    "native_id": 11,
+                }
             ],
         }
         strict: dict[str, object] = {
@@ -200,15 +205,21 @@ class DartSourceBindingTests(unittest.TestCase):
         canonical: dict[str, object] = {
             "corpus_root": str(self.canonical_root),
             "native_cases": [
-                {"id": _TARGET, "source": str(self.canonical_root / "test/resource_a_test.dart"),
-                 "native_id": 11}
+                {
+                    "id": _TARGET,
+                    "source": str(self.canonical_root / "test/resource_a_test.dart"),
+                    "native_id": 11,
+                }
             ],
         }
         strict: dict[str, object] = {
             "corpus_root": str(self.strict_root),
             "native_cases": [
-                {"id": _TARGET, "source": str(self.strict_root / "test/resource_b_test.dart"),
-                 "native_id": 73}
+                {
+                    "id": _TARGET,
+                    "source": str(self.strict_root / "test/resource_b_test.dart"),
+                    "native_id": 73,
+                }
             ],
         }
         self.assertIs(
@@ -323,7 +334,9 @@ class NodeSharedFixtureTests(unittest.TestCase):
         events = _shared_pair(selected, 1)
         for event in events:
             event.pop("fixture_context")
-        strict_events = _shared_pair("node:" + (self.strict_root / "resource_a.test.mjs").as_uri(), 3)
+        strict_events = _shared_pair(
+            "node:" + (self.strict_root / "resource_a.test.mjs").as_uri(), 3
+        )
         before, _, report = rl00bc_shared_oracle.select(
             "node", canonical, strict, events, strict_events, [{"fixture_context": selected}]
         )

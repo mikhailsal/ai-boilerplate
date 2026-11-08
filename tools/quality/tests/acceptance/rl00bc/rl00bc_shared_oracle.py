@@ -64,8 +64,9 @@ def _selected_context(events: list[dict[str, object]], run: dict[str, object]) -
     return next(iter(contexts)) if len(contexts) == 1 else None
 
 
-def _context_rows(groups: dict[tuple[int, str, str], list[dict[str, object]]],
-                  context: str | None) -> list[dict[str, object]]:
+def _context_rows(
+    groups: dict[tuple[int, str, str], list[dict[str, object]]], context: str | None
+) -> list[dict[str, object]]:
     return [event for key, rows in groups.items() if key[2] == context for event in rows]
 
 

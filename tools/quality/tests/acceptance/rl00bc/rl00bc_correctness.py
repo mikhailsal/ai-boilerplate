@@ -156,14 +156,24 @@ def _target_options(profile: str, target: str) -> TrialOptions:
     }
 
 
-def _justified(run: TrialRunner, profile: str, row: dict[str, object],
-               canonical: dict[str, object], options: TrialOptions,
-               mismatches: list[str], oracles: dict[str, object]) -> None:
+def _justified(
+    run: TrialRunner,
+    profile: str,
+    row: dict[str, object],
+    canonical: dict[str, object],
+    options: TrialOptions,
+    mismatches: list[str],
+    oracles: dict[str, object],
+) -> None:
     justified_opts: TrialOptions = {**options, "justification": "preregistered justified workload"}
     justified = run("justified-allowance", **justified_opts)
     oracles["justified-allowance"] = rl00bc_phase_oracle.evaluate(
-        profile, "justified", cast(str, row["id"]), cast(str, row.get("variant", "default")),
-        canonical, justified,
+        profile,
+        "justified",
+        cast(str, row["id"]),
+        cast(str, row.get("variant", "default")),
+        canonical,
+        justified,
     )
     if justified.get("classification") != "observed-success":
         mismatches.append("justified allowance nonpass")
