@@ -251,10 +251,7 @@ def _environment(home: Path, environment: dict[str, str]) -> dict[str, str]:
 
 REQUIRED_GAPS = [
     "Human understanding, administrator wait and novice usability are unmeasured.",
-    (
-        "Only the Python onboarding fixture is exercised; "
-        "other profile adoption remains unproved."
-    ),
+    ("Only the Python onboarding fixture is exercised; other profile adoption remains unproved."),
     (
         "The standalone experimental kernel overlay is not integrated into "
         "exported quality or hooks."
