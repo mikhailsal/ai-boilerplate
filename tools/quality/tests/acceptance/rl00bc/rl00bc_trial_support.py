@@ -75,7 +75,7 @@ STRICT: dict[str, tuple[int, int, float]] = {
 }
 
 
-def _save(path: Path, value: object) -> bytes:
+def save_record(path: Path, value: object) -> bytes:
     data = (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
     if len(data) > LIMIT:
         invalid(f"bounded experiment record exceeds {LIMIT} bytes")
@@ -95,8 +95,12 @@ def _validate_corpus(size: str, mode: str, allocation_mib: int, shared_mib: int)
 
 
 def _validate_environment(
-    environment: dict[str, str], size: str, mode: str, target: str,
-    allocation_mib: int, shared_mib: int,
+    environment: dict[str, str],
+    size: str,
+    mode: str,
+    target: str,
+    allocation_mib: int,
+    shared_mib: int,
 ) -> None:
     unknown = set(environment) - PATH_KEYS
     if unknown:
@@ -124,7 +128,7 @@ def _search_path(environment: dict[str, str]) -> str:
     return ":".join([*tool_dirs, "/usr/local/bin", "/usr/bin", "/bin"])
 
 
-def _environment(
+def environment_for(
     environment: dict[str, str],
     root: Path,
     output: Path,
@@ -172,7 +176,7 @@ def _restore_environment(keys: set[str], previous: dict[str, str | None]) -> Non
     os.environ.update({key: value for key, value in previous.items() if value is not None})
 
 
-def _provider_commands(
+def provider_commands(
     provider: Provider,
     root: Path,
     repo: Path,
@@ -197,5 +201,3 @@ def _provider_commands(
         )
     finally:
         _restore_environment(keys, previous)
-
-

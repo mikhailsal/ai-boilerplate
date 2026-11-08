@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 
 from defusedxml import ElementTree
-
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 # The parent invokes these commands inside its finite cgroup and deadline.

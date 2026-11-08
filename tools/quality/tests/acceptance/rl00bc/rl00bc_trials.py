@@ -13,15 +13,16 @@ from pathlib import Path
 from tests.acceptance.rl00a.rl00a_cgroup import Group
 from tests.acceptance.rl00bc import rl00bc_kernel
 from tests.acceptance.rl00bc.rl00bc_errors import expired, invalid
+from tests.acceptance.rl00bc.rl00bc_trial_support import PATH_KEYS as PATH_KEYS
 from tests.acceptance.rl00bc.rl00bc_trial_support import (
     PROVIDERS,
     RESERVE_NS,
     STRICT,
-    _environment,
-    _provider_commands,
-    _save,
+    environment_for,
+    provider_commands,
+    save_record,
 )
-from tests.acceptance.rl00bc.rl00bc_trial_support import PATH_KEYS as PATH_KEYS
+
 
 @dataclass
 class _Trial:
@@ -87,19 +88,35 @@ class _Trial:
 
     def prepare(self) -> None:
         self.repo, self.scratch, self.output = (
-            self.repo.absolute(), self.scratch.absolute(), self.output.absolute()
+            self.repo.absolute(),
+            self.scratch.absolute(),
+            self.output.absolute(),
         )
         self.scratch.mkdir(parents=True, exist_ok=True)
         self.output.mkdir(parents=True, exist_ok=False)
         self.root = self.scratch / f"rl00bc-{uuid.uuid4().hex}"
-        self.env = _environment(
-            self.environment, self.root, self.output, size=self.size, mode=self.mode,
-            target=self.target, allocation_mib=self.allocation_mib, shared_mib=self.shared_mib,
-            instrument=self.instrument, coverage=self.coverage,
+        self.env = environment_for(
+            self.environment,
+            self.root,
+            self.output,
+            size=self.size,
+            mode=self.mode,
+            target=self.target,
+            allocation_mib=self.allocation_mib,
+            shared_mib=self.shared_mib,
+            instrument=self.instrument,
+            coverage=self.coverage,
         )
-        argv = _provider_commands(
-            PROVIDERS[self.profile], self.root, self.repo, self.output / "native", self.profile,
-            self.selected, self.workers, self.coverage, self.env,
+        argv = provider_commands(
+            PROVIDERS[self.profile],
+            self.root,
+            self.repo,
+            self.output / "native",
+            self.profile,
+            self.selected,
+            self.workers,
+            self.coverage,
+            self.env,
         )
         self.write_plan(argv)
 
@@ -108,23 +125,39 @@ class _Trial:
         if self.profile == "browser":
             if self.coverage:
                 invalid("browser profile has no native unit coverage")
-            commands.insert(0, [self.env["RL00_NODE"],
-                str(Path(self.env["RL00_NODE_MODULES"]) / "vite/bin/vite.js"),
-                "build", str(self.root)])
+            commands.insert(
+                0,
+                [
+                    self.env["RL00_NODE"],
+                    str(Path(self.env["RL00_NODE_MODULES"]) / "vite/bin/vite.js"),
+                    "build",
+                    str(self.root),
+                ],
+            )
         if self.deadline_ns <= time.monotonic_ns():
             expired("trial deadline exhausted during preparation")
-        plan = {"cwd": str(self.root), "commands": commands,
-                "events": str(self.output / "events"), "deadline_ns": self.deadline_ns}
+        plan = {
+            "cwd": str(self.root),
+            "commands": commands,
+            "events": str(self.output / "events"),
+            "deadline_ns": self.deadline_ns,
+        }
         self.plan_path = self.output / "native-plan.json"
-        self.plan_hash = hashlib.sha256(_save(self.plan_path, plan)).hexdigest()
+        self.plan_hash = hashlib.sha256(save_record(self.plan_path, plan)).hexdigest()
         self.preparation_seconds = (time.monotonic_ns() - self.start_ns) / 1_000_000_000
 
     def execute(self) -> dict[str, object]:
         wrapper = Path(__file__).with_name("rl00bc_native.py").absolute()
         return rl00bc_kernel.execute(
-            self.work, [sys.executable, str(wrapper), str(self.plan_path)], self.root, self.env,
-            self.output / "kernel", memory_mib=self.memory_mib, tasks=self.tasks,
-            native_seconds=self.seconds, ancestor_deadline_ns=self.ancestor_deadline_ns,
+            self.work,
+            [sys.executable, str(wrapper), str(self.plan_path)],
+            self.root,
+            self.env,
+            self.output / "kernel",
+            memory_mib=self.memory_mib,
+            tasks=self.tasks,
+            native_seconds=self.seconds,
+            ancestor_deadline_ns=self.ancestor_deadline_ns,
             payload_deadline_ns=self.deadline_ns,
         )
 
@@ -145,25 +178,37 @@ class _Trial:
     def record(self, raw: dict[str, object]) -> dict[str, object]:
         cases, parse_error = self.parse()
         result: dict[str, object] = {
-            "profile": self.profile, "selected": self.selected,
+            "profile": self.profile,
+            "selected": self.selected,
             "scope": "canonical-suite" if self.selected is None else "selected-case",
             "measurement_kind": "kernel-charged-leaf",
             "classification": _classification(raw, cases, parse_error),
-            "strict_verification": "not-applicable" if self.selected is None
+            "strict_verification": "not-applicable"
+            if self.selected is None
             else "experimental-evidence-only",
-            "native_cases": cases, "parse_error": parse_error, "kernel": raw,
-            "native_plan_sha256": self.plan_hash, "native_plan": str(self.plan_path),
+            "native_cases": cases,
+            "parse_error": parse_error,
+            "kernel": raw,
+            "native_plan_sha256": self.plan_hash,
+            "native_plan": str(self.plan_path),
             "preparation_seconds": self.preparation_seconds,
             "kernel_evidence": str(self.output / "kernel/result.json"),
-            "events": str(self.output / "events"), "memory_limit_mib": self.memory_mib,
-            "task_limit": self.tasks, "native_deadline_ns": self.deadline_ns,
-            "ancestor_deadline_ns": self.ancestor_deadline_ns, "size": self.size,
-            "mode": self.mode, "target": self.target, "workers": self.workers,
-            "allocation_mib": self.allocation_mib, "shared_mib": self.shared_mib,
-            "coverage": self.coverage, "budget_class": self.budget_class,
+            "events": str(self.output / "events"),
+            "memory_limit_mib": self.memory_mib,
+            "task_limit": self.tasks,
+            "native_deadline_ns": self.deadline_ns,
+            "ancestor_deadline_ns": self.ancestor_deadline_ns,
+            "size": self.size,
+            "mode": self.mode,
+            "target": self.target,
+            "workers": self.workers,
+            "allocation_mib": self.allocation_mib,
+            "shared_mib": self.shared_mib,
+            "coverage": self.coverage,
+            "budget_class": self.budget_class,
             "justification": self.justification,
         }
-        _save(self.output / "trial.json", result)
+        save_record(self.output / "trial.json", result)
         return result
 
 
@@ -210,9 +255,26 @@ def one(
 ) -> dict[str, object]:
     """Run a fresh native subject under one leaf and persist separate evidence."""
     start_ns = time.monotonic_ns()
-    trial = _Trial(work, repo, scratch, output, profile, environment, selected, size, mode, target,
-                   allocation_mib, shared_mib, workers, coverage, instrument, justification,
-                   ancestor_deadline_ns, start_ns)
+    trial = _Trial(
+        work,
+        repo,
+        scratch,
+        output,
+        profile,
+        environment,
+        selected,
+        size,
+        mode,
+        target,
+        allocation_mib,
+        shared_mib,
+        workers,
+        coverage,
+        instrument,
+        justification,
+        ancestor_deadline_ns,
+        start_ns,
+    )
     trial.validate()
     trial.prepare()
     return trial.record(trial.execute())

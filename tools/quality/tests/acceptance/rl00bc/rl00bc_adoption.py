@@ -188,7 +188,7 @@ class _Runner:
             self.active += float(elapsed)
             if not result.get("success") or not result.get("cleanup_complete"):
                 unavailable(f"{name} did not complete successfully")
-        except OSError, ValueError, RuntimeError, TypeError, KeyError as error:
+        except (OSError, ValueError, RuntimeError, TypeError, KeyError) as error:
             if name not in self.phases:
                 self.phases[name] = {
                     "argv": argv, "cwd": str(cwd), "error": f"{type(error).__name__}: {error}"
@@ -281,7 +281,7 @@ def adopt(
         _exports(root, repo, runner.require)
         custom_text = _onboard(project, runner.require)
         _update(root, custom_text, gaps, runner.require)
-    except OSError, ValueError, RuntimeError, TypeError, KeyError as error:
+    except (OSError, ValueError, RuntimeError, TypeError, KeyError) as error:
         gaps.append(f"Native adoption stopped: {type(error).__name__}: {error}")
     result = _report(runner, project, gaps, started)
     (output / "adoption.json").write_text(

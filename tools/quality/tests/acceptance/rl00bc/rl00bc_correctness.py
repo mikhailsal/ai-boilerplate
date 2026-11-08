@@ -7,7 +7,12 @@ from pathlib import Path
 from typing import Protocol, TypedDict, Unpack, cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group
-from tests.acceptance.rl00bc import rl00bc_selection, rl00bc_trials
+from tests.acceptance.rl00bc import (
+    rl00bc_corpus,
+    rl00bc_phase_oracle,
+    rl00bc_selection,
+    rl00bc_trials,
+)
 from tests.acceptance.rl00bc.rl00bc_errors import invalid, wrong_type
 
 CONTEXT_KEYS = ("candidate", "base", "tested_tree", "policy", "runtime", "source")
@@ -132,11 +137,12 @@ def _native_target(profile: str, target: str) -> str:
 
 
 def _target(run: TrialRunner, profile: str, target: str, cases: list[dict[str, object]],
-            mismatches: list[str]) -> None:
+            mismatches: list[str], oracles: dict[str, object]) -> None:
     try:
         selected_case = _selector(profile, target, cases)
     except ValueError as error:
         mismatches.append(str(error))
+        oracles[target] = {"case_attribution": "unproved", "gaps": [str(error)]}
         return
     opts: TrialOptions = {
         "size": "large", "mode": "correctness", "target": _native_target(profile, target),
@@ -146,6 +152,12 @@ def _target(run: TrialRunner, profile: str, target: str, cases: list[dict[str, o
     canonical = run(f"{target}-canonical", **opts)
     strict_opts: TrialOptions = {**opts, "selected": selected_case, "coverage": False}
     strict = run(f"{target}-strict", **strict_opts)
+    key, _ = _selector_name(profile, target)
+    selected_row = next(case for case in cases if case.get(key) == selected_case)
+    oracles[target] = rl00bc_phase_oracle.evaluate(
+        profile, target, cast(str, selected_row["id"]),
+        cast(str, selected_row.get("variant", "default")), canonical, strict,
+    )
     if canonical.get("classification") != "observed-success":
         mismatches.append(f"{target} canonical nonpass")
     expected = "deadline-exceeded" if target == "slow" else "own-boundary-resource-violation"
@@ -158,6 +170,10 @@ def _target(run: TrialRunner, profile: str, target: str, cases: list[dict[str, o
             **strict_opts, "justification": "preregistered justified workload"
         }
         justified = run("justified-allowance", **justified_opts)
+        oracles["justified-allowance"] = rl00bc_phase_oracle.evaluate(
+            profile, target, cast(str, selected_row["id"]),
+            cast(str, selected_row.get("variant", "default")), canonical, justified,
+        )
         if justified.get("classification") != "observed-success":
             mismatches.append("justified allowance nonpass")
 
@@ -176,9 +192,12 @@ def _parallel(run: TrialRunner, discovered: list[dict[str, object]], coverage: b
         mismatches.append("two-worker native identity unavailable")
 
 
-def _scopes(large: dict[str, object], small: dict[str, object], context: dict[str, str],
+def _scopes(profile: str, large: dict[str, object], small: dict[str, object],
+            context: dict[str, str],
             mismatches: list[str]) -> tuple[list[dict[str, object]], dict[str, object]]:
     try:
+        rl00bc_corpus.verify(profile, "large", large["native_cases"])
+        rl00bc_corpus.verify(profile, "small", small["native_cases"])
         discovered = _identities(large["native_cases"])
         small_ids = {item["id"] for item in _identities(small["native_cases"])}
         if not small_ids <= {item["id"] for item in discovered}:
@@ -192,7 +211,7 @@ def _scopes(large: dict[str, object], small: dict[str, object], context: dict[st
         if (set(cast(list[str], first["selected"])) != selected
             or set(cast(list[str], unknown["selected"])) != selected):
             mismatches.append("selection fallback incomplete")
-    except KeyError, ValueError, TypeError as error:
+    except (KeyError, ValueError, TypeError) as error:
         mismatches.append("native discovery or selection failed")
         return [], {"error": str(error)}
     else:
@@ -204,9 +223,14 @@ def _collect(run: TrialRunner, profile: str, context: dict[str, str],
     coverage = profile != "browser"
     pending = [
         "real-git-candidate-mutations", "canonical-quality-coverage-and-scenario-reconciliation",
-        "worker-attribution", "nested-capacity", "order-perturbation",
+        "worker-attribution", "nested-capacity", "order-perturbation", "target-phase-attribution",
+        "owned-child-membership",
     ]
     mismatches: list[str] = []
+    oracles: dict[str, object] = {
+        target: {"case_attribution": "unproved", "gaps": ["target trial not run"]}
+        for target in TARGETS
+    }
     for size in ("small", "large"):
         baseline = run(f"baseline-{size}", size=size, mode="performance", coverage=coverage,
                        instrument=True)
@@ -214,17 +238,18 @@ def _collect(run: TrialRunner, profile: str, context: dict[str, str],
             mismatches.append(f"baseline-{size} nonpass")
     large = cast(dict[str, object], runs["baseline-large"])
     small = cast(dict[str, object], runs["baseline-small"])
-    discovered, scopes = _scopes(large, small, context, mismatches)
+    discovered, scopes = _scopes(profile, large, small, context, mismatches)
     cases = cast(list[dict[str, object]], large.get("native_cases", []))
     if discovered:
         for target in TARGETS:
-            _target(run, profile, target, cases, mismatches)
+            _target(run, profile, target, cases, mismatches, oracles)
         if profile != "php":
             _parallel(run, discovered, coverage, mismatches)
         else:
             pending.append("php-native-parallel-not-supported")
     return {
         "profile": profile, "runs": runs, "scopes": scopes, "mismatches": mismatches,
+        "target_phase_oracles": oracles,
         "required_proofs_pending": pending,
         "verdict": "comparisons-failed" if mismatches
         else "comparisons-passed-external-proofs-pending",

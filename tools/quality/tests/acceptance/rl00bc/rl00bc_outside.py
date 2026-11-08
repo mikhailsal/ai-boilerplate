@@ -10,16 +10,17 @@ import subprocess
 import sys
 import time
 import uuid
-from dataclasses import dataclass
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import load, save
-from tests.acceptance.rl00bc.rl00bc_errors import expired, invalid, unavailable
+from tests.acceptance.rl00bc.rl00bc_errors import invalid, unavailable
 from tests.acceptance.rl00bc.rl00bc_identity import capture
 
 MODULE = "tests.acceptance.rl00bc"
+RESERVE_NS = 3_000_000_000
 
 
 @dataclass(frozen=True)
@@ -34,23 +35,38 @@ class Request:
     mode: str
     criterion: str
     samples: int
+    criterion_approval: str = ""
 
 
 def _unit(request: Request, name: str, argv: list[str], *, peer: bool = False) -> list[str]:
     properties = {
-        "User": str(os.getuid()), "Group": str(os.getgid()),
-        "MemoryMax": "32M" if peer else "4096M", "MemorySwapMax": "0",
-        "TasksMax": "8" if peer else "512", "RuntimeMaxSec": "3000s" if peer else "2660s",
-        "TimeoutStopSec": "1s", "KillMode": "control-group", "SendSIGKILL": "yes",
-        "OOMPolicy": "continue", "LimitCORE": "0",
+        "User": str(os.getuid()),
+        "Group": str(os.getgid()),
+        "MemoryMax": "32M" if peer else "4096M",
+        "MemorySwapMax": "0",
+        "TasksMax": "8" if peer else "512",
+        "RuntimeMaxSec": "3000s" if peer else "2660s",
+        "TimeoutStopSec": "1s",
+        "KillMode": "control-group",
+        "SendSIGKILL": "yes",
+        "OOMPolicy": "continue",
+        "LimitCORE": "0",
     }
     if not peer:
         properties["Delegate"] = "yes"
     return [
-        "sudo", "-n", "systemd-run", "--quiet", "--wait", "--pipe", "--collect",
-        f"--unit={name}", f"--working-directory={request.repo}",
+        "sudo",
+        "-n",
+        "systemd-run",
+        "--quiet",
+        "--wait",
+        "--pipe",
+        "--collect",
+        f"--unit={name}",
+        f"--working-directory={request.repo}",
         f"--setenv=PYTHONPATH={request.repo / 'tools/quality'}",
-        *[f"--property={key}={value}" for key, value in properties.items()], *argv,
+        *[f"--property={key}={value}" for key, value in properties.items()],
+        *argv,
     ]
 
 
@@ -63,15 +79,19 @@ def _stop(name: str) -> None:
 def _main_pid(name: str) -> int | None:
     value = subprocess.run(
         ["sudo", "-n", "systemctl", "show", name, "--property=MainPID", "--value"],
-        check=False, capture_output=True, text=True, timeout=1,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=1,
     ).stdout.strip()
     return int(value) if value.isdecimal() and int(value) else None
 
 
 def _peer(request: Request, name: str) -> tuple[subprocess.Popen[bytes], int]:
     command = _unit(request, name, ["/bin/sleep", "2990"], peer=True)
-    proxy = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                             stderr=subprocess.DEVNULL)
+    proxy = subprocess.Popen(
+        command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
     try:
         until = time.monotonic() + 3
         while proxy.poll() is None and time.monotonic() < until:
@@ -89,23 +109,51 @@ def _peer(request: Request, name: str) -> tuple[subprocess.Popen[bytes], int]:
 
 def _command(request: Request, name: str, deadline: int) -> list[str]:
     coordinator = [
-        sys.executable, "-m", f"{MODULE}.rl00bc_driver", "--inside",
-        "--phase", request.phase, "--profile", request.profile,
-        "--output", str(request.output), "--scratch", str(request.scratch),
-        "--criterion", request.criterion, "--samples", str(request.samples),
+        sys.executable,
+        "-m",
+        f"{MODULE}.rl00bc_driver",
+        "--inside",
+        "--phase",
+        request.phase,
+        "--profile",
+        request.profile,
+        "--output",
+        str(request.output),
+        "--scratch",
+        str(request.scratch),
+        "--criterion",
+        request.criterion,
+        "--samples",
+        str(request.samples),
+        "--criterion-approval",
+        request.criterion_approval,
     ]
     provider = [
-        sys.executable, "-m", f"{MODULE}.rl00bc_service", "--mode", request.mode,
-        "--output", str(request.output), "--deadline-ns", str(deadline),
-        "--unit-name", f"{name}.service", "--", *coordinator,
+        sys.executable,
+        "-m",
+        f"{MODULE}.rl00bc_service",
+        "--mode",
+        request.mode,
+        "--output",
+        str(request.output),
+        "--deadline-ns",
+        str(deadline),
+        "--unit-name",
+        f"{name}.service",
+        "--",
+        *coordinator,
     ]
     return _unit(request, name, provider)
 
 
 def _collect(request: Request, name: str, deadline: int) -> int:
     with (request.output / "service.log").open("wb") as log:
-        child = subprocess.Popen(_command(request, name, deadline), stdin=subprocess.DEVNULL,
-                                 stdout=log, stderr=subprocess.STDOUT)
+        child = subprocess.Popen(
+            _command(request, name, deadline),
+            stdin=subprocess.DEVNULL,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+        )
         try:
             remaining = max(0.001, (deadline - time.monotonic_ns()) / 1e9)
             return child.wait(timeout=remaining)
@@ -126,27 +174,83 @@ def _absence(request: Request, name: str, deadline: int) -> int:
             if path.stat().st_ino != root["inode"]:
                 invalid("service root identity changed")
         except FileNotFoundError:
-            return time.monotonic_ns()
+            observed = time.monotonic_ns()
+            if observed <= deadline:
+                return observed
+            break
         time.sleep(0.005)
-    expired("owned service root was not removed before its original deadline")
+    message = "owned service root was not observed removed before its fixed cleanup deadline"
+    raise TimeoutError(message)
 
 
-def _observe(request: Request, name: str, deadline: int, peer: tuple[subprocess.Popen[bytes], int]) -> dict[str, object]:
+def _cleanup_deadline(guardian: dict[str, object], original: int) -> int:
+    anchor = guardian.get("cleanup_anchor_ns")
+    started = guardian.get("cleanup_started_ns")
+    finished = guardian.get("finished_ns")
+    deadline = guardian.get("cleanup_deadline_ns")
+    if any(
+        isinstance(value, bool) or not isinstance(value, int)
+        for value in (anchor, started, finished, deadline)
+    ):
+        invalid("guardian cleanup timing is incomplete")
+    anchor = cast(int, anchor)
+    started = cast(int, started)
+    finished = cast(int, finished)
+    deadline = cast(int, deadline)
+    if guardian.get("deadline_ns") != original or deadline != min(original, anchor + RESERVE_NS):
+        invalid("guardian cleanup deadline does not match the original fixed reserve")
+    if not 0 < anchor <= started <= finished <= time.monotonic_ns() or anchor > original:
+        invalid("guardian cleanup timing is inconsistent")
+    if guardian.get("cleanup_anchor_kind") not in ("controller-stop", "cleanup-start"):
+        invalid("guardian cleanup anchor is unavailable")
+    if guardian.get("success") is True and finished >= deadline:
+        invalid("guardian reported success after the cleanup deadline")
+    return deadline
+
+
+def _save_observation(path: Path, result: dict[str, object]) -> str | None:
+    try:
+        save(path, result)
+    except OSError as error:
+        logging.exception("outer observation persistence failed")
+        return f"{type(error).__name__}: {error}"
+    return None
+
+
+def _observe(
+    request: Request, name: str, deadline: int, peer: tuple[subprocess.Popen[bytes], int]
+) -> dict[str, object]:
     proxy, watched = peer
     status = _collect(request, name, deadline)
-    removed = _absence(request, name, deadline)
+    guardian = load(request.output / "guardian.json")
+    cleanup_deadline = _cleanup_deadline(guardian, deadline)
+    result: dict[str, object] = {
+        "proxy_native_status": status,
+        "cleanup_anchor_ns": guardian["cleanup_anchor_ns"],
+        "cleanup_deadline_ns": cleanup_deadline,
+        "guardian_error": guardian.get("error"),
+        "guardian_cleanup_errors": guardian.get("cleanup_errors"),
+        "collector_complete": False,
+    }
+    observation_path = request.output / "outer-observation.json"
+    metadata_error = _save_observation(observation_path, result)
+    if metadata_error is not None:
+        result["metadata_error"] = metadata_error
+    removed = _absence(request, name, min(deadline, cleanup_deadline))
     alive = not select.select([watched], [], [], 0)[0] and proxy.poll() is None
     if alive:
         signal.pidfd_send_signal(watched, 0)
-    guardian = load(request.output / "guardian.json")
-    result: dict[str, object] = {
-        "proxy_native_status": status, "root_removed_observed_ns": removed,
-        "sentinel_survived": alive, "collector_complete": False,
-    }
-    save(request.output / "outer-observation.json", result)
+    result["root_removed_observed_ns"] = removed
+    result["sentinel_survived"] = alive
+    later_error = _save_observation(observation_path, result)
+    if later_error is not None:
+        result["metadata_error"] = later_error
     if status != 0 or guardian.get("success") is not True or not alive:
         unavailable("provider, collector or sentinel did not complete correctly")
+    if metadata_error is not None or later_error is not None:
+        unavailable("outer observation could not be persisted")
     result["collector_complete"] = True
+    save(observation_path, result)
     return result
 
 
@@ -158,8 +262,12 @@ def _cleanup_call(label: str, operation: Callable[[], object], errors: list[str]
         errors.append(f"{label}: {type(error).__name__}: {error}")
 
 
-def _finish(request: Request, names: tuple[str, str],
-            peer: tuple[subprocess.Popen[bytes], int], result: dict[str, object]) -> None:
+def _finish(
+    request: Request,
+    names: tuple[str, str],
+    peer: tuple[subprocess.Popen[bytes], int],
+    result: dict[str, object],
+) -> None:
     active = sys.exc_info()[0] is not None
     errors: list[str] = []
     for name in names:
@@ -184,8 +292,10 @@ def run(request: Request, here: Path) -> int:
     peer_name = f"quality-rl00bc-sentinel-{uuid.uuid4().hex}"
     peer = _peer(request, peer_name)
     result: dict[str, object] = {
-        "unit": name, "original_deadline_ns": deadline,
-        "collector_complete": False, "integration_verdict": "unproved",
+        "unit": name,
+        "original_deadline_ns": deadline,
+        "collector_complete": False,
+        "integration_verdict": "unproved",
     }
     try:
         result.update(_observe(request, name, deadline, peer))

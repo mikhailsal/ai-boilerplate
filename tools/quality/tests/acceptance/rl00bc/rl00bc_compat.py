@@ -15,6 +15,7 @@ from typing import cast
 from tests.acceptance.rl00a.rl00a_cgroup import Group
 from tests.acceptance.rl00bc import rl00bc_kernel, rl00bc_trials
 from tests.acceptance.rl00bc.rl00bc_compat_parser import PARSER
+from tests.acceptance.rl00bc.rl00bc_coverage_oracle import verify as verify_coverage
 from tests.acceptance.rl00bc.rl00bc_errors import invalid, wrong_type
 
 def _identities(cases: object) -> dict[str, str]:
@@ -95,7 +96,7 @@ def _compare_ids(profile: str, native_ids: dict[str, str], parsed: dict[str, obj
             _browser_ids(parsed.get("browser_projects"), native_ids, errors)
         else:
             _compare_dart_or_node(native_ids, parsed_ids, errors)
-    except ValueError, TypeError as error:
+    except (ValueError, TypeError) as error:
         errors.append(str(error))
 
 
@@ -108,9 +109,10 @@ class _Reconciliation:
     environment: dict[str, str]
     ancestor_deadline_ns: int
     trial: dict[str, object]
-    errors: list[str] = field(default_factory=list)
-    gaps: list[str] = field(default_factory=list)
-    native_ids: dict[str, str] = field(default_factory=dict)
+    errors: list[str] = field(default_factory=list[str])
+    gaps: list[str] = field(default_factory=list[str])
+    native_ids: dict[str, str] = field(default_factory=dict[str, str])
+    coverage_evidence: dict[str, object] | None = None
     root: Path = field(init=False)
     native: Path = field(init=False)
     parser_result: Path = field(init=False)
@@ -185,20 +187,12 @@ class _Reconciliation:
     def coverage(self, parsed: dict[str, object]) -> None:
         if self.profile == "browser":
             return
-        coverage = parsed.get("coverage")
-        files = (
-            cast(dict[str, object], coverage).get("files") if isinstance(coverage, dict) else None
-        )
-        expected = {
-            "python": "src/subject.py", "php": "subject.php", "node": "shared.mjs",
-            "dart": "lib/subject.dart",
-        }[self.profile]
-        if not isinstance(files, dict) or expected not in files:
-            self.errors.append(f"native source coverage is missing {expected}")
-            return
-        file_data = cast(dict[str, object], files).get(expected)
-        if not isinstance(file_data, dict) or not cast(dict[str, object], file_data).get("covered"):
-            self.errors.append(f"native source coverage has no executed lines: {expected}")
+        try:
+            self.coverage_evidence = verify_coverage(
+                self.profile, self.root, self.native, parsed.get("coverage")
+            )
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            self.errors.append(f"native coverage parity: {error}")
 
     def scenario(self, parsed: dict[str, object]) -> None:
         scenario = parsed.get("scenario")
@@ -223,6 +217,7 @@ class _Reconciliation:
         result: dict[str, object] = {
             "profile": self.profile, "trial": self.trial, "formatter": formatter,
             "parser_kernel": kernel, "parsed": parsed, "errors": self.errors, "gaps": self.gaps,
+            "coverage_evidence": self.coverage_evidence,
             "verdict": "pass" if not self.errors and not self.gaps else "unproved",
         }
         (self.output / "compatibility.json").write_text(

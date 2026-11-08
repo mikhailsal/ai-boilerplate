@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group, save
+from tests.acceptance.rl00bc import rl00bc_integrity
 from tests.acceptance.rl00bc.rl00bc_errors import expired, invalid, unavailable
 from tests.acceptance.rl00bc.rl00bc_kernel_launch import handshake, launch
 from tests.acceptance.rl00bc.rl00bc_kernel_observe import Observation, snapshot
@@ -21,7 +22,7 @@ from tests.acceptance.rl00bc.rl00bc_kernel_observe import Observation, snapshot
 RESERVE_NS = 3_000_000_000
 
 
-def _lock(fd: int, deadline: int) -> None:
+def lock_lifecycle(fd: int, deadline: int) -> None:
     while True:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -114,14 +115,23 @@ class _Execution:
     closing: Path
     leaf: Group | None = None
     process: subprocess.Popen[bytes] | None = None
+    integrity: rl00bc_integrity.Capture | None = None
     locked: bool = True
     observation: Observation = field(default_factory=Observation)
-    result: dict[str, object] = field(default_factory=lambda: {
-        "cause": "environment-unavailable", "success": False, "native_status": None,
-        "elapsed_seconds": 0.0, "cpu_seconds": 0.0, "memory_peak_bytes": None,
-        "sampled_memory_peak_bytes": 0, "max_tasks": 0, "resource_violation": None,
-        "cleanup_complete": False,
-    })
+    result: dict[str, object] = field(
+        default_factory=lambda: {
+            "cause": "environment-unavailable",
+            "success": False,
+            "native_status": None,
+            "elapsed_seconds": 0.0,
+            "cpu_seconds": 0.0,
+            "memory_peak_bytes": None,
+            "sampled_memory_peak_bytes": 0,
+            "max_tasks": 0,
+            "resource_violation": None,
+            "cleanup_complete": False,
+        }
+    )
 
     def run(self) -> None:
         start = time.monotonic_ns()
@@ -134,11 +144,46 @@ class _Execution:
         leaf = self.work.create(uuid.uuid4().hex, self.memory_mib, self.tasks)
         self.leaf = leaf
         before, parent_before = snapshot(leaf), snapshot(self.work)
+        process, integrity = self.launch_subject(leaf, capacity)
+        launch_ns = time.monotonic_ns()
+        fcntl.flock(self.lifecycle, fcntl.LOCK_UN)
+        self.locked = False
+        self.observation.capture(
+            process, leaf, self.stop,
+            lambda: rl00bc_integrity.validate(integrity, self.work, leaf),
+        )
+        self.result = self.observation.result(
+            process, leaf, self.work, before, parent_before, start
+        )
+        self.result.update(
+            {
+                "launch_resolved": True,
+                "launch_resolution": "exec_or_dead",
+                "launch_resolved_ns": launch_ns,
+                "admission_ns": admission_ns,
+                "closing_absent_at_admission": True,
+                "capacity_at_admission": capacity,
+            }
+        )
+
+    def launch_subject(
+        self, leaf: Group, capacity: dict[str, int]
+    ) -> tuple[subprocess.Popen[bytes], rl00bc_integrity.Capture]:
         process, read_fd = launch(leaf, self.argv, self.cwd, self.env)
         self.process = process
+        handshake_entered = False
         try:
+            integrity = rl00bc_integrity.capture(
+                self.work, leaf, process.pid,
+                work_limits=(str(capacity["memory_limit_bytes"]), str(capacity["tasks_limit"]), "0"),
+                leaf_limits=(str(self.memory_mib * 1024 * 1024), str(self.tasks), "0"),
+            )
+            self.integrity = integrity
+            handshake_entered = True
             handshake(process, read_fd, self.stop)
         except BaseException:
+            if not handshake_entered:
+                os.close(read_fd)
             try:
                 leaf.kill()
             except BaseException:
@@ -146,18 +191,7 @@ class _Execution:
             errors: list[str] = []
             self._reap(errors)
             raise
-        launch_ns = time.monotonic_ns()
-        fcntl.flock(self.lifecycle, fcntl.LOCK_UN)
-        self.locked = False
-        self.observation.capture(process, leaf, self.stop)
-        self.result = self.observation.result(
-            process, leaf, self.work, before, parent_before, start
-        )
-        self.result.update({
-            "launch_resolved": True, "launch_resolution": "exec_or_dead",
-            "launch_resolved_ns": launch_ns, "admission_ns": admission_ns,
-            "closing_absent_at_admission": True, "capacity_at_admission": capacity,
-        })
+        return process, integrity
 
     def wait_timeout(self) -> float:
         return max(0.001, min(1.0, (self.ancestor_deadline_ns - time.monotonic_ns()) / 1e9))
@@ -197,12 +231,16 @@ class _Execution:
         except BaseException as error:
             logging.exception("payload process reap failed")
             errors.append(f"reap: {type(error).__name__}: {error}")
+        finally:
+            for stream in (self.process.stdout, self.process.stderr):
+                if stream is not None:
+                    stream.close()
 
     def cleanup(self) -> None:
         if self.locked:
             fcntl.flock(self.lifecycle, fcntl.LOCK_UN)
         try:
-            _lock(self.lifecycle, min(self.ancestor_deadline_ns, self.stop + RESERVE_NS))
+            lock_lifecycle(self.lifecycle, min(self.ancestor_deadline_ns, self.stop + RESERVE_NS))
             self._remove_leaf()
         except BaseException as error:
             logging.exception("payload cleanup failed")
@@ -220,12 +258,22 @@ class _Execution:
             self.result["success"] = False
             self.result["save_error"] = f"{type(error).__name__}: {error}"
         finally:
+            if self.integrity is not None:
+                self.integrity.close()
             os.close(self.lifecycle)
 
 
 def execute(
-    work: Group, argv: list[str], cwd: Path, env: dict[str, str], output: Path, *,
-    memory_mib: int, tasks: int, native_seconds: float, ancestor_deadline_ns: int,
+    work: Group,
+    argv: list[str],
+    cwd: Path,
+    env: dict[str, str],
+    output: Path,
+    *,
+    memory_mib: int,
+    tasks: int,
+    native_seconds: float,
+    ancestor_deadline_ns: int,
     payload_deadline_ns: int | None = None,
 ) -> dict[str, object]:
     """Run one bounded leaf, preserving failures and cleanup evidence."""
@@ -237,7 +285,8 @@ def execute(
     ):
         invalid("work branch is not empty and delegated")
     stop = min(
-        now + int(native_seconds * 1_000_000_000), ancestor_deadline_ns - RESERVE_NS,
+        now + int(native_seconds * 1_000_000_000),
+        ancestor_deadline_ns - RESERVE_NS,
         payload_deadline_ns if payload_deadline_ns is not None else ancestor_deadline_ns,
     )
     if stop <= now:
@@ -245,12 +294,23 @@ def execute(
     output.mkdir(parents=True, exist_ok=True)
     lifecycle, closing = _lifecycle()
     try:
-        _lock(lifecycle, stop)
+        lock_lifecycle(lifecycle, stop)
     except BaseException:
         os.close(lifecycle)
         raise
-    run = _Execution(work, argv, cwd, env, output, memory_mib, tasks, stop,
-                     ancestor_deadline_ns, lifecycle, closing)
+    run = _Execution(
+        work,
+        argv,
+        cwd,
+        env,
+        output,
+        memory_mib,
+        tasks,
+        stop,
+        ancestor_deadline_ns,
+        lifecycle,
+        closing,
+    )
     try:
         run.run()
     except BaseException as error:

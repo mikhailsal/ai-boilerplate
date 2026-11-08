@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import json
 import os
 import re
 from pathlib import Path
-from urllib.parse import urljoin
 
+from tests.acceptance.rl00bc import rl00bc_dart_packages, rl00bc_dart_report
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 DART_SOURCE = r"""import 'dart:async';
@@ -121,16 +120,7 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
         invalid("expected dart profile")
     root.mkdir(parents=True, exist_ok=True)
     config = _required("RL00_DART_PACKAGE_CONFIG")
-    (root / ".dart_tool").mkdir(exist_ok=True)
-    package_config = json.loads(config.read_text(encoding="utf-8"))
-    for package in package_config["packages"]:
-        package["rootUri"] = urljoin(config.as_uri(), package["rootUri"])
-    (root / ".dart_tool" / "package_config.json").write_text(
-        json.dumps(package_config), encoding="utf-8"
-    )
-    (root / "pubspec.yaml").write_text(
-        "name: rl00bc_dart\nenvironment:\n  sdk: '>=3.0.0 <4.0.0'\n", encoding="utf-8"
-    )
+    rl00bc_dart_packages.prepare(repo, root, config)
     (root / "lib").mkdir(exist_ok=True)
     (root / "lib" / "subject.dart").write_text(
         "int subjectValue(bool enabled) => enabled ? 1 : 0;\n", encoding="utf-8"
@@ -178,29 +168,6 @@ def command(
     return [*argv, str(root / "test" / "resource_test.dart")]
 
 
-def _visible(case: dict[str, object]) -> bool:
-    return not (case.get("hidden") and case["outcome"] == "success")
-
-
 def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]]:
-    """Read native JSON event IDs and outcome; absent/incomplete results raise."""
-    if profile != "dart":
-        invalid("expected dart profile")
-    tests: dict[int, dict[str, object]] = {}
-    for line in (output / "dart.json").read_text(encoding="utf-8").splitlines():
-        event = json.loads(line)
-        if event.get("type") == "testStart":
-            case = event["test"]
-            tests[case["id"]] = {
-                "id": case["name"],
-                "native_id": case["id"],
-                "outcome": None,
-                "native_report": str(output / "dart.json"),
-                "raw_coverage": str(output / "coverage"),
-            }
-        elif event.get("type") == "testDone" and event["testID"] in tests:
-            tests[event["testID"]]["outcome"] = event["result"]
-            tests[event["testID"]]["hidden"] = event.get("hidden") is True
-    if not tests or any(case["outcome"] is None for case in tests.values()):
-        invalid("missing or incomplete native Dart results")
-    return [case for case in tests.values() if _visible(case)]
+    """Read native JSON while preserving skipped, errored and incomplete outcomes."""
+    return rl00bc_dart_report.results(root, output, profile=profile)

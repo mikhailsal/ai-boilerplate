@@ -12,7 +12,6 @@ from tests.acceptance.rl00bc.rl00bc_errors import invalid
 from tests.acceptance.rl00bc.rl00bc_node_fixture import PLAYWRIGHT, SHARED, VITEST
 
 
-
 def _required(name: str) -> Path:
     value = os.environ.get(name, "")
     path = Path(value)
@@ -33,7 +32,7 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
     (root / "shared.mjs").write_text(SHARED, encoding="utf-8")
     if profile == "browser":
         (root / "index.html").write_text(
-            '<!doctype html><html><head><title>RL00</title></head><body><h1>Loading</h1>'
+            "<!doctype html><html><head><title>RL00</title></head><body><h1>Loading</h1>"
             '<script type="module" src="/src.js"></script></body></html>',
             encoding="utf-8",
         )
@@ -68,19 +67,33 @@ def _vitest_command(
     modules = _required("RL00_NODE_MODULES")
     config = {
         "test": {
-            "include": ["resource.test.mjs"], "watch": False, "retry": 0,
-            "allowOnly": False, "maxWorkers": workers, "reporters": ["json", "junit"],
+            "include": ["resource.test.mjs"],
+            "watch": False,
+            "retry": 0,
+            "allowOnly": False,
+            "maxWorkers": workers,
+            "reporters": ["json", "junit"],
             "outputFile": {"json": str(output / "vitest.json"), "junit": str(output / "junit.xml")},
             "coverage": {
-                "enabled": coverage, "provider": "v8", "reporter": ["lcov"],
-                "reportsDirectory": str(output / "coverage"), "include": ["shared.mjs"],
+                "enabled": coverage,
+                "provider": "v8",
+                "reporter": ["lcov"],
+                "reportsDirectory": str(output / "coverage"),
+                "include": ["shared.mjs"],
             },
         }
     }
     config_path = root / "vitest.config.mjs"
     config_path.write_text("export default " + json.dumps(config) + ";\n", encoding="utf-8")
-    argv = [str(_required("RL00_NODE")), str(modules / "vitest" / "vitest.mjs"),
-            "run", "--root", str(root), "--config", str(config_path)]
+    argv = [
+        str(_required("RL00_NODE")),
+        str(modules / "vitest" / "vitest.mjs"),
+        "run",
+        "--root",
+        str(root),
+        "--config",
+        str(config_path),
+    ]
     if selected is not None:
         argv.extend(["--testNamePattern", f"^{re.escape(selected)}$"])
     return argv

@@ -55,9 +55,12 @@ def _argv(value: object) -> list[str]:
 
 
 def _stages(value: object) -> list[list[str]]:
-    if not isinstance(value, list) or not 1 <= len(value) <= 4:
+    if not isinstance(value, list):
+        _invalid("native command sequence must be a list")
+    items = cast(list[object], value)
+    if not 1 <= len(items) <= 4:
         _invalid("native command sequence must have one to four stages")
-    return [_argv(item) for item in cast(list[object], value)]
+    return [_argv(item) for item in items]
 
 
 def commands(path: Path) -> Plan:
@@ -99,7 +102,7 @@ def _stage(plan: Plan, index: int, argv: list[str]) -> int:
         _expired("native command deadline expired")
     record = _started(plan, index)
     if index == len(plan.stages) - 1:
-        os.execve(argv[0], argv, os.environ)
+        os.execve(argv[0], argv, os.environ)  # noqa: S606 - preserve bounded exec ownership
     completed = subprocess.run(argv, check=False, timeout=remaining)
     record.update(finished_ns=time.monotonic_ns(), native_status=completed.returncode)
     _save(plan, index, record)

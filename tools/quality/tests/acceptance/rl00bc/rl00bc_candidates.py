@@ -208,13 +208,24 @@ except BaseException as error:
 
 def _valid_completed(completed: object) -> bool:
     required = {
-        "native-discovery", "candidate-identities", "fallback-and-rename",
-        "strict-evidence-rejections", "revision-drift",
+        "native-discovery",
+        "candidate-identities",
+        "fallback-and-rename",
+        "strict-evidence-rejections",
+        "revision-drift",
     } | {
         "mutation-" + kind
         for kind in (
-            "test", "source", "fixture", "data", "parameter", "dependency",
-            "runtime", "config", "unknown", "volatile",
+            "test",
+            "source",
+            "fixture",
+            "data",
+            "parameter",
+            "dependency",
+            "runtime",
+            "config",
+            "unknown",
+            "volatile",
         )
     }
     items = cast(list[object], completed) if isinstance(completed, list) else []
@@ -232,8 +243,12 @@ def _evaluate(output: Path, source: Path, raw: dict[str, object]) -> dict[str, o
     except OSError, ValueError:
         pass
     completed = evidence.get("completed")
-    success = bool(raw.get("success") and raw.get("cleanup_complete")
-                   and evidence.get("success") is True and _valid_completed(completed))
+    success = bool(
+        raw.get("success")
+        and raw.get("cleanup_complete")
+        and evidence.get("success") is True
+        and _valid_completed(completed)
+    )
     return {
         "success": success,
         "classification": "observed-success" if success else "nonpass",

@@ -79,5 +79,3 @@ def backstop(unit: str, deadline: int) -> dict[str, str]:
     values = dict(line.split("=", 1) for line in done.stdout.decode().splitlines())
     _verify_backstop(values)
     return values
-
-

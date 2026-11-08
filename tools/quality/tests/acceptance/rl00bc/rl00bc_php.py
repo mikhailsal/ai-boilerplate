@@ -9,7 +9,6 @@ from pathlib import Path
 from xml.sax.saxutils import escape, quoteattr
 
 from defusedxml import ElementTree
-
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 SMALL = ("ordinary", "setup", "teardown", "child")
@@ -183,16 +182,16 @@ def _config(root: Path, output: Path, coverage: bool) -> Path:
     source = ""
     if coverage:
         source = (
-            f'<source><include><file>{escape(str(root / "subject.php"))}</file></include></source>'
+            f"<source><include><file>{escape(str(root / 'subject.php'))}</file></include></source>"
             '<coverage includeUncoveredFiles="true" branchCoverage="true" '
             'disableCodeCoverageIgnore="true" ignoreDeprecatedCodeUnits="false"/>'
         )
     xml = (
         f'<?xml version="1.0"?><phpunit bootstrap={quoteattr(str(bootstrap))} '
-        f'cacheDirectory={quoteattr(str(output / "cache"))} '
+        f"cacheDirectory={quoteattr(str(output / 'cache'))} "
         'colors="false" recordTestRunHistory="false"><testsuites><testsuite name="unit">'
-        f'<file>{escape(str(root / "SubjectTest.php"))}</file></testsuite></testsuites>'
-        f'{source}</phpunit>'
+        f"<file>{escape(str(root / 'SubjectTest.php'))}</file></testsuite></testsuites>"
+        f"{source}</phpunit>"
     )
     config = output / "phpunit.xml"
     config.write_text(xml, encoding="utf-8")

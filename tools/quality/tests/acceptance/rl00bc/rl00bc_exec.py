@@ -61,7 +61,7 @@ def main() -> int:
         os.chdir(cwd)
         executable = _executable(argv, cwd)
         os.write(fd, b"ready\n")
-        os.execve(executable, argv, os.environ)
+        os.execve(executable, argv, os.environ)  # noqa: S606 - preserve bounded exec ownership
     return 127
 
 

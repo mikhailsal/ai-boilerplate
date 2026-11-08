@@ -68,8 +68,7 @@ def _dart_config(repo: Path, prepared: Path) -> Path:
         invalid(f"Dart test package missing from {path}")
     entries = cast("list[object]", packages)
     if not any(
-        isinstance(p, dict) and cast("dict[str, object]", p).get("name") == "test"
-        for p in entries
+        isinstance(p, dict) and cast("dict[str, object]", p).get("name") == "test" for p in entries
     ):
         invalid(f"Dart test package missing from {path}")
     # Verify the prepared lock is the helper lock, without claiming runtime version.
@@ -86,7 +85,8 @@ def _php_files(repo: Path, prepared: Path) -> tuple[Path, Path]:
     lock = _json(source)
     installed: object = _json(prepared / "php/vendor/composer/installed.json")
     if isinstance(installed, dict):
-        installed = cast("dict[str, object]", installed).get("packages", installed)
+        mapping = cast("dict[str, object]", installed)
+        installed = mapping.get("packages", mapping)
     entries = cast("list[dict[str, Any]]", installed)
     expected = [p["version"] for p in lock["packages-dev"] if p["name"] == "phpunit/phpunit"]
     actual = [p["version"] for p in entries if p["name"] == "phpunit/phpunit"]
@@ -141,8 +141,16 @@ def _composer_command(
 ) -> tuple[Path, list[str], dict[str, str]]:
     return (
         php_dir,
-        [str(php), "-d", "display_errors=stderr", str(composer), "install", "--no-progress",
-         "--no-scripts", "--no-plugins"],
+        [
+            str(php),
+            "-d",
+            "display_errors=stderr",
+            str(composer),
+            "install",
+            "--no-progress",
+            "--no-scripts",
+            "--no-plugins",
+        ],
         {
             **env,
             "COMPOSER_HOME": str(home / "composer"),

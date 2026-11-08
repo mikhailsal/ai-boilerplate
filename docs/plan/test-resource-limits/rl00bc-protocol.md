@@ -22,6 +22,14 @@ the live proof. Preparing files or running normal CI is not that approval.
 The current task's explicit local hook exception remains scoped to commit and
 push; installed hooks and their configuration are unchanged.
 
+The preparation candidate has separate `methods` and `lifecycle` collection
+phases. The method comparison currently uses the large corpus and first-adoption
+full fallback; it does not prove narrow-selection cost. The lifecycle collection
+exercises real admission, sibling capacity, cooperative interruption and inherited
+deadlines. Real guardian closing races, abrupt requester death, nested parent
+shares, descendant drift and residual-charge experiments remain required. A
+partial collection cannot close RL00b or establish an integration recommendation.
+
 ## Subjects and memory quantity
 
 The enforced quantity is cgroup-v2 kernel-charged memory of the declared
@@ -109,6 +117,8 @@ Their final values and capability rows must be frozen before execution.
 | --- | --- |
 | Per-profile service | 4096 MiB, swap zero, 512 tasks, 45-minute lifetime |
 | Controller/guardian reserve | Within that total; separately capped and recorded |
+| Runtime identity probe | 512 MiB, 64 tasks, twenty-second native allowance per command, within the original enclosing deadline |
+| Lifecycle proof subject | Finite requested caps within the work branch; sixty-second native allowance, clamped to the original ancestor deadline; above-capacity requests execute no payload |
 | Canonical suite subject | 3072 MiB, 256 tasks, 90-second native allowance |
 | Python/PHP fresh subject | 384 MiB, 128 tasks, five-second native allowance |
 | Node fresh subject | 768 MiB, 128 tasks, five-second native allowance |
@@ -167,6 +177,10 @@ fits its finite envelope. Unsupported required attribution is no-go. This
 criterion is a proposal, not an accepted threshold or measured result.
 
 An alternative stricter criterion is 1.5 times native p95 plus one second.
+The measurement CLI requires an explicit criterion-approval reference before
+starting its provider. The reference is a caller assertion retained with the
+samples; the final audit must independently match it to the owner's actual
+decision. A successful timing cell cannot certify unmeasured required work.
 Changing the criterion after looking at results requires a recorded amendment
 and a separately identified evaluation; it cannot relabel the original result.
 Only an owner-reviewed stop rule can terminate a later matrix after a decisive

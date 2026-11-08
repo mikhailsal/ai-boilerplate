@@ -213,6 +213,32 @@ reason = "The last-resort handler turns any unexpected exception into exit 4, ne
 owner = "quality-core maintainers"
 review = 2027-04-20
 
+# maintainer-only:begin
+[[exceptions]]
+rule = "suppressions.inline"
+path = "tools/quality/tests/acceptance/rl00bc/rl00bc_control.py"
+symbol = "noqa: S606 - preserve bounded exec ownership"
+reason = "Replaces the bounded controller with the verified pinned interpreter while retaining work and lifecycle descriptors and the original deadline."
+owner = "quality-core maintainers"
+expires = 2026-12-08
+
+[[exceptions]]
+rule = "suppressions.inline"
+path = "tools/quality/tests/acceptance/rl00bc/rl00bc_exec.py"
+symbol = "noqa: S606 - preserve bounded exec ownership"
+reason = "Replaces the already placed helper with its resolved executable so close-on-exec signals the native launch without adding an unowned supervisor."
+owner = "quality-core maintainers"
+expires = 2026-12-08
+
+[[exceptions]]
+rule = "suppressions.inline"
+path = "tools/quality/tests/acceptance/rl00bc/rl00bc_native.py"
+symbol = "noqa: S606 - preserve bounded exec ownership"
+reason = "Replaces the final native stage using its validated absolute executable and argv inside the same protected subject and absolute deadline."
+owner = "quality-core maintainers"
+expires = 2026-12-08
+# maintainer-only:end
+
 [[exceptions]]
 rule = "suppressions.inline"
 path = "tools/quality/src/quality/cli/__init__.py"

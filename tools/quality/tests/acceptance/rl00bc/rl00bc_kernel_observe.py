@@ -6,7 +6,9 @@ import os
 import selectors
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group, counters
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
@@ -21,22 +23,34 @@ def snapshot(group: Group) -> dict[str, object]:
     return result
 
 
+def _counter(value: object, key: str) -> int:
+    if not isinstance(value, dict):
+        invalid("missing counter collection")
+    entry = cast(dict[str, object], value).get(key)
+    if type(entry) is not int:
+        invalid(f"missing integer counter {key}")
+    return entry
+
+
 def _delta(before: dict[str, object], after: dict[str, object], field: str, key: str) -> int:
-    first, last = before[field], after[field]
-    if not isinstance(first, dict) or not isinstance(last, dict):
-        invalid(f"missing counter {field}")
-    return int(last[key]) - int(first[key])
+    return _counter(after[field], key) - _counter(before[field], key)
 
 
 def _cause(
-    before: dict[str, object], after: dict[str, object],
-    parent_before: dict[str, object], parent_after: dict[str, object],
-    timed_out: bool, status: int | None,
+    before: dict[str, object],
+    after: dict[str, object],
+    parent_before: dict[str, object],
+    parent_after: dict[str, object],
+    timed_out: bool,
+    status: int | None,
 ) -> str:
-    if any(_delta(parent_before, parent_after, "memory.events.local", key) > 0
-           for key in ("oom", "oom_kill")) or _delta(
-        parent_before, parent_after, "pids.events.local", "max"
-    ) > 0:
+    if (
+        any(
+            _delta(parent_before, parent_after, "memory.events.local", key) > 0
+            for key in ("oom", "oom_kill")
+        )
+        or _delta(parent_before, parent_after, "pids.events.local", "max") > 0
+    ):
         return "ancestor-resource"
     if any(_delta(before, after, "memory.events.local", key) > 0 for key in ("oom", "oom_kill")):
         return "own-memory"
@@ -60,14 +74,17 @@ class Observation:
     high_memory: int = 0
     high_tasks: int = 0
     timed_out: bool = False
+    leader_state: str = "unobserved"
 
-    def capture(self, process: subprocess.Popen[bytes], leaf: Group, stop: int) -> None:
+    def capture(self, process: subprocess.Popen[bytes], leaf: Group, stop: int,
+                integrity: Callable[[], str]) -> None:
         with selectors.DefaultSelector() as selector:
             assert process.stdout is not None and process.stderr is not None
             for label, pipe in (("stdout", process.stdout), ("stderr", process.stderr)):
                 os.set_blocking(pipe.fileno(), False)
                 selector.register(pipe, selectors.EVENT_READ, label)
             while selector.get_map() or process.poll() is None:
+                self.leader_state = integrity()
                 if time.monotonic_ns() >= stop:
                     self.timed_out = True
                     break
@@ -82,31 +99,43 @@ class Observation:
                     space = LIMIT - len(self.streams[label])
                     self.streams[label].extend(chunk[:space])
                     self.truncated[label] = self.truncated[label] or len(chunk) > space
+        self.leader_state = integrity()
 
     def result(
-        self, process: subprocess.Popen[bytes], leaf: Group, work: Group,
-        before: dict[str, object], parent_before: dict[str, object], start: int,
+        self,
+        process: subprocess.Popen[bytes],
+        leaf: Group,
+        work: Group,
+        before: dict[str, object],
+        parent_before: dict[str, object],
+        start: int,
     ) -> dict[str, object]:
         after, parent_after = snapshot(leaf), snapshot(work)
         status = process.poll()
         cause = _cause(before, after, parent_before, parent_after, self.timed_out, status)
-        cpu_before, cpu_after = before["cpu.stat"], after["cpu.stat"]
-        if not isinstance(cpu_before, dict) or not isinstance(cpu_after, dict):
-            invalid("missing cpu statistics")
-        cpu_seconds = (int(cpu_after["usage_usec"]) - int(cpu_before["usage_usec"])) / 1_000_000
+        cpu_seconds = _delta(before, after, "cpu.stat", "usage_usec") / 1_000_000
         peak = after["memory.peak"]
         violation = (
             cause if cause in ("own-memory", "own-tasks", "ancestor-resource", "timeout") else None
         )
         return {
-            "cause": cause, "success": cause == "native-exit" and status == 0,
-            "native_status": status, "timed_out": self.timed_out,
-            "before": before, "after": after, "work_before": parent_before,
-            "work_after": parent_after, "sampled_memory_high_bytes": self.high_memory,
+            "cause": cause,
+            "success": cause == "native-exit" and status == 0,
+            "native_status": status,
+            "leader_integrity_last_state": self.leader_state,
+            "timed_out": self.timed_out,
+            "before": before,
+            "after": after,
+            "work_before": parent_before,
+            "work_after": parent_after,
+            "sampled_memory_high_bytes": self.high_memory,
             "sampled_tasks_high": self.high_tasks,
             "elapsed_seconds": (time.monotonic_ns() - start) / 1_000_000_000,
             "cpu_seconds": cpu_seconds,
             "memory_peak_bytes": int(str(peak)) if peak is not None else None,
-            "sampled_memory_peak_bytes": self.high_memory, "max_tasks": self.high_tasks,
-            "resource_violation": violation, "cleanup_complete": False, "truncated": self.truncated,
+            "sampled_memory_peak_bytes": self.high_memory,
+            "max_tasks": self.high_tasks,
+            "resource_violation": violation,
+            "cleanup_complete": False,
+            "truncated": self.truncated,
         }
