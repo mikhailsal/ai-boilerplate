@@ -42,6 +42,8 @@ jobs:
             spike/rl00bc-methods) phase=methods ;;
             spike/rl00bc-lifecycle) phase=lifecycle ;;
             spike/rl00bc-nested) phase=nested ;;
+            spike/rl00bc-faults) phase=faults ;;
+            spike/rl00bc-selection-pressure) phase=selection-pressure ;;
             spike/rl00bc-guardian-race-launch-first) phase=guardian-race-launch-first ;;
             spike/rl00bc-guardian-race-closing-first) phase=guardian-race-closing-first ;;
             spike/rl00bc-compatibility) phase=compatibility ;;

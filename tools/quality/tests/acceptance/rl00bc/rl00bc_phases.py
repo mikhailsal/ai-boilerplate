@@ -13,10 +13,12 @@ from tests.acceptance.rl00bc import (
     rl00bc_compat,
     rl00bc_control,
     rl00bc_correctness,
+    rl00bc_faults,
     rl00bc_lifecycle,
     rl00bc_measure,
     rl00bc_methods,
     rl00bc_nested,
+    rl00bc_pressure,
 )
 
 
@@ -99,6 +101,19 @@ class _Phases:
             ancestor_deadline_ns=self.args.deadline_ns,
         )
 
+    def faults(self) -> dict[str, object]:
+        return rl00bc_faults.check(
+            self.work, self.repo, self.args.scratch / "faults", self.args.output / "faults",
+            self.environment, ancestor_deadline_ns=self.args.deadline_ns,
+        )
+
+    def selection_pressure(self) -> dict[str, object]:
+        return rl00bc_pressure.check(
+            self.work, self.repo, self.args.scratch / "selection-pressure",
+            self.args.output / "selection-pressure", self.environment,
+            ancestor_deadline_ns=self.args.deadline_ns,
+        )
+
     def adoption(self) -> dict[str, object]:
         return rl00bc_adoption.adopt(
             self.work,
@@ -135,6 +150,8 @@ def run(
         "methods": phases.methods,
         "lifecycle": phases.lifecycle,
         "nested": phases.nested,
+        "faults": phases.faults,
+        "selection-pressure": phases.selection_pressure,
         "compatibility": phases.compatibility,
         "candidates": phases.candidates,
         "adoption": phases.adoption,

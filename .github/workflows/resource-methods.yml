@@ -11,6 +11,8 @@ on:
       - spike/rl00bc-methods
       - spike/rl00bc-lifecycle
       - spike/rl00bc-nested
+      - spike/rl00bc-faults
+      - spike/rl00bc-selection-pressure
       - spike/rl00bc-guardian-race-launch-first
       - spike/rl00bc-guardian-race-closing-first
       - spike/rl00bc-compatibility
@@ -69,6 +71,8 @@ jobs:
                            '--repo', str(root), '--output', 'reports/preparation/startup.json']),
               ('evidence-tests', [str(tools / 'python'), '-m', 'unittest', 'discover',
                                   '-s', source, '-p', 'test_rl00bc_*.py', '-v']),
+              ('pinned-imports', [str(tools / 'python'), '-c',
+                                  'from tests.acceptance.rl00bc import rl00bc_phases']),
               ('types', [str(tools / 'pyright'), '--project', 'tools/quality/pyproject.toml', '--outputjson']),
           ]
           observations = []
@@ -142,7 +146,7 @@ jobs:
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
         mode: [host, prepared]
-        profile: ${{ fromJSON((github.ref_name == 'spike/rl00bc-prepare' || github.ref_name == 'spike/rl00bc-candidates' || github.ref_name == 'spike/rl00bc-adoption' || github.ref_name == 'spike/rl00bc-lifecycle' || github.ref_name == 'spike/rl00bc-nested' || github.ref_name == 'spike/rl00bc-guardian-race-launch-first' || github.ref_name == 'spike/rl00bc-guardian-race-closing-first') && '["python"]' || '["node","php","python"]') }}
+        profile: ${{ fromJSON((github.ref_name == 'spike/rl00bc-prepare' || github.ref_name == 'spike/rl00bc-candidates' || github.ref_name == 'spike/rl00bc-adoption' || github.ref_name == 'spike/rl00bc-lifecycle' || github.ref_name == 'spike/rl00bc-nested' || github.ref_name == 'spike/rl00bc-faults' || github.ref_name == 'spike/rl00bc-selection-pressure' || github.ref_name == 'spike/rl00bc-guardian-race-launch-first' || github.ref_name == 'spike/rl00bc-guardian-race-closing-first') && '["python"]' || '["node","php","python"]') }}
     permissions:
       contents: read
     uses: ./.github/workflows/resource-methods-job.yml

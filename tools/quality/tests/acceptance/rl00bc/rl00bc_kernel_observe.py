@@ -71,8 +71,9 @@ class Observation:
         default_factory=lambda: {"stdout": bytearray(), "stderr": bytearray()}
     )
     truncated: dict[str, bool] = field(default_factory=lambda: {"stdout": False, "stderr": False})
-    high_memory: int = 0
-    high_tasks: int = 0
+    high_memory: int | None = None
+    high_tasks: int | None = None
+    resource_sample_count: int = 0
     timed_out: bool = False
     leader_state: str = "unobserved"
 
@@ -89,8 +90,17 @@ class Observation:
                 if time.monotonic_ns() >= stop:
                     self.timed_out = True
                     break
-                self.high_memory = max(self.high_memory, int(leaf.read("memory.current")))
-                self.high_tasks = max(self.high_tasks, int(leaf.read("pids.current")))
+                memory_sample = int(leaf.read("memory.current"))
+                task_sample = int(leaf.read("pids.current"))
+                self.high_memory = (
+                    memory_sample
+                    if self.high_memory is None
+                    else max(self.high_memory, memory_sample)
+                )
+                self.high_tasks = (
+                    task_sample if self.high_tasks is None else max(self.high_tasks, task_sample)
+                )
+                self.resource_sample_count += 1
                 for key, _ in selector.select(timeout=0.02):
                     chunk = os.read(key.fd, 16384)
                     if not chunk:
@@ -131,11 +141,19 @@ class Observation:
             "work_after": parent_after,
             "sampled_memory_high_bytes": self.high_memory,
             "sampled_tasks_high": self.high_tasks,
+            "resource_sample_count": self.resource_sample_count,
             "elapsed_seconds": (time.monotonic_ns() - start) / 1_000_000_000,
             "cpu_seconds": cpu_seconds,
             "memory_peak_bytes": int(str(peak)) if peak is not None else None,
+            "memory_peak_kind": "kernel-peak" if peak is not None else "unavailable",
             "sampled_memory_peak_bytes": self.high_memory,
+            "sampled_memory_peak_kind": (
+                "sampled-lower-bound" if self.resource_sample_count else "unavailable"
+            ),
             "max_tasks": self.high_tasks,
+            "max_tasks_kind": (
+                "sampled-lower-bound" if self.resource_sample_count else "unavailable"
+            ),
             "resource_violation": violation,
             "cleanup_complete": False,
             "truncated": self.truncated,

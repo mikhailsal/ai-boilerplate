@@ -44,6 +44,21 @@ not establish this parent/child proof, and the fixed fixture does not prove a
 general scheduler. The system-interpreter startup check parses the pre-bootstrap
 import surface remotely; it does not claim native execution or delegation.
 
+The `faults` candidate records real requester SIGKILL, lower-only task-limit
+drift and membership movement into a separately reserved owned sibling. It pins
+process and cgroup identities, freezes an at-most-three-second unassisted
+observation window, then records any manual safety cleanup separately. Manual
+cleanup never repairs an automatic-cleanup verdict. This is an unrun finite
+fixture, with outer root/guardian/sentinel and untested windows still separate.
+
+The `selection-pressure` candidate uses actual staged Git trees, fresh unittest
+discovery and materialized snapshots. A known independent test-file change may
+narrow; changed data, first adoption and untrusted comparison expand fully.
+A bounded 72 MiB touched allocation is compared under a 256 MiB canonical leaf
+and a 48 MiB strict leaf, with cheap additions and reversed native order. This
+demonstrates only the finite fixture if observed; it does not establish general
+influence soundness or real product hook/export enforcement.
+
 ## Subjects and memory quantity
 
 The enforced quantity is cgroup-v2 kernel-charged memory of the declared
@@ -163,6 +178,8 @@ Their final values and capability rows must be frozen before execution.
 | Runtime identity probe | 512 MiB, 64 tasks, twenty-second native allowance per command, within the original enclosing deadline |
 | Lifecycle proof subject | Finite requested caps within the work branch; sixty-second native allowance, clamped to the original ancestor deadline; above-capacity requests execute no payload |
 | Nested proof | Two 512 MiB/64-task domains; each has a 128 MiB/8-task parent leaf and a 320 MiB/40-task child pool; sixty-second enclosing proof bound within the original deadline |
+| Fault proof | Sixty-second enclosing bound; 128 MiB/8-task native leaves; lower task cap only to seven; membership target separately reserved at 128 MiB/8 tasks; unassisted cleanup window at most three seconds |
+| Selection-pressure proof | Sixty-second enclosing bound; 72 MiB touched input; canonical 256 MiB/16 tasks versus strict 48 MiB/8 tasks; ten-second native allowance within the unchanged ancestor deadline |
 | Canonical suite subject | 3072 MiB, 256 tasks, 90-second native allowance |
 | Python/PHP fresh subject | 384 MiB, 128 tasks, five-second native allowance |
 | Node fresh subject | 768 MiB, 128 tasks, five-second native allowance |
@@ -213,6 +230,17 @@ suite kind. Preregister twenty valid samples per comparison cell; retain all
 attempts and setup failures. Report empirical p50/p95 and the full samples,
 not a population bound or a claim of precision beyond this corpus. Do not retry
 to obtain a green result or discard a costly valid sample.
+
+The prepared runner requires exactly twenty pairs. Native and protected arms
+retain actual IDs, variants, outcomes, supplied sources and native exits;
+sharing a parameter selector cannot substitute a different native case. Missing
+source fields stay explicit rather than being invented. Interrupted cells are
+incomplete and later cells unrun. Sampled resource maxima have counts and lower-
+bound kinds; no samples means unavailable, and exact/lower-bound distributions
+remain separate. The currently prepared full-strict arm excludes separate
+provider/bootstrap setup, guardian/provider CPU and total invocation peaks;
+those required observations, actual selection-cost cells and adoption remain
+unmeasured and cannot be certified by its timing-cell result.
 
 Include collection, startup, shared setup, teardown, controller/selection cost,
 CPU time, wall time, memory/tasks, coverage mode, workers and actual environment.

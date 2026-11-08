@@ -16,20 +16,22 @@ from pathlib import Path
 from typing import cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group
-from tests.acceptance.rl00bc import rl00bc_corpus, rl00bc_trials
+from tests.acceptance.rl00bc import rl00bc_corpus, rl00bc_measure_parity, rl00bc_trials
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 from tests.acceptance.rl00bc.rl00bc_measure_metrics import (
     identities,
+    distributions,
     memory,
     metric,
     percentile,
+    tasks,
     write,
 )
 
 SIZES = ("small", "large")
 DISTRIBUTION_METRICS = (
     "wall_seconds",
-    "total_cpu_seconds",
+    "payload_and_controller_cpu_seconds",
     "max_leaf_memory_peak_bytes",
     "max_leaf_tasks",
 )
@@ -63,10 +65,9 @@ class _Measurement:
         for protected in order:
             result = _Arm(self, size, index, protected).run()
             results["protected" if protected else "native"] = result
-        native = cast(list[str], results["native"]["canonical_identities"])
-        protected_ids = cast(list[str], results["protected"]["canonical_identities"])
-        if set(native) != set(protected_ids):
-            invalid("canonical identity set differs across paired arms")
+        results["protected"]["paired_canonical_evidence"] = rl00bc_measure_parity.paired(
+            results["native"], results["protected"]
+        )
         return results
 
     def complete_cell(
@@ -76,6 +77,8 @@ class _Measurement:
     ) -> None:
         native = [cast(float, item["wall_seconds"]) for item in observations["native"]]
         protected = [cast(float, item["wall_seconds"]) for item in observations["protected"]]
+        if len(native) != 20 or len(protected) != 20 or self.samples != 20:
+            invalid("timing criterion requires the exact preregistered twenty valid pairs")
         native_p95 = percentile(native, 0.95)
         protected_p95 = percentile(protected, 0.95)
         multiplier, offset = (2.0, 2.0) if self.criterion == "A" else (1.5, 1.0)
@@ -96,7 +99,7 @@ class _Measurement:
                 ),
             }
         )
-        cell["nearest_rank_distributions"] = _distributions(observations)
+        cell["nearest_rank_distributions"] = distributions(observations, DISTRIBUTION_METRICS)
         self.persist()
 
     def cell(self, size: str) -> bool:
@@ -136,23 +139,12 @@ class _Measurement:
                 self.attempts[-1]["status"] = "nonpass"
             self.summary["status"] = "nonpass"
             self.summary["error"] = f"{type(error).__name__}: {error}"[:1024]
+            for size in SIZES:
+                cell = self.cells.setdefault(size, {"status": "unrun-after-incomplete", "pairs": 0})
+                if cell["status"] == "in-progress":
+                    cell["status"] = "incomplete"
         self.persist()
         return self.summary
-
-
-def _distributions(
-    observations: dict[str, list[dict[str, object]]],
-) -> dict[str, dict[str, dict[str, float]]]:
-    distributions: dict[str, dict[str, dict[str, float]]] = {}
-    for name, records in observations.items():
-        distributions[name] = {}
-        for field_name in DISTRIBUTION_METRICS:
-            values = [cast(float, record[field_name]) for record in records]
-            distributions[name][field_name] = {
-                "p50": percentile(values, 0.50),
-                "p95": percentile(values, 0.95),
-            }
-    return distributions
 
 
 @dataclass
@@ -200,12 +192,10 @@ class _Arm:
         native_cpu = sum(metric(record, "cpu_seconds") for record in self.records)
         observations = [memory(record) for record in self.records]
         peak = max(value for value, _ in observations)
-        kind = (
-            "kernel-peak"
-            if all(source == "kernel-peak" for _, source in observations)
-            else "sampled-lower-bound"
-        )
-        max_tasks = max(metric(record, "max_tasks") for record in self.records)
+        kinds = {source for _, source in observations}
+        kind = next(iter(kinds)) if len(kinds) == 1 else "mixed-lower-bound"
+        task_observations = [tasks(record) for record in self.records]
+        max_tasks = max(value for value, _ in task_observations)
         if wall <= 0 or not math.isfinite(wall):
             invalid("invalid full-arm wall observation")
         self.attempt.update(
@@ -214,10 +204,11 @@ class _Arm:
                 "wall_seconds": wall,
                 "native_cpu_seconds": native_cpu,
                 "controller_cpu_seconds": controller_cpu,
-                "total_cpu_seconds": native_cpu + controller_cpu,
+                "payload_and_controller_cpu_seconds": native_cpu + controller_cpu,
                 "max_leaf_memory_peak_bytes": peak,
                 "max_leaf_memory_peak_kind": kind,
                 "max_leaf_tasks": max_tasks,
+                "max_leaf_tasks_kind": "sampled-lower-bound",
                 "strict_cases": case_count if self.protected else 0,
             }
         )
@@ -242,11 +233,14 @@ class _Arm:
         rl00bc_corpus.verify(context.profile, self.size, canonical.get("native_cases"))
         discovered = identities(context.profile, canonical.get("native_cases"))
         self.attempt["canonical_identities"] = discovered
+        self.attempt["canonical_evidence"] = rl00bc_measure_parity.canonical(context.profile, self.size, canonical)
         if self.protected:
+            expected = {case.selector: case for case in rl00bc_corpus.expected(context.profile, self.size)}
+            strict_evidence: list[dict[str, object]] = []
+            self.attempt["strict_native_evidence"] = strict_evidence
             for number, identity in enumerate(discovered, 1):
                 trial = self.trial(identity, number, strict=True)
-                if identities(context.profile, trial.get("native_cases")) != [identity]:
-                    invalid("strict result differs from canonical identity")
+                strict_evidence.append(rl00bc_measure_parity.selected(expected[identity], canonical, trial))
         self.finish(started, controller_started, len(discovered))
         return self.attempt
 
@@ -275,7 +269,15 @@ def _summary(
             "narrow selective checking",
             "adoption",
             "verdict usefulness",
+            "actual candidate-bound selection and broad/full/first-adoption decision cost",
+            "separate startup, collection and shared fixture costs",
+            "guardian/provider CPU and total invocation memory/tasks",
         ],
+        "metric_scope": {"wall": "prepared arm including fixture materialization, runtime startup, parsing and controller; provider/bootstrap setup excluded",
+                         "cpu": "native payload leaves plus controller; guardian/provider excluded",
+                         "memory": "maximum individual leaf peak; not total invocation memory",
+                         "tasks": "maximum sampled leaf count, a lower bound"},
+        "proposed_stop_rule": "stop after a complete required ordinary timing cell exceeds the approved bound; owner workflow review required",
         "runtime_inputs": {
             key: value for key, value in environment.items() if key in rl00bc_trials.PATH_KEYS
         },
@@ -301,8 +303,8 @@ def measure(
     approval: str = "",
 ) -> dict[str, object]:
     """Capture AB/BA pairs, stopping at the first incomplete or invalid attempt."""
-    if profile not in rl00bc_trials.PROVIDERS or not 1 <= samples <= 100:
-        invalid("invalid profile or finite sample count")
+    if profile not in rl00bc_trials.PROVIDERS or samples != 20:
+        invalid("profile and exact preregistered twenty-pair sample count required")
     if criterion not in ("A", "B"):
         invalid("unknown proposed criterion")
     if not approval.strip() or len(approval) > 256 or "\0" in approval:
