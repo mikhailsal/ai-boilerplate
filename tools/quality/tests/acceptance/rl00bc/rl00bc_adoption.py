@@ -249,28 +249,29 @@ def _environment(home: Path, environment: dict[str, str]) -> dict[str, str]:
     return env
 
 
+REQUIRED_GAPS = [
+    "Human understanding, administrator wait and novice usability are unmeasured.",
+    (
+        "Only the Python onboarding fixture is exercised; "
+        "other profile adoption remains unproved."
+    ),
+    (
+        "The standalone experimental kernel overlay is not integrated into "
+        "exported quality or hooks."
+    ),
+    (
+        "Missing-delegation failure is unrun; actual host provisioning is "
+        "a separate parent-mode observation."
+    ),
+    (
+        "The update fixture changes an exported document, "
+        "not a matched resource-policy core or schema."
+    ),
+]
+
+
 def _report(runner: _Runner, project: Path, gaps: list[str], started: int) -> dict[str, object]:
-    gaps.extend(
-        [
-            "Human understanding, administrator wait and novice usability are unmeasured.",
-            (
-                "Only the Python onboarding fixture is exercised; "
-                "other profile adoption remains unproved."
-            ),
-            (
-                "The standalone experimental kernel overlay is not integrated into "
-                "exported quality or hooks."
-            ),
-            (
-                "Missing-delegation failure is unrun; actual host provisioning is "
-                "a separate parent-mode observation."
-            ),
-            (
-                "The update fixture changes an exported document, "
-                "not a matched resource-policy core or schema."
-            ),
-        ]
-    )
+    gaps.extend(REQUIRED_GAPS)
     return {
         "phases": runner.phases,
         "required_gaps": gaps,

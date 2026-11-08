@@ -181,11 +181,8 @@ class _Proof:
         def ready() -> bool:
             if first.path("marker").exists() and second.path("marker").exists():
                 invalid("two overcommitted payloads were admitted")
-            return (
-                (first.path("marker").is_file()
-                and second.path("result").is_file())
-                or (second.path("marker").is_file()
-                and first.path("result").is_file())
+            return (first.path("marker").is_file() and second.path("result").is_file()) or (
+                second.path("marker").is_file() and first.path("result").is_file()
             )
 
         until(ready, self.observation_deadline())
