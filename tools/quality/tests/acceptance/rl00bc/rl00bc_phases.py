@@ -103,14 +103,21 @@ class _Phases:
 
     def faults(self) -> dict[str, object]:
         return rl00bc_faults.check(
-            self.work, self.repo, self.args.scratch / "faults", self.args.output / "faults",
-            self.environment, ancestor_deadline_ns=self.args.deadline_ns,
+            self.work,
+            self.repo,
+            self.args.scratch / "faults",
+            self.args.output / "faults",
+            self.environment,
+            ancestor_deadline_ns=self.args.deadline_ns,
         )
 
     def selection_pressure(self) -> dict[str, object]:
         return rl00bc_pressure.check(
-            self.work, self.repo, self.args.scratch / "selection-pressure",
-            self.args.output / "selection-pressure", self.environment,
+            self.work,
+            self.repo,
+            self.args.scratch / "selection-pressure",
+            self.args.output / "selection-pressure",
+            self.environment,
             ancestor_deadline_ns=self.args.deadline_ns,
         )
 

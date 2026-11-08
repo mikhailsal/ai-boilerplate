@@ -35,7 +35,8 @@ def entry(parent: Group, child: Group, expected: tuple[int, int]) -> None:
     if child.path.parent != parent.path or identity(child) != expected:
         invalid("fault probe cgroup parent or identity changed")
     fd = os.open(
-        child.path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
+        child.path.name,
+        os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC,
         dir_fd=parent.fd,
     )
     try:
@@ -53,8 +54,9 @@ def work_entry(work: Group, parent_id: tuple[int, int], work_id: tuple[int, int]
         parent = os.fstat(parent_fd)
         if (parent.st_dev, parent.st_ino) != parent_id or identity(work) != work_id:
             invalid("fault probe work parent identity changed")
-        child_fd = os.open(work.path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                           dir_fd=parent_fd)
+        child_fd = os.open(
+            work.path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent_fd
+        )
         try:
             child = os.fstat(child_fd)
             if (child.st_dev, child.st_ino) != work_id:
@@ -111,8 +113,11 @@ class Subject:
 
     def verify_work(self) -> None:
         work_entry(self.work, self.work_parent_id, self.work_id)
-        limits = (self.work.read("memory.max"), self.work.read("pids.max"),
-                  self.work.read("memory.swap.max"))
+        limits = (
+            self.work.read("memory.max"),
+            self.work.read("pids.max"),
+            self.work.read("memory.swap.max"),
+        )
         if limits != self.work_limits:
             invalid("fault probe work limits changed")
 
@@ -145,8 +150,10 @@ class Subject:
             invalid("fault probe controller identity changed")
         if not alive(self.worker_fd) or self.worker.process.poll() is not None:
             invalid("fault probe requester already exited")
-        if (parent_pid(self.worker.process.pid) != os.getpid()
-                or membership(self.worker.process.pid) != self.worker_cgroup):
+        if (
+            parent_pid(self.worker.process.pid) != os.getpid()
+            or membership(self.worker.process.pid) != self.worker_cgroup
+        ):
             invalid("fault probe requester ownership changed")
 
     def verify_requester(self) -> None:
@@ -161,8 +168,11 @@ class Subject:
         if (pinned.st_dev, pinned.st_ino) != self.leaf_id:
             invalid("fault probe leaf descriptor changed")
         try:
-            fd = os.open(self.leaf.path.name, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
-                         dir_fd=self.work.fd)
+            fd = os.open(
+                self.leaf.path.name,
+                os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW,
+                dir_fd=self.work.fd,
+            )
         except FileNotFoundError:
             return False
         try:
@@ -190,15 +200,22 @@ class Subject:
 
 def _marker_pid(native: dict[str, object]) -> int:
     started = native.get("started_ns")
-    if (isinstance(started, bool) or not isinstance(started, int)
-            or not 0 < started <= time.monotonic_ns()):
+    if (
+        isinstance(started, bool)
+        or not isinstance(started, int)
+        or not 0 < started <= time.monotonic_ns()
+    ):
         invalid("fault probe native start timestamp is invalid")
     return cast(int, native["pid"])
 
 
 def _bind_leaf(
-    work: Group, worker: Worker, worker_fd: int, native: dict[str, object],
-    native_fd: int, deadline: int,
+    work: Group,
+    worker: Worker,
+    worker_fd: int,
+    native: dict[str, object],
+    native_fd: int,
+    deadline: int,
 ) -> Subject:
     work_id = identity(work)
     parent = work.path.parent.stat()
@@ -214,15 +231,29 @@ def _bind_leaf(
     leaf = work.adopt(Path(str(native["cgroup"])).name)
     try:
         subject = Subject(
-            work, worker, worker_fd, cast(int, native["pid"]), native_fd, native,
-            worker_group, control_id, leaf, work_parent_id, work_id, work_limits,
-            identity(leaf), deadline,
+            work,
+            worker,
+            worker_fd,
+            cast(int, native["pid"]),
+            native_fd,
+            native,
+            worker_group,
+            control_id,
+            leaf,
+            work_parent_id,
+            work_id,
+            work_limits,
+            identity(leaf),
+            deadline,
         )
         subject.verify_leaf()
         subject.verify_native()
         subject.verify_requester()
-        if (leaf.read("memory.max") != str(128 * MIB) or leaf.read("pids.max") != "8"
-                or leaf.read("memory.swap.max") != "0"):
+        if (
+            leaf.read("memory.max") != str(128 * MIB)
+            or leaf.read("pids.max") != "8"
+            or leaf.read("memory.swap.max") != "0"
+        ):
             invalid("fault probe leaf has unexpected limits")
         if time.monotonic_ns() >= deadline - 8_000_000_000:
             expired("insufficient remaining original fault deadline")
@@ -236,8 +267,10 @@ def open_subject(work: Group, worker: Worker, deadline: int) -> Subject:
     """Bind the real kernel worker's live marker to a direct child leaf."""
     worker_fd = os.pidfd_open(worker.process.pid)
     try:
-        until(worker.path("marker").is_file, min(deadline - 8_000_000_000,
-                                                  time.monotonic_ns() + 8_000_000_000))
+        until(
+            worker.path("marker").is_file,
+            min(deadline - 8_000_000_000, time.monotonic_ns() + 8_000_000_000),
+        )
         native = marker(worker, work)
         native_fd = os.pidfd_open(_marker_pid(native))
         try:

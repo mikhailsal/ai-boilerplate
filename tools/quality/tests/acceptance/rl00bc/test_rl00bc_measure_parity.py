@@ -33,8 +33,15 @@ def _record(profile: str, root: Path, *, native_id_start: int = 1) -> dict[str, 
 def _strict(case: rl00bc_corpus.Case, root: Path, *, native_id: int = 73) -> dict[str, object]:
     return {
         "corpus_root": str(root),
-        "native_cases": [{"id": case.identity, "variant": case.variant, "outcome": "passed",
-                          "source": str(root / "test" / "native_test"), "native_id": native_id}],
+        "native_cases": [
+            {
+                "id": case.identity,
+                "variant": case.variant,
+                "outcome": "passed",
+                "source": str(root / "test" / "native_test"),
+                "native_id": native_id,
+            }
+        ],
         "kernel": {"native_status": 0, "cleanup_complete": True},
     }
 
@@ -90,8 +97,10 @@ class TimingNativeParityTests(unittest.TestCase):
             rl00bc_measure_parity.selected(case, baseline, strict)
 
     def test_nonzero_exit_and_incomplete_cleanup_are_rejected(self) -> None:
-        for kernel in ({"native_status": 1, "cleanup_complete": True},
-                       {"native_status": 0, "cleanup_complete": False}):
+        for kernel in (
+            {"native_status": 1, "cleanup_complete": True},
+            {"native_status": 0, "cleanup_complete": False},
+        ):
             with self.subTest(kernel=kernel):
                 baseline = _record("python", self.baseline_root)
                 baseline["kernel"] = kernel
@@ -113,31 +122,41 @@ class TimingNativeParityTests(unittest.TestCase):
         second = rl00bc_measure_parity.canonical(
             "python", "small", _record("python", self.strict_root, native_id_start=100)
         )
-        result = rl00bc_measure_parity.paired({"canonical_evidence": first},
-                                              {"canonical_evidence": second})
+        result = rl00bc_measure_parity.paired(
+            {"canonical_evidence": first}, {"canonical_evidence": second}
+        )
         self.assertIs(result["matched"], True)
 
     def test_paired_changed_identity_outcome_source_or_exit_is_rejected(self) -> None:
         original = rl00bc_measure_parity.canonical("python", "small", _record("python", self.root))
-        for field, changed in (("id", "other"), ("outcome", "skipped"),
-                               ("source", "test/other_test")):
+        for field, changed in (
+            ("id", "other"),
+            ("outcome", "skipped"),
+            ("source", "test/other_test"),
+        ):
             with self.subTest(field=field):
                 other = copy.deepcopy(original)
                 cast(list[dict[str, object]], other["rows"])[0][field] = changed
                 with self.assertRaises(ValueError):
-                    rl00bc_measure_parity.paired({"canonical_evidence": original},
-                                                 {"canonical_evidence": other})
+                    rl00bc_measure_parity.paired(
+                        {"canonical_evidence": original}, {"canonical_evidence": other}
+                    )
         other = copy.deepcopy(original)
         other["native_status"] = 1
         with self.assertRaises(ValueError):
-            rl00bc_measure_parity.paired({"canonical_evidence": original},
-                                         {"canonical_evidence": other})
+            rl00bc_measure_parity.paired(
+                {"canonical_evidence": original}, {"canonical_evidence": other}
+            )
 
     def test_missing_or_malformed_canonical_evidence_is_rejected(self) -> None:
-        for malformed in (None, {}, [], "not-evidence", {"rows": [], "native_status": 0}):
+        malformed_values: tuple[object, ...] = (
+            None, {}, [], "not-evidence", {"rows": [], "native_status": 0}
+        )
+        for malformed in malformed_values:
             with self.subTest(malformed=malformed), self.assertRaises(ValueError):
-                rl00bc_measure_parity.paired({"canonical_evidence": malformed},
-                                             {"canonical_evidence": malformed})
+                rl00bc_measure_parity.paired(
+                    {"canonical_evidence": malformed}, {"canonical_evidence": malformed}
+                )
 
 
 if __name__ == "__main__":

@@ -5,16 +5,16 @@ from __future__ import annotations
 import signal
 import subprocess
 import time
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-
-from quality.gitio.errors import GitioError
-from quality.process import ProcessError
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group
 from tests.acceptance.rl00bc.rl00bc_errors import expired, invalid
 from tests.acceptance.rl00bc.rl00bc_pressure_worker import PressureExperiment, save_record
+
+from quality.gitio.errors import GitioError
+from quality.process import ProcessError
 
 
 def _alarm(_number: int, _frame: object) -> None:
@@ -22,7 +22,7 @@ def _alarm(_number: int, _frame: object) -> None:
 
 
 @contextmanager
-def _watchdog(deadline: int) -> Iterator[None]:
+def _watchdog(deadline: int) -> Generator[None]:
     old_timer = signal.getitimer(signal.ITIMER_REAL)
     if old_timer != (0.0, 0.0):
         invalid("pressure experiment cannot replace an existing controller timer")
@@ -36,6 +36,15 @@ def _watchdog(deadline: int) -> Iterator[None]:
     finally:
         signal.setitimer(signal.ITIMER_REAL, 0)
         signal.signal(signal.SIGALRM, old_handler)
+
+
+def _finish(result: dict[str, object], start: int, output: Path) -> dict[str, object]:
+    elapsed = (time.monotonic_ns() - start) / 1_000_000_000
+    result["elapsed_seconds"] = elapsed
+    if elapsed > 60:
+        result.update({"success": False, "classification": "deadline-nonpass"})
+    save_record(output / "pressure.json", result)
+    return result
 
 
 def check(
@@ -76,16 +85,24 @@ def check(
             expanded = runner.narrow(target)
             runner.mutated(target, original, expanded)
             runner.guard()
-            result.update({"success": True, "classification": "observed-fixture-comparison",
-                           "evidence": runner.evidence})
-    except (OSError, ValueError, TypeError, KeyError, RuntimeError, GitioError, ProcessError,
-            subprocess.SubprocessError) as error:
+            result.update(
+                {
+                    "success": True,
+                    "classification": "observed-fixture-comparison",
+                    "evidence": runner.evidence,
+                }
+            )
+    except (
+        OSError,
+        ValueError,
+        TypeError,
+        KeyError,
+        RuntimeError,
+        GitioError,
+        ProcessError,
+        subprocess.SubprocessError,
+    ) as error:
         result["error"] = f"{type(error).__name__}: {error}"[:1024]
         if runner is not None:
             result["evidence"] = runner.evidence
-    elapsed = (time.monotonic_ns() - start) / 1_000_000_000
-    result["elapsed_seconds"] = elapsed
-    if elapsed > 60:
-        result.update({"success": False, "classification": "deadline-nonpass"})
-    save_record(output / "pressure.json", result)
-    return result
+    return _finish(result, start, output)

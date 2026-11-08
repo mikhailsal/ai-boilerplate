@@ -10,15 +10,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
 
-from quality.gitio import Candidate, Repository, materialize
-from quality.gitio.candidate import staged
-
 from tests.acceptance.rl00a.rl00a_cgroup import Group
 from tests.acceptance.rl00bc import (
     rl00bc_candidate_changes,
     rl00bc_kernel,
-    rl00bc_pressure_fixture as fixture,
     rl00bc_selection,
+)
+from tests.acceptance.rl00bc import (
+    rl00bc_pressure_fixture as fixture,
 )
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 from tests.acceptance.rl00bc.rl00bc_pressure_fixture import (
@@ -31,6 +30,9 @@ from tests.acceptance.rl00bc.rl00bc_pressure_fixture import (
     validate_limits,
     verify_own_oom,
 )
+
+from quality.gitio import Candidate, Repository, materialize
+from quality.gitio.candidate import staged
 
 
 def _hash(path: Path) -> str:
@@ -94,38 +96,62 @@ class PressureExperiment:
         self.root.mkdir(parents=True, exist_ok=False)
         home = self.scratch / "home"
         home.mkdir(parents=True, exist_ok=False)
-        self.git_env = {"HOME": str(home), "PATH": "/usr/local/bin:/usr/bin:/bin",
-                        "LANG": "C.UTF-8", "GIT_CONFIG_NOSYSTEM": "1"}
+        self.git_env = {
+            "HOME": str(home),
+            "PATH": "/usr/local/bin:/usr/bin:/bin",
+            "LANG": "C.UTF-8",
+            "GIT_CONFIG_NOSYSTEM": "1",
+        }
         _git(
-            self.root, self.git_env, "init", "--quiet", "--initial-branch=main",
+            self.root,
+            self.git_env,
+            "init",
+            "--quiet",
+            "--initial-branch=main",
         )
         _git(self.root, self.git_env, "config", "user.name", "RL00 fixture")
         _git(self.root, self.git_env, "config", "user.email", "rl00@example.invalid")
-        files = (("support.py", fixture.SUPPORT), ("test_pressure.py", fixture.PRESSURE_TEST),
-                 ("test_cheap.py", fixture.CHEAP_BASE), ("data.txt", "1\n"))
+        files = (
+            ("support.py", fixture.SUPPORT),
+            ("test_pressure.py", fixture.PRESSURE_TEST),
+            ("test_cheap.py", fixture.CHEAP_BASE),
+            ("data.txt", "1\n"),
+        )
         for name, text in files:
             (self.root / name).write_text(text, encoding="utf-8")
         _git(self.root, self.git_env, "add", ".")
         _git(self.root, self.git_env, "commit", "--quiet", "-m", "fixture base")
         self.repository = Repository.discover(self.root, self.git_env)
         (self.output / "native-runner.py").write_text(fixture.RUNNER, encoding="utf-8")
-        self.evidence.update({"base_commit": _git(self.root, self.git_env, "rev-parse", "HEAD"),
-                              "runner_sha256": _hash(self.output / "native-runner.py")})
+        self.evidence.update(
+            {
+                "base_commit": _git(self.root, self.git_env, "rev-parse", "HEAD"),
+                "runner_sha256": _hash(self.output / "native-runner.py"),
+            }
+        )
 
     def discover(self, candidate: Candidate, label: str) -> list[dict[str, object]]:
         self.guard()
         return rl00bc_candidate_changes.collect(self.repository, candidate, self.output / label)
 
-    def scope(self, candidate: Candidate, cases: list[dict[str, object]], *, first: bool,
-              trusted: bool) -> dict[str, object]:
+    def scope(
+        self, candidate: Candidate, cases: list[dict[str, object]], *, first: bool, trusted: bool
+    ) -> dict[str, object]:
         actual = rl00bc_candidate_changes.read(
-            self.repository, candidate, cases, comparison_trusted=trusted,
+            self.repository,
+            candidate,
+            cases,
+            comparison_trusted=trusted,
             independent_fixture_files=frozenset({"test_cheap.py"}),
         )
         context: dict[str, object] = {
-            "candidate": candidate.tree, "base": candidate.base_tree, "tested_tree": candidate.tree,
-            "policy": _hash(self.repo / "quality.toml"), "runtime": _hash(self.python),
-            "source": _source_hash(self.repo), "runtime_path": str(self.python),
+            "candidate": candidate.tree,
+            "base": candidate.base_tree,
+            "tested_tree": candidate.tree,
+            "policy": _hash(self.repo / "quality.toml"),
+            "runtime": _hash(self.python),
+            "source": _source_hash(self.repo),
+            "runtime_path": str(self.python),
             "comparison_trusted": trusted,
             "native_file_mapping_complete": actual["native_file_mapping_complete"],
             "independent_fixture_files": actual["independent_fixture_files"],
@@ -143,24 +169,48 @@ class PressureExperiment:
         directory.mkdir()
         events = directory / "events"
         events.mkdir()
-        env = {"HOME": str(self.scratch / "home"), "PATH": "/usr/local/bin:/usr/bin:/bin",
-               "PYTHONPATH": str(root), "PYTHONDONTWRITEBYTECODE": "1",
-               "PRESSURE_EVENTS": str(events)}
+        env = {
+            "HOME": str(self.scratch / "home"),
+            "PATH": "/usr/local/bin:/usr/bin:/bin",
+            "PYTHONPATH": str(root),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PRESSURE_EVENTS": str(events),
+        }
         raw = rl00bc_kernel.execute(
-            self.work, [str(self.python), str(self.output / "native-runner.py"), json.dumps(ids),
-                        str(directory / "native-result.json")], root, env, directory / "kernel",
-            memory_mib=memory, tasks=tasks, native_seconds=10,
-            ancestor_deadline_ns=self.deadline, payload_deadline_ns=self.deadline - 3_000_000_000,
+            self.work,
+            [
+                str(self.python),
+                str(self.output / "native-runner.py"),
+                json.dumps(ids),
+                str(directory / "native-result.json"),
+            ],
+            root,
+            env,
+            directory / "kernel",
+            memory_mib=memory,
+            tasks=tasks,
+            native_seconds=10,
+            ancestor_deadline_ns=self.deadline,
+            payload_deadline_ns=self.deadline - 3_000_000_000,
         )
-        self.evidence[label] = {"kernel_path": str(directory / "kernel/result.json"),
-                                "event_directory": str(events), "kernel": raw}
+        self.evidence[label] = {
+            "kernel_path": str(directory / "kernel/result.json"),
+            "event_directory": str(events),
+            "kernel": raw,
+        }
         save_record(self.output / "progress.json", self.evidence)
         validate_limits(raw, memory, tasks)
-        return {"kernel": raw, "memory_mib": memory, "tasks": tasks, "ids": ids,
-                "events": collect_events(events, root.resolve(), raw), "event_directory": str(events),
-                "kernel_path": str(directory / "kernel/result.json"),
-                "native_result": str(directory / "native-result.json"),
-                "deadline_ns": self.deadline}
+        return {
+            "kernel": raw,
+            "memory_mib": memory,
+            "tasks": tasks,
+            "ids": ids,
+            "events": collect_events(events, root.resolve(), raw),
+            "event_directory": str(events),
+            "kernel_path": str(directory / "kernel/result.json"),
+            "native_result": str(directory / "native-result.json"),
+            "deadline_ns": self.deadline,
+        }
 
     def baseline(self) -> tuple[str, list[str]]:
         candidate = staged(self.repository)
@@ -170,13 +220,23 @@ class PressureExperiment:
             digest = _hash(snapshot.root / "data.txt")
             observation = self.native(snapshot.root, "baseline-strict", [target], 48, 8)
             raw = object_value(observation["kernel"])
-            validate_events(cast(list[dict[str, object]], observation["events"]), [target], target,
-                      digest, 1, complete=True)
+            validate_events(
+                cast(list[dict[str, object]], observation["events"]),
+                [target],
+                target,
+                digest,
+                1,
+                complete=True,
+            )
             if not kernel_success(raw):
                 invalid("unmodified input did not pass the strict leaf")
             candidate.verify_unchanged()
-        self.evidence["baseline"] = {"tree": candidate.tree, "base_tree": candidate.base_tree,
-                                     "input_sha256": digest, "observation": observation}
+        self.evidence["baseline"] = {
+            "tree": candidate.tree,
+            "base_tree": candidate.base_tree,
+            "input_sha256": digest,
+            "observation": observation,
+        }
         return target, discovered_ids(cases)
 
     def narrow(self, target: str) -> list[str]:
@@ -212,14 +272,18 @@ class PressureExperiment:
     def full_scopes(
         self, candidate: Candidate, cases: list[dict[str, object]], ids: list[str]
     ) -> None:
-        records = {"changed": self.scope(candidate, cases, first=False, trusted=True),
-                   "first_adoption": self.scope(candidate, cases, first=True, trusted=True),
-                   "untrusted": self.scope(candidate, cases, first=False, trusted=False)}
+        records = {
+            "changed": self.scope(candidate, cases, first=False, trusted=True),
+            "first_adoption": self.scope(candidate, cases, first=True, trusted=True),
+            "untrusted": self.scope(candidate, cases, first=False, trusted=False),
+        }
         if any(object_value(record["scope"]).get("selected") != ids for record in records.values()):
             invalid("changed data, first adoption, or unknown influence did not select all cases")
-        if (object_value(records["first_adoption"]["scope"]).get("reason") != "first-adoption-full"
-                or object_value(records["untrusted"]["scope"]).get("reason")
-                != "untrusted-comparison-full"):
+        if (
+            object_value(records["first_adoption"]["scope"]).get("reason") != "first-adoption-full"
+            or object_value(records["untrusted"]["scope"]).get("reason")
+            != "untrusted-comparison-full"
+        ):
             invalid("first adoption or untrusted comparison did not use the expected fallback")
         actual = object_value(records["changed"]["actual"])
         changes = cast(list[dict[str, str]], actual["actual_git_changes"])
@@ -232,23 +296,41 @@ class PressureExperiment:
         with materialize(self.repository, candidate.tree) as snapshot:
             root = snapshot.root
             digest = _hash(root / "data.txt")
-            hashes = {name: _hash(root / name) for name in
-                      ("data.txt", "test_pressure.py", "test_cheap.py", "support.py")}
+            hashes = {
+                name: _hash(root / name)
+                for name in ("data.txt", "test_pressure.py", "test_cheap.py", "support.py")
+            }
             order = list(reversed(ids))
             canonical = self.native(root, "changed-canonical", order, 256, 16)
             canonical_raw = object_value(canonical["kernel"])
-            validate_events(cast(list[dict[str, object]], canonical["events"]), order, target, digest,
-                      72, complete=True)
+            validate_events(
+                cast(list[dict[str, object]], canonical["events"]),
+                order,
+                target,
+                digest,
+                72,
+                complete=True,
+            )
             if not kernel_success(canonical_raw):
                 invalid("changed canonical suite did not complete successfully")
             strict = self.native(root, "changed-strict", [target], 48, 8)
             strict_raw = object_value(strict["kernel"])
-            validate_events(cast(list[dict[str, object]], strict["events"]), [target], target, digest,
-                      72, complete=False)
+            validate_events(
+                cast(list[dict[str, object]], strict["events"]),
+                [target],
+                target,
+                digest,
+                72,
+                complete=False,
+            )
             verify_own_oom(strict_raw, cast(list[dict[str, object]], strict["events"]), target)
             candidate.verify_unchanged()
         self.evidence["comparison"] = {
-            "candidate_tree": candidate.tree, "base_tree": candidate.base_tree,
-            "snapshot_sha256": hashes, "native_target": target, "reversed_order": order,
-            "canonical": canonical, "strict": strict,
+            "candidate_tree": candidate.tree,
+            "base_tree": candidate.base_tree,
+            "snapshot_sha256": hashes,
+            "native_target": target,
+            "reversed_order": order,
+            "canonical": canonical,
+            "strict": strict,
         }

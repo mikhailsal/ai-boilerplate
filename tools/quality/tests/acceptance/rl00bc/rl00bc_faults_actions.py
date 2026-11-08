@@ -8,7 +8,7 @@ import signal
 import stat
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -34,14 +34,17 @@ def _before_deadline(subject: Subject) -> None:
 
 
 @contextmanager
-def exclusive(subject: Subject) -> Iterator[None]:
+def exclusive(subject: Subject) -> Generator[None, None, None]:
     """Use an independent description of the actual guardian lifecycle lock."""
     inherited = int(os.environ["RL00_LIFECYCLE_FD"])
     closing = Path(os.environ["RL00_LIFECYCLE_CLOSING"])
     info = os.fstat(inherited)
-    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
-            or info.st_ino != int(os.environ["RL00_LIFECYCLE_INODE"])
-            or not closing.is_absolute()):
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or info.st_uid != os.getuid()
+        or info.st_ino != int(os.environ["RL00_LIFECYCLE_INODE"])
+        or not closing.is_absolute()
+    ):
         invalid("fault probe lifecycle authority is invalid")
     fd = os.open(f"/proc/self/fd/{inherited}", os.O_RDWR | os.O_CLOEXEC)
     try:
@@ -76,10 +79,12 @@ def lower_limit(subject: Subject) -> int:
     with exclusive(subject):
         subject.verify_native()
         subject.verify_requester()
-        if (subject.leaf.read("memory.max") != str(128 * MIB)
-                or subject.leaf.read("memory.swap.max") != "0"
-                or subject.leaf.read("pids.max") != "8"
-                or int(subject.leaf.read("pids.current")) > 7):
+        if (
+            subject.leaf.read("memory.max") != str(128 * MIB)
+            or subject.leaf.read("memory.swap.max") != "0"
+            or subject.leaf.read("pids.max") != "8"
+            or int(subject.leaf.read("pids.current")) > 7
+        ):
             invalid("fault probe cannot safely lower the leaf task limit")
         subject.verify_leaf()
         _before_deadline(subject)
@@ -92,11 +97,17 @@ def lower_limit(subject: Subject) -> int:
         return fired
 
 
-def _target_capacity(subject: Subject) -> tuple[str, str, str]:
-    if (subject.leaf.read("memory.max") != str(128 * MIB)
-            or subject.leaf.read("pids.max") != "8"
-            or subject.leaf.read("memory.swap.max") != "0"):
+def _validate_target_leaf(subject: Subject) -> None:
+    if (
+        subject.leaf.read("memory.max") != str(128 * MIB)
+        or subject.leaf.read("pids.max") != "8"
+        or subject.leaf.read("memory.swap.max") != "0"
+    ):
         invalid("fault probe leaf capacity changed before target reservation")
+
+
+def _target_capacity(subject: Subject) -> tuple[str, str, str]:
+    _validate_target_leaf(subject)
     with os.scandir(subject.work.fd) as entries:
         found = list(entries)
     if any(entry.is_symlink() for entry in found):
@@ -104,8 +115,11 @@ def _target_capacity(subject: Subject) -> tuple[str, str, str]:
     names = [entry.name for entry in found if entry.is_dir(follow_symlinks=False)]
     if names != [subject.leaf.path.name]:
         invalid("fault probe requires only its own live leaf")
-    limits = (subject.work.read("memory.max"), subject.work.read("pids.max"),
-              subject.work.read("memory.swap.max"))
+    limits = (
+        subject.work.read("memory.max"),
+        subject.work.read("pids.max"),
+        subject.work.read("memory.swap.max"),
+    )
     if int(limits[0]) < 256 * MIB or int(limits[1]) < 16 or limits[2] != "0":
         invalid("fault probe target exceeds remaining work capacity")
     return limits
@@ -127,8 +141,11 @@ def create_target(subject: Subject) -> None:
         subject.target.limit(128, 8)
         subject.verify_target()
         _target_limits(subject.target)
-        actual = (subject.work.read("memory.max"), subject.work.read("pids.max"),
-                  subject.work.read("memory.swap.max"))
+        actual = (
+            subject.work.read("memory.max"),
+            subject.work.read("pids.max"),
+            subject.work.read("memory.swap.max"),
+        )
         if actual != limits:
             invalid("fault probe work capacity changed during target reservation")
 
@@ -150,8 +167,11 @@ def move_native(subject: Subject) -> int:
 
 
 def _target_limits(group: Group) -> None:
-    if (group.read("memory.max") != str(128 * MIB) or group.read("pids.max") != "8"
-            or group.read("memory.swap.max") != "0"):
+    if (
+        group.read("memory.max") != str(128 * MIB)
+        or group.read("pids.max") != "8"
+        or group.read("memory.swap.max") != "0"
+    ):
         invalid("fault probe target limits changed")
 
 
@@ -226,7 +246,14 @@ def _cleanup_groups(subject: Subject, errors: list[str]) -> None:
     if subject.target is not None and subject.target_id is not None:
         try:
             subject.target_closed = _remove_group(subject, subject.target, subject.target_id)
-        except (OSError, ValueError, RuntimeError, AssertionError, KeyError, StopIteration) as error:
+        except (
+            OSError,
+            ValueError,
+            RuntimeError,
+            AssertionError,
+            KeyError,
+            StopIteration,
+        ) as error:
             errors.append(f"owned target: {type(error).__name__}: {error}")
 
 
@@ -245,8 +272,9 @@ def manual_cleanup(subject: Subject, verdict_observed_ns: int) -> dict[str, obje
             if _native_owned(subject):
                 _before_deadline(subject)
                 signal.pidfd_send_signal(subject.native_fd, signal.SIGKILL)
-                _wait_exit(subject.native_fd, min(subject.deadline,
-                                                  time.monotonic_ns() + 1_000_000_000))
+                _wait_exit(
+                    subject.native_fd, min(subject.deadline, time.monotonic_ns() + 1_000_000_000)
+                )
             _cleanup_groups(subject, errors)
     except (OSError, ValueError, RuntimeError, AssertionError, KeyError, StopIteration) as error:
         errors.append(f"owned groups: {type(error).__name__}: {error}")
@@ -267,8 +295,11 @@ def _verify_unbound(
     current_id, current_group = controller_identity(work, parent_id)
     if current_id != control_id or current_group != control_group:
         invalid("unbound controller identity changed")
-    if (not alive(pidfd) or parent_pid(worker.process.pid) != os.getpid()
-            or membership(worker.process.pid) != control_group):
+    if (
+        not alive(pidfd)
+        or parent_pid(worker.process.pid) != os.getpid()
+        or membership(worker.process.pid) != control_group
+    ):
         invalid("unbound requester identity changed")
 
 
@@ -299,5 +330,8 @@ def stop_unbound(
         worker.process.poll()
     except (OSError, ValueError, RuntimeError, AssertionError, StopIteration) as error:
         errors.append(f"unbound requester: {type(error).__name__}: {error}")
-    return {"finished_ns": time.monotonic_ns(), "errors": errors,
-            "leaf_cleanup": "unverified; guardian cleanup required"}
+    return {
+        "finished_ns": time.monotonic_ns(),
+        "errors": errors,
+        "leaf_cleanup": "unverified; guardian cleanup required",
+    }

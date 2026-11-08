@@ -49,7 +49,8 @@ def _fault(subject: Subject, kind: str) -> int:
         return lower_limit(subject)
     if kind == "membership-drift":
         return move_native(subject)
-    invalid("unknown bounded fault case")
+    message = "unknown bounded fault case"
+    raise ValueError(message)
 
 
 def _sample(subject: Subject, observation: dict[str, object]) -> None:
@@ -65,9 +66,12 @@ def _sample(subject: Subject, observation: dict[str, object]) -> None:
 def _observe(subject: Subject, fired: int) -> dict[str, object]:
     deadline = min(fired + WINDOW_NS, subject.deadline - WINDOW_NS)
     observation: dict[str, object] = {
-        "fault_attempted_ns": fired, "window_deadline_ns": deadline,
-        "requester_stopped_ns": None, "requester_native_status": None,
-        "native_stopped_ns": None, "leaf_absent_ns": None,
+        "fault_attempted_ns": fired,
+        "window_deadline_ns": deadline,
+        "requester_stopped_ns": None,
+        "requester_native_status": None,
+        "native_stopped_ns": None,
+        "leaf_absent_ns": None,
         "cleanup_scope": "requester, native child and original leaf; fixture target excluded",
     }
     try:
@@ -75,8 +79,10 @@ def _observe(subject: Subject, fired: int) -> dict[str, object]:
             invalid("original deadline leaves no unassisted observation window")
         while time.monotonic_ns() < deadline:
             _sample(subject, observation)
-            if all(observation[key] is not None for key in
-                   ("requester_stopped_ns", "native_stopped_ns", "leaf_absent_ns")):
+            if all(
+                observation[key] is not None
+                for key in ("requester_stopped_ns", "native_stopped_ns", "leaf_absent_ns")
+            ):
                 break
             time.sleep(0.01)
     except (OSError, ValueError, RuntimeError, AssertionError) as error:
@@ -113,8 +119,11 @@ def _expected(kind: str, observation: dict[str, object], raw: dict[str, object] 
     if status != 0 or raw is None:
         return False
     message = "limits changed" if kind == "limit-drift" else "left its admitted cgroup"
-    return (raw.get("success") is False and raw.get("cleanup_complete") is True
-            and message in str(raw.get("observation_error")))
+    return (
+        raw.get("success") is False
+        and raw.get("cleanup_complete") is True
+        and message in str(raw.get("observation_error"))
+    )
 
 
 def _pause_until(deadline: int) -> None:
@@ -136,8 +145,14 @@ def _initial(work: Group) -> tuple[tuple[int, int], tuple[int, int]]:
 
 class _Case:
     def __init__(
-        self, kind: str, work: Group, repo: Path, output: Path,
-        environment: dict[str, str], deadline: int, record: dict[str, object],
+        self,
+        kind: str,
+        work: Group,
+        repo: Path,
+        output: Path,
+        environment: dict[str, str],
+        deadline: int,
+        record: dict[str, object],
         case: dict[str, object],
     ) -> None:
         self.kind = kind
@@ -159,16 +174,24 @@ class _Case:
         self.parent_id, self.work_id = _initial(self.work)
         self.control_id, self.control_group = controller_identity(self.work, self.parent_id)
         self.worker = start(
-            self.work, self.repo, self.output / self.kind, self.environment,
-            memory_mib=128, tasks=8, deadline=self.deadline, payload_deadline=self.deadline,
+            self.work,
+            self.repo,
+            self.output / self.kind,
+            self.environment,
+            memory_mib=128,
+            tasks=8,
+            deadline=self.deadline,
+            payload_deadline=self.deadline,
         )
         self.case["requester_pid"] = self.worker.process.pid
         self.case["worker_output"] = str(self.worker.root)
         self.subject = open_subject(self.work, self.worker, self.deadline)
         if self.subject.work_parent_id != self.parent_id or self.subject.work_id != self.work_id:
             invalid("fault probe work ownership changed during launch")
-        if (self.subject.controller_id != self.control_id
-                or self.subject.worker_cgroup != self.control_group):
+        if (
+            self.subject.controller_id != self.control_id
+            or self.subject.worker_cgroup != self.control_group
+        ):
             invalid("fault probe control ownership changed during launch")
         self.subject.verify_native()
         self.subject.verify_requester()
@@ -233,10 +256,14 @@ class _Case:
         self.case["status"] = "observed-expected" if expected else "nonpass"
 
     def finish(self) -> bool:
-        if (self.subject is not None and self.subject.fault_started_ns is not None
-                and "unassisted" not in self.case):
-            _pause_until(min(self.subject.fault_started_ns + WINDOW_NS,
-                             self.subject.deadline - WINDOW_NS))
+        if (
+            self.subject is not None
+            and self.subject.fault_started_ns is not None
+            and "unassisted" not in self.case
+        ):
+            _pause_until(
+                min(self.subject.fault_started_ns + WINDOW_NS, self.subject.deadline - WINDOW_NS)
+            )
         verdict_ns = time.monotonic_ns()
         self.case["verdict_observed_ns"] = verdict_ns
         try:
@@ -251,13 +278,22 @@ class _Case:
         return True
 
     def _finish_unbound(self, worker: Worker) -> bool:
-        if (self.parent_id is None or self.work_id is None or self.control_id is None
-                or self.control_group is None):
+        if (
+            self.parent_id is None
+            or self.work_id is None
+            or self.control_id is None
+            or self.control_group is None
+        ):
             self.case["manual_cleanup_after_verdict"] = {"error": "ownership anchors unavailable"}
             return False
         self.case["manual_cleanup_after_verdict"] = stop_unbound(
-            worker, self.work, self.parent_id, self.work_id,
-            self.control_id, self.control_group, self.deadline,
+            worker,
+            self.work,
+            self.parent_id,
+            self.work_id,
+            self.control_id,
+            self.control_group,
+            self.deadline,
         )
         return False
 
@@ -284,8 +320,15 @@ class _Case:
             try:
                 self.prepare()
                 self.inject()
-            except (OSError, ValueError, TypeError, RuntimeError, KeyError, AssertionError,
-                    StopIteration) as error:
+            except (
+                OSError,
+                ValueError,
+                TypeError,
+                RuntimeError,
+                KeyError,
+                AssertionError,
+                StopIteration,
+            ) as error:
                 self.case["error"] = f"{type(error).__name__}: {error}"
             self.observe()
         finally:
@@ -294,8 +337,13 @@ class _Case:
 
 
 def _run_cases(
-    work: Group, repo: Path, output: Path, environment: dict[str, str], deadline: int,
-    record: dict[str, object], cases: dict[str, dict[str, object]],
+    work: Group,
+    repo: Path,
+    output: Path,
+    environment: dict[str, str],
+    deadline: int,
+    record: dict[str, object],
+    cases: dict[str, dict[str, object]],
 ) -> None:
     for name, case in cases.items():
         record["active_case"] = name
@@ -339,11 +387,16 @@ def check(
         for name in ("requester-sigkill", "limit-drift", "membership-drift")
     }
     record: dict[str, object] = {
-        "status": "in-progress", "success": False, "cases": cases,
+        "status": "in-progress",
+        "success": False,
+        "cases": cases,
         "started_ns": started,
-        "original_deadline_ns": ancestor_deadline_ns, "proof_deadline_ns": deadline,
-        "maximum_unassisted_window_ns": WINDOW_NS, "scratch": str(scratch),
-        "leaf_memory_mib": 128, "leaf_tasks": 8,
+        "original_deadline_ns": ancestor_deadline_ns,
+        "proof_deadline_ns": deadline,
+        "maximum_unassisted_window_ns": WINDOW_NS,
+        "scratch": str(scratch),
+        "leaf_memory_mib": 128,
+        "leaf_tasks": 8,
         "manual_cleanup_counts_as_automatic": False,
         "required_proofs_pending": list(PENDING),
     }
@@ -353,8 +406,15 @@ def check(
             invalid("insufficient original deadline for bounded fault probes")
         _initial(work)
         _run_cases(work, repo, output, environment, deadline, record, cases)
-    except (OSError, ValueError, TypeError, RuntimeError, KeyError, AssertionError,
-            StopIteration) as error:
+    except (
+        OSError,
+        ValueError,
+        TypeError,
+        RuntimeError,
+        KeyError,
+        AssertionError,
+        StopIteration,
+    ) as error:
         record["status"] = "nonpass"
         record["error"] = f"{type(error).__name__}: {error}"
     finally:

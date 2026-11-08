@@ -8,7 +8,7 @@ from typing import cast
 
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
-SUPPORT = r'''import json, os, time
+SUPPORT = r"""import json, os, time
 from pathlib import Path
 
 def emit(case, phase, source, **extra):
@@ -25,9 +25,9 @@ def emit(case, phase, source, **extra):
                "monotonic_ns": stamp, **extra}
     with (directory / (str(os.getpid()) + "-" + str(stamp) + ".json")).open("x") as handle:
         json.dump(payload, handle, sort_keys=True)
-'''
+"""
 
-PRESSURE_TEST = r'''import hashlib
+PRESSURE_TEST = r"""import hashlib
 import unittest
 from pathlib import Path
 from support import emit
@@ -44,18 +44,18 @@ class Pressure(unittest.TestCase):
             held[offset] = 1
         self.assertEqual(held[0], 1)
         emit(self, "call-end", __file__, input_sha256=hashlib.sha256(data).hexdigest(), mib=mib)
-'''
+"""
 
-CHEAP_BASE = '''import unittest
+CHEAP_BASE = """import unittest
 from support import emit
 class Cheap(unittest.TestCase):
     def test_a(self):
         emit(self, "call-start", __file__); self.assertTrue(True); emit(self, "call-end", __file__)
     def test_b(self):
         emit(self, "call-start", __file__); self.assertTrue(True); emit(self, "call-end", __file__)
-'''
+"""
 
-CHEAP_CHANGED = '''import unittest
+CHEAP_CHANGED = """import unittest
 from support import emit
 class Cheap(unittest.TestCase):
     def test_b(self):
@@ -70,9 +70,9 @@ class Cheap(unittest.TestCase):
         emit(self, "call-start", __file__); self.assertTrue(True); emit(self, "call-end", __file__)
     def test_f(self):
         emit(self, "call-start", __file__); self.assertTrue(True); emit(self, "call-end", __file__)
-'''
+"""
 
-RUNNER = r'''import json, sys, unittest
+RUNNER = r"""import json, sys, unittest
 from pathlib import Path
 identities = json.loads(sys.argv[1])
 loader = unittest.TestLoader()
@@ -82,7 +82,7 @@ Path(sys.argv[2]).write_text(json.dumps({"run": result.testsRun, "success": resu
     "skipped": len(result.skipped), "failures": len(result.failures),
     "errors": len(result.errors)}))
 raise SystemExit(0 if result.wasSuccessful() and result.testsRun == len(identities) else 1)
-'''
+"""
 
 
 def object_value(value: object) -> dict[str, object]:
@@ -121,7 +121,9 @@ def _member(event: dict[str, object], kernel: dict[str, object]) -> bool:
     return path.startswith(prefix + "/") and lines == [path.removeprefix(prefix)]
 
 
-def collect_events(directory: Path, root: Path, kernel: dict[str, object]) -> list[dict[str, object]]:
+def collect_events(
+    directory: Path, root: Path, kernel: dict[str, object]
+) -> list[dict[str, object]]:
     files = sorted(directory.glob("*.json"))
     if len(files) > 32:
         invalid("native pressure event count exceeds its bound")
@@ -150,19 +152,33 @@ def _case_sources(starts: list[dict[str, object]], target: str) -> None:
             invalid("native case source differs from the discovered fixture file")
 
 
+def _validate_target(
+    starts: list[dict[str, object]], target: str, digest: str, mib: int
+) -> None:
+    target_rows = [event for event in starts if event.get("id") == target]
+    if (
+        len(target_rows) != 1
+        or target_rows[0].get("input_sha256") != digest
+        or target_rows[0].get("mib") != mib
+    ):
+        invalid("pressure case did not start against the bound input")
+
+
 def validate_events(
-    events: list[dict[str, object]], expected: list[str], target: str, digest: str,
-    mib: int, *, complete: bool,
+    events: list[dict[str, object]],
+    expected: list[str],
+    target: str,
+    digest: str,
+    mib: int,
+    *,
+    complete: bool,
 ) -> None:
     starts = [event for event in events if event.get("phase") == "call-start"]
     ids = [event.get("id") for event in starts]
     if ids != expected:
         invalid("observed native case start order differs from the bound discovery")
     _case_sources(starts, target)
-    target_rows = [event for event in starts if event.get("id") == target]
-    if (len(target_rows) != 1 or target_rows[0].get("input_sha256") != digest
-            or target_rows[0].get("mib") != mib):
-        invalid("pressure case did not start against the bound input")
+    _validate_target(starts, target, digest, mib)
     if complete:
         ends = [event.get("id") for event in events if event.get("phase") == "call-end"]
         if ends != expected:
@@ -170,14 +186,21 @@ def validate_events(
 
 
 def kernel_success(raw: dict[str, object]) -> bool:
-    return (raw.get("success") is True and raw.get("native_status") == 0
-            and raw.get("cleanup_complete") is True and raw.get("resource_violation") is None)
+    return (
+        raw.get("success") is True
+        and raw.get("native_status") == 0
+        and raw.get("cleanup_complete") is True
+        and raw.get("resource_violation") is None
+    )
 
 
 def validate_limits(raw: dict[str, object], memory: int, tasks: int) -> None:
     before = object_value(raw.get("before"))
-    if (before.get("memory.max") != str(memory * 1048576)
-            or before.get("memory.swap.max") != "0" or before.get("pids.max") != str(tasks)):
+    if (
+        before.get("memory.max") != str(memory * 1048576)
+        or before.get("memory.swap.max") != "0"
+        or before.get("pids.max") != str(tasks)
+    ):
         invalid("observed kernel leaf limits differ from the requested envelope")
 
 
@@ -189,8 +212,11 @@ def _counter(data: dict[str, object], key: str) -> int:
 
 
 def _strict_start(events: list[dict[str, object]], target: str) -> dict[str, object]:
-    starts = [event for event in events if event.get("id") == target
-              and event.get("phase") == "call-start"]
+    starts = [
+        event
+        for event in events
+        if event.get("id") == target and event.get("phase") == "call-start"
+    ]
     if len(starts) != 1 or any(event.get("phase") == "call-end" for event in events):
         invalid("strict pressure case start or interruption was not observed")
     return starts[0]
@@ -204,15 +230,13 @@ def verify_own_oom(raw: dict[str, object], events: list[dict[str, object]], targ
     inode = before.get("inode")
     if isinstance(inode, bool) or not isinstance(inode, int) or inode <= 0:
         invalid("strict leaf inode is unavailable")
-    if (
-        start.get("cgroup_inode") != inode
-        or inode != after.get("inode")
-    ):
+    if start.get("cgroup_inode") != inode or inode != after.get("inode"):
         invalid("strict case event is not bound to a stable leaf inode")
     entry = object_value(start.get("memory_events_local"))
     final = object_value(after.get("memory.events.local"))
     initial = object_value(before.get("memory.events.local"))
-    if not any(_counter(initial, key) <= _counter(entry, key) < _counter(final, key)
-               for key in ("oom", "oom_kill")):
+    if not any(
+        _counter(initial, key) <= _counter(entry, key) < _counter(final, key)
+        for key in ("oom", "oom_kill")
+    ):
         invalid("no own-leaf OOM counter grew after the native case started")
-

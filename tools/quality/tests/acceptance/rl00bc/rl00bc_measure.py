@@ -19,12 +19,11 @@ from tests.acceptance.rl00a.rl00a_cgroup import Group
 from tests.acceptance.rl00bc import rl00bc_corpus, rl00bc_measure_parity, rl00bc_trials
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 from tests.acceptance.rl00bc.rl00bc_measure_metrics import (
-    identities,
     distributions,
-    memory,
+    identities,
+    leaf_maxima,
     metric,
     percentile,
-    tasks,
     write,
 )
 
@@ -122,6 +121,16 @@ class _Measurement:
                 self.cells[remaining] = {"status": "unrun-after-no-go", "pairs": 0}
         return True
 
+    def incomplete(self, error: Exception) -> None:
+        if self.attempts and self.attempts[-1].get("status") == "in-progress":
+            self.attempts[-1]["status"] = "nonpass"
+        self.summary["status"] = "nonpass"
+        self.summary["error"] = f"{type(error).__name__}: {error}"[:1024]
+        for size in SIZES:
+            cell = self.cells.setdefault(size, {"status": "unrun-after-incomplete", "pairs": 0})
+            if cell["status"] == "in-progress":
+                cell["status"] = "incomplete"
+
     def run(self) -> dict[str, object]:
         try:
             for size in SIZES:
@@ -135,14 +144,7 @@ class _Measurement:
                 else "timing-cells-pass-required-proofs-pending"
             )
         except (OSError, ValueError, TypeError, RuntimeError, KeyError, AssertionError) as error:
-            if self.attempts and self.attempts[-1].get("status") == "in-progress":
-                self.attempts[-1]["status"] = "nonpass"
-            self.summary["status"] = "nonpass"
-            self.summary["error"] = f"{type(error).__name__}: {error}"[:1024]
-            for size in SIZES:
-                cell = self.cells.setdefault(size, {"status": "unrun-after-incomplete", "pairs": 0})
-                if cell["status"] == "in-progress":
-                    cell["status"] = "incomplete"
+            self.incomplete(error)
         self.persist()
         return self.summary
 
@@ -190,12 +192,6 @@ class _Arm:
         wall = (time.monotonic_ns() - started) / 1_000_000_000
         controller_cpu = time.process_time() - controller_started
         native_cpu = sum(metric(record, "cpu_seconds") for record in self.records)
-        observations = [memory(record) for record in self.records]
-        peak = max(value for value, _ in observations)
-        kinds = {source for _, source in observations}
-        kind = next(iter(kinds)) if len(kinds) == 1 else "mixed-lower-bound"
-        task_observations = [tasks(record) for record in self.records]
-        max_tasks = max(value for value, _ in task_observations)
         if wall <= 0 or not math.isfinite(wall):
             invalid("invalid full-arm wall observation")
         self.attempt.update(
@@ -205,10 +201,7 @@ class _Arm:
                 "native_cpu_seconds": native_cpu,
                 "controller_cpu_seconds": controller_cpu,
                 "payload_and_controller_cpu_seconds": native_cpu + controller_cpu,
-                "max_leaf_memory_peak_bytes": peak,
-                "max_leaf_memory_peak_kind": kind,
-                "max_leaf_tasks": max_tasks,
-                "max_leaf_tasks_kind": "sampled-lower-bound",
+                **leaf_maxima(self.records),
                 "strict_cases": case_count if self.protected else 0,
             }
         )
@@ -233,14 +226,20 @@ class _Arm:
         rl00bc_corpus.verify(context.profile, self.size, canonical.get("native_cases"))
         discovered = identities(context.profile, canonical.get("native_cases"))
         self.attempt["canonical_identities"] = discovered
-        self.attempt["canonical_evidence"] = rl00bc_measure_parity.canonical(context.profile, self.size, canonical)
+        self.attempt["canonical_evidence"] = rl00bc_measure_parity.canonical(
+            context.profile, self.size, canonical
+        )
         if self.protected:
-            expected = {case.selector: case for case in rl00bc_corpus.expected(context.profile, self.size)}
+            expected = {
+                case.selector: case for case in rl00bc_corpus.expected(context.profile, self.size)
+            }
             strict_evidence: list[dict[str, object]] = []
             self.attempt["strict_native_evidence"] = strict_evidence
             for number, identity in enumerate(discovered, 1):
                 trial = self.trial(identity, number, strict=True)
-                strict_evidence.append(rl00bc_measure_parity.selected(expected[identity], canonical, trial))
+                strict_evidence.append(
+                    rl00bc_measure_parity.selected(expected[identity], canonical, trial)
+                )
         self.finish(started, controller_started, len(discovered))
         return self.attempt
 
@@ -273,11 +272,19 @@ def _summary(
             "separate startup, collection and shared fixture costs",
             "guardian/provider CPU and total invocation memory/tasks",
         ],
-        "metric_scope": {"wall": "prepared arm including fixture materialization, runtime startup, parsing and controller; provider/bootstrap setup excluded",
-                         "cpu": "native payload leaves plus controller; guardian/provider excluded",
-                         "memory": "maximum individual leaf peak; not total invocation memory",
-                         "tasks": "maximum sampled leaf count, a lower bound"},
-        "proposed_stop_rule": "stop after a complete required ordinary timing cell exceeds the approved bound; owner workflow review required",
+        "metric_scope": {
+            "wall": (
+                "prepared arm including fixture materialization, runtime startup, parsing "
+                "and controller; provider/bootstrap setup excluded"
+            ),
+            "cpu": "native payload leaves plus controller; guardian/provider excluded",
+            "memory": "maximum individual leaf peak; not total invocation memory",
+            "tasks": "maximum sampled leaf count, a lower bound",
+        },
+        "proposed_stop_rule": (
+            "stop after a complete required ordinary timing cell exceeds the approved bound; "
+            "owner workflow review required"
+        ),
         "runtime_inputs": {
             key: value for key, value in environment.items() if key in rl00bc_trials.PATH_KEYS
         },

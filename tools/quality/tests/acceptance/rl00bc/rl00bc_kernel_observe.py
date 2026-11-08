@@ -77,6 +77,17 @@ class Observation:
     timed_out: bool = False
     leader_state: str = "unobserved"
 
+    def _sample(self, leaf: Group) -> None:
+        memory_sample = int(leaf.read("memory.current"))
+        task_sample = int(leaf.read("pids.current"))
+        self.high_memory = (
+            memory_sample if self.high_memory is None else max(self.high_memory, memory_sample)
+        )
+        self.high_tasks = (
+            task_sample if self.high_tasks is None else max(self.high_tasks, task_sample)
+        )
+        self.resource_sample_count += 1
+
     def capture(
         self, process: subprocess.Popen[bytes], leaf: Group, stop: int, integrity: Callable[[], str]
     ) -> None:
@@ -90,17 +101,7 @@ class Observation:
                 if time.monotonic_ns() >= stop:
                     self.timed_out = True
                     break
-                memory_sample = int(leaf.read("memory.current"))
-                task_sample = int(leaf.read("pids.current"))
-                self.high_memory = (
-                    memory_sample
-                    if self.high_memory is None
-                    else max(self.high_memory, memory_sample)
-                )
-                self.high_tasks = (
-                    task_sample if self.high_tasks is None else max(self.high_tasks, task_sample)
-                )
-                self.resource_sample_count += 1
+                self._sample(leaf)
                 for key, _ in selector.select(timeout=0.02):
                     chunk = os.read(key.fd, 16384)
                     if not chunk:

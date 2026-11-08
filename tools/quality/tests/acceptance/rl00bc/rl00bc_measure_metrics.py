@@ -76,6 +76,20 @@ def tasks(record: dict[str, object]) -> tuple[float, str]:
     return metric(record, "max_tasks"), "sampled-lower-bound"
 
 
+def leaf_maxima(records: list[dict[str, object]]) -> dict[str, object]:
+    """Report observed leaf maxima with their exact or lower-bound kinds."""
+    observations = [memory(record) for record in records]
+    kinds = {source for _, source in observations}
+    kind = next(iter(kinds)) if len(kinds) == 1 else "mixed-lower-bound"
+    task_observations = [tasks(record) for record in records]
+    return {
+        "max_leaf_memory_peak_bytes": max(value for value, _ in observations),
+        "max_leaf_memory_peak_kind": kind,
+        "max_leaf_tasks": max(value for value, _ in task_observations),
+        "max_leaf_tasks_kind": "sampled-lower-bound",
+    }
+
+
 def percentile(values: list[float], fraction: float) -> float:
     if not values or any(not math.isfinite(value) or value < 0 for value in values):
         invalid("percentile requires finite nonnegative observations")
@@ -84,8 +98,10 @@ def percentile(values: list[float], fraction: float) -> float:
 
 
 def _distribution(records: list[dict[str, object]], field: str) -> dict[str, object]:
-    kind_key = {"max_leaf_memory_peak_bytes": "max_leaf_memory_peak_kind",
-                "max_leaf_tasks": "max_leaf_tasks_kind"}.get(field)
+    kind_key = {
+        "max_leaf_memory_peak_bytes": "max_leaf_memory_peak_kind",
+        "max_leaf_tasks": "max_leaf_tasks_kind",
+    }.get(field)
     grouped: dict[str, list[float]] = {}
     for record in records:
         kind = record.get(kind_key) if kind_key is not None else "measured"
@@ -95,13 +111,23 @@ def _distribution(records: list[dict[str, object]], field: str) -> dict[str, obj
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             invalid("distribution metric is unavailable")
         grouped.setdefault(cast(str, kind), []).append(float(value))
-    return {"by_kind": {kind: {"samples": len(values), "p50": percentile(values, .50),
-                              "p95": percentile(values, .95)}
-                        for kind, values in grouped.items()}}
+    return {
+        "by_kind": {
+            kind: {
+                "samples": len(values),
+                "p50": percentile(values, 0.50),
+                "p95": percentile(values, 0.95),
+            }
+            for kind, values in grouped.items()
+        }
+    }
 
 
-def distributions(observations: dict[str, list[dict[str, object]]],
-                  fields: tuple[str, ...]) -> dict[str, object]:
+def distributions(
+    observations: dict[str, list[dict[str, object]]], fields: tuple[str, ...]
+) -> dict[str, object]:
     """Keep exact and sampled/lower-bound distributions distinct."""
-    return {name: {field: _distribution(records, field) for field in fields}
-            for name, records in observations.items()}
+    return {
+        name: {field: _distribution(records, field) for field in fields}
+        for name, records in observations.items()
+    }

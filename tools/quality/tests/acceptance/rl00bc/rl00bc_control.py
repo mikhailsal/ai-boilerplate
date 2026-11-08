@@ -149,7 +149,8 @@ def reexec(
         "--deadline-ns",
         str(args.deadline_ns),
     ]
-    child_env = {**os.environ, "PYTHONPATH": str(repo / "tools/quality")}
+    module_path = os.pathsep.join((str(repo / "tools/quality"), str(repo / "tools/quality/src")))
+    child_env = {**os.environ, "PYTHONPATH": module_path}
     os.execve(command[0], command, child_env)  # noqa: S606 - preserve bounded exec ownership
 
 

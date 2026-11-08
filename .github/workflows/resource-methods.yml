@@ -77,7 +77,8 @@ jobs:
           ]
           observations = []
           test_environment = dict(os.environ)
-          test_environment['PYTHONPATH'] = str(root / 'tools/quality')
+          test_environment['PYTHONPATH'] = os.pathsep.join((str(root / 'tools/quality'),
+                                                        str(root / 'tools/quality/src')))
           for name, argv in checks:
               completed = subprocess.run(argv, capture_output=True, timeout=180, check=False,
                                          env=test_environment)
