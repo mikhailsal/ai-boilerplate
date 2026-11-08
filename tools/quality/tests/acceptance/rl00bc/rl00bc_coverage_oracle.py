@@ -25,13 +25,13 @@ SUBJECTS = {
     "dart": (
         "lib/subject.dart",
         "int subjectValue(bool enabled) => enabled ? 1 : 0;\n",
-        "test/resource_test.dart",
+        "test/resource_a_test.dart",
         ("expect(subjectValue(name.isNotEmpty), 1)", "expect(subjectValue(false), 0)"),
     ),
     "node": (
         "shared.mjs",
         "export const subjectValue = enabled => enabled ? 1 : 0;",
-        "resource.test.mjs",
+        "resource-a.test.mjs",
         ("expect(subjectValue(name.length > 0)).toBe(1)", "expect(subjectValue(false)).toBe(0)"),
     ),
 }
@@ -144,9 +144,15 @@ def _fixture(root: Path, profile: str) -> tuple[str, int]:
         if source != subject:
             invalid(f"{profile} subject differs from the registered fixture")
         subject_line = 2 if profile == "php" else 1
-    test = (root / test_path).read_text(encoding="utf-8")
-    if any(assertion not in test for assertion in assertions):
-        invalid(f"{profile} subject assertions are missing")
+    test_paths = [test_path]
+    if profile == "node":
+        test_paths.append("resource-b.test.mjs")
+    elif profile == "dart":
+        test_paths.append("test/resource_b_test.dart")
+    for name in test_paths:
+        test = (root / name).read_text(encoding="utf-8")
+        if any(assertion not in test for assertion in assertions):
+            invalid(f"{profile} subject assertions are missing in {name}")
     return path, subject_line
 
 

@@ -24,6 +24,7 @@ from quality.gitio.revisions import push_candidate, merge_candidate
 from quality.gitio.repo import Repository
 from quality.gitio.errors import GitioError
 from tests.acceptance.rl00bc import rl00bc_selection as selection
+from tests.acceptance.rl00bc import rl00bc_candidate_changes as actual_changes
 
 progress = {"completed": [], "success": False,
             "claim_limit": "Finite fixture and conservative fallback only; "
@@ -55,7 +56,17 @@ def flatten(suite):
         if isinstance(item, unittest.TestSuite): yield from flatten(item)
         else: yield item
 
+def native_cases(candidate, label):
+    collections = progress.setdefault("native_collections", [])
+    directory = out / ("native-collection-" + str(len(collections)).zfill(3))
+    rows = actual_changes.collect(repository, candidate, directory)
+    collections.append({"label": label, "directory": str(directory),
+                        "tree": candidate.tree, "base": candidate.base_tree})
+    save()
+    return rows
+
 def main():
+    global repository
     root.mkdir(parents=True)
     templates = root.parent / "empty-templates"
     templates.mkdir()
@@ -77,13 +88,9 @@ def main():
     git("commit", "--quiet", "-m", "base")
     base = git("rev-parse", "HEAD")
     repository = Repository.discover(root, os.environ)
-    cases = []
-    for case in flatten(unittest.TestLoader().discover(str(root), pattern="test_*.py")):
-        identity = case.id()
-        module = identity.split(".", 1)[0]
-        require(module in {"test_alpha", "test_beta"}, "unexpected collector module")
-        cases.append({"id": identity, "variant": identity, "file": module + ".py"})
-    cases.sort(key=lambda case: case["id"])
+    cases = native_cases(revision(repository, base), "base")
+    require({case["file"] for case in cases} == {"test_alpha.py", "test_beta.py"},
+            "native file mapping differs")
     require(len(cases) == 3 and len({case["id"] for case in cases}) == 3,
             "collector identity mismatch")
     mark("native-discovery", cases)
@@ -120,8 +127,9 @@ def main():
                    digest(repo / "tools/quality/src/quality/gitio/repo.py") +
                    digest(repo / "tools/quality/tests/acceptance/rl00bc/rl00bc_selection.py") +
                    digest(repo / "tools/quality/tests/acceptance/rl00bc/rl00bc_errors.py") +
+                   digest(repo / "tools/quality/tests/acceptance/rl00bc/rl00bc_candidate_changes.py") +
                    digest(out / "candidate-child.py")).encode()).hexdigest(),
-               "native_file_mapping_complete": True}
+               "native_file_mapping_complete": True, "comparison_trusted": True}
     all_ids = sorted(case["id"] for case in cases)
     def check(change, expected, first=False, candidate=None):
         bound = dict(context)
@@ -133,6 +141,26 @@ def main():
         selection.verify(scope, bound, cases, expected)
         require(scope["canonical_success"] is None and not scope["selection_soundness_proved"],
                 "invalid claim")
+        return scope
+    def check_actual(candidate, expected, *, first=False, trusted=True, label="mutation"):
+        current_cases = native_cases(candidate, label)
+        actual = actual_changes.read(
+            repository, candidate, current_cases, comparison_trusted=trusted,
+            independent_fixture_files=frozenset({"test_alpha.py", "test_beta.py"}),
+        )
+        bound = {**context, "candidate": candidate.tree, "base": candidate.base_tree,
+                 "tested_tree": candidate.tree, "comparison_trusted": trusted,
+                 "native_file_mapping_complete": actual["native_file_mapping_complete"],
+                 "independent_fixture_files": actual["independent_fixture_files"]}
+        scope = selection.build(bound, current_cases, actual["changes"], first_adoption=first)
+        require(scope["selected"] == expected, "actual candidate selection differs: " + label)
+        selection.verify(scope, bound, current_cases, expected)
+        progress.setdefault("actual_scopes", []).append({
+            "label": label, "actual": actual, "selected": scope["selected"],
+            "reason": scope["reason"], "scope_sha256": scope["scope_sha256"],
+            "strict_execution": "unproved; this observation tests scope binding only",
+        })
+        save()
         return scope
     # Each change corresponds to an actual new Git candidate in this fixture.
     edits = [("test", "test_alpha.py"), ("source", "source.py"), ("fixture", "fixture.txt"),
@@ -147,8 +175,12 @@ def main():
         changed = staged(repository)
         require(changed.tree != tree and changed.base_tree == tree,
                 "mutation did not change candidate")
-        change = {"kind": kind, "path": path, "shared": "false", "dynamic": "false"}
-        check(change, selected if kind == "test" else all_ids, candidate=changed)
+        check_actual(changed, selected if kind == "test" else all_ids, label=kind)
+        if kind == "test":
+            check_actual(changed, all_ids, first=True, label="first-adoption")
+            mark("actual-first-adoption")
+            check_actual(changed, all_ids, trusted=False, label="untrusted")
+            mark("untrusted-comparison")
         git("reset", "--quiet", "HEAD", "--", path)
         if path in ("unknown.txt", "volatile.txt"): (root / path).unlink()
         else: git("restore", "--worktree", "--", path)
@@ -163,12 +195,23 @@ def main():
     git("mv", "test_alpha.py", "test_renamed.py")
     renamed = staged(repository)
     require(renamed.tree != tree, "rename did not change candidate")
-    check({"kind": "test", "path": "test_renamed.py", "shared": "false", "dynamic": "false"},
-          all_ids, candidate=renamed)
+    renamed_ids = sorted(identity.replace("test_alpha.", "test_renamed.") for identity in all_ids)
+    check_actual(renamed, renamed_ids, label="rename")
     git("reset", "--quiet", "HEAD")
     git("restore", "--worktree", "test_alpha.py")
     (root / "test_renamed.py").unlink()
     mark("fallback-and-rename", renamed.tree)
+    git("rm", "--quiet", "test_beta.py")
+    deleted = staged(repository)
+    check_actual(deleted, selected, label="delete")
+    git("reset", "--quiet", "HEAD", "--", "test_beta.py")
+    git("restore", "--worktree", "--", "test_beta.py")
+    mark("deleted-case-fallback", deleted.tree)
+    mark("native-snapshot-candidate-selection", {
+        "collections": len(progress["native_collections"]),
+        "scope_count": len(progress["actual_scopes"]),
+        "claim_limit": "Real candidate snapshots and Git diff; independent finite fixture only",
+    })
     scope = selection.build(context, cases, [{"kind": "source"}])
     for key in ("candidate", "base", "tested_tree", "policy", "runtime", "source"):
         rejects(lambda: selection.verify(scope, {**context, key: "stale"}, cases, all_ids))
@@ -213,6 +256,10 @@ def _valid_completed(completed: object) -> bool:
         "fallback-and-rename",
         "strict-evidence-rejections",
         "revision-drift",
+        "actual-first-adoption",
+        "untrusted-comparison",
+        "deleted-case-fallback",
+        "native-snapshot-candidate-selection",
     } | {
         "mutation-" + kind
         for kind in (
@@ -234,14 +281,20 @@ def _valid_completed(completed: object) -> bool:
     return valid and len(names) == len(set(names)) and set(names) == required
 
 
-def _evaluate(output: Path, source: Path, raw: dict[str, object]) -> dict[str, object]:
-    evidence: dict[str, object] = {}
+def _read_evidence(path: Path) -> tuple[dict[str, object], str | None]:
     try:
-        value: object = json.loads((output / "candidate-evidence.json").read_text(encoding="utf-8"))
-        if isinstance(value, dict):
-            evidence = cast(dict[str, object], value)
-    except OSError, ValueError:
-        pass
+        if path.stat().st_size > 1_048_576:
+            invalid("candidate evidence exceeds its finite byte bound")
+        value: object = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(value, dict):
+            invalid("candidate evidence must be an object")
+    except (OSError, ValueError) as error:
+        return {}, f"{type(error).__name__}: {error}"[:1024]
+    return cast(dict[str, object], value), None
+
+
+def _evaluate(output: Path, source: Path, raw: dict[str, object]) -> dict[str, object]:
+    evidence, parse_error = _read_evidence(output / "candidate-evidence.json")
     completed = evidence.get("completed")
     success = bool(
         raw.get("success")
@@ -253,6 +306,7 @@ def _evaluate(output: Path, source: Path, raw: dict[str, object]) -> dict[str, o
         "success": success,
         "classification": "observed-success" if success else "nonpass",
         "completed": completed if isinstance(completed, list) else [],
+        "evidence_error": parse_error,
         "child_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
         "kernel_cause": raw.get("cause"),
         "cleanup_complete": raw.get("cleanup_complete"),

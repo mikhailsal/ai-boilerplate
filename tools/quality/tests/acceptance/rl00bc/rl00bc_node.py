@@ -8,6 +8,8 @@ import re
 from pathlib import Path
 from typing import Any
 
+from tests.acceptance.rl00bc import rl00bc_node_results
+from tests.acceptance.rl00bc.rl00bc_child_fixture import CHILD
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 from tests.acceptance.rl00bc.rl00bc_node_fixture import PLAYWRIGHT, SHARED, VITEST
 
@@ -25,6 +27,7 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
     if profile not in ("node", "browser"):
         invalid("invalid Node profile")
     root.mkdir(parents=True, exist_ok=True)
+    (root / "owned_child.py").write_text(CHILD, encoding="utf-8")
     (root / "node_modules").symlink_to(_required("RL00_NODE_MODULES"), target_is_directory=True)
     (root / "package.json").write_text(
         '{"name":"rl00bc","private":true,"type":"module"}\n', encoding="utf-8"
@@ -41,13 +44,17 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
             "heading.textContent = 'Ready';\nheading.dataset.source = 'executed';\n",
             encoding="utf-8",
         )
-    (root / "resource.test.mjs").write_text(
-        VITEST if profile == "node" else PLAYWRIGHT, encoding="utf-8"
-    )
+    if profile == "node":
+        for part, suffix in enumerate(("a", "b")):
+            (root / f"resource-{suffix}.test.mjs").write_text(
+                VITEST.replace("__PART__", str(part)), encoding="utf-8"
+            )
+    else:
+        (root / "resource.test.mjs").write_text(PLAYWRIGHT, encoding="utf-8")
     selector = (
         "resource.test.mjs::parameter:ordinary"
         if profile == "browser"
-        else "resource.test.mjs::ordinary"
+        else "resource-a.test.mjs::ordinary"
     )
     level = "e2e" if profile == "browser" else "unit"
     capability = "ui" if profile == "browser" else "library"
@@ -67,11 +74,13 @@ def _vitest_command(
     modules = _required("RL00_NODE_MODULES")
     config = {
         "test": {
-            "include": ["resource.test.mjs"],
+            "include": ["resource-*.test.mjs"],
             "watch": False,
             "retry": 0,
             "allowOnly": False,
             "maxWorkers": workers,
+            "pool": "forks",
+            "fileParallelism": True,
             "reporters": ["json", "junit"],
             "outputFile": {"json": str(output / "vitest.json"), "junit": str(output / "junit.xml")},
             "coverage": {
@@ -156,6 +165,9 @@ def command(
     if profile not in ("node", "browser") or workers not in (1, 2):
         invalid("invalid profile or worker count")
     output.mkdir(parents=True, exist_ok=True)
+    rl00bc_node_results.selection(output, profile, os.environ.get("RL00_SIZE", "small"), selected)
+    if workers == 2 and selected is None and os.environ.get("RL00_INSTRUMENT") == "1":
+        (root / "worker-sync.json").write_text("{}\n", encoding="utf-8")
     if profile == "node":
         return _vitest_command(root, output, selected, workers, coverage)
     if coverage:
@@ -192,7 +204,10 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
         cases: list[dict[str, object]] = [
             {
                 "id": case["fullName"],
+                "source": suite["name"],
                 "outcome": case["status"],
+                "duration_ms": case.get("duration"),
+                "failure_messages": case.get("failureMessages"),
                 "coverage": str(output / "coverage" / "lcov.info"),
                 "native_report": str(output / "vitest.json"),
                 "junit": str(output / "junit.xml"),
@@ -211,6 +226,7 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
                     cases.append(
                         {
                             "id": f"{spec['title']}[{project}]",
+                            "source": spec.get("file", suite.get("file")),
                             "variant": project,
                             "outcome": case["status"],
                             "native_results": case["results"],
@@ -227,4 +243,4 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
         invalid("invalid Node profile")
     if not cases or len({str(case["id"]) for case in cases}) != len(cases):
         invalid("missing or duplicate native identities")
-    return cases
+    return rl00bc_node_results.reconcile(output, cases) if profile == "node" else cases

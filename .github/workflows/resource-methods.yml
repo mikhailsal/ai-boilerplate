@@ -8,6 +8,11 @@ on:
       - spike/rl00a-proof
       - spike/rl00bc-prepare
       - spike/rl00bc-correctness
+      - spike/rl00bc-methods
+      - spike/rl00bc-lifecycle
+      - spike/rl00bc-nested
+      - spike/rl00bc-guardian-race-launch-first
+      - spike/rl00bc-guardian-race-closing-first
       - spike/rl00bc-compatibility
       - spike/rl00bc-candidates
       - spike/rl00bc-measure
@@ -49,6 +54,7 @@ jobs:
           mkdir -p reports/preparation
           tools/quality/.venv/bin/python - <<'PY'
           import json
+          import os
           import subprocess
           import sys
           import tomllib
@@ -59,11 +65,18 @@ jobs:
           checks = [
               ('format', [str(tools / 'ruff'), 'format', source]),
               ('lint', [str(tools / 'ruff'), 'check', source, '--fix', '--output-format', 'json']),
+              ('startup', ['/usr/bin/python3', source + '/rl00bc_startup.py',
+                           '--repo', str(root), '--output', 'reports/preparation/startup.json']),
+              ('evidence-tests', [str(tools / 'python'), '-m', 'unittest', 'discover',
+                                  '-s', source, '-p', 'test_rl00bc_evidence.py', '-v']),
               ('types', [str(tools / 'pyright'), '--project', 'tools/quality/pyproject.toml', '--outputjson']),
           ]
           observations = []
+          test_environment = dict(os.environ)
+          test_environment['PYTHONPATH'] = str(root / 'tools/quality')
           for name, argv in checks:
-              completed = subprocess.run(argv, capture_output=True, timeout=180, check=False)
+              completed = subprocess.run(argv, capture_output=True, timeout=180, check=False,
+                                         env=test_environment)
               Path(f'reports/preparation/{name}.stdout').write_bytes(completed.stdout)
               Path(f'reports/preparation/{name}.stderr').write_bytes(completed.stderr)
               observations.append({'check': name, 'status': completed.returncode})
@@ -99,6 +112,7 @@ jobs:
   risk-models:
     if: >-
       github.ref_name == 'spike/rl00bc-correctness' ||
+      github.ref_name == 'spike/rl00bc-methods' ||
       github.ref_name == 'spike/rl00bc-compatibility' ||
       github.ref_name == 'spike/rl00bc-measure'
     strategy:
@@ -128,7 +142,7 @@ jobs:
       matrix:
         runner: [ubuntu-24.04, ubuntu-24.04-arm]
         mode: [host, prepared]
-        profile: ${{ fromJSON((github.ref_name == 'spike/rl00bc-prepare' || github.ref_name == 'spike/rl00bc-candidates' || github.ref_name == 'spike/rl00bc-adoption') && '["python"]' || '["node","php","python"]') }}
+        profile: ${{ fromJSON((github.ref_name == 'spike/rl00bc-prepare' || github.ref_name == 'spike/rl00bc-candidates' || github.ref_name == 'spike/rl00bc-adoption' || github.ref_name == 'spike/rl00bc-lifecycle' || github.ref_name == 'spike/rl00bc-nested' || github.ref_name == 'spike/rl00bc-guardian-race-launch-first' || github.ref_name == 'spike/rl00bc-guardian-race-closing-first') && '["python"]' || '["node","php","python"]') }}
     permissions:
       contents: read
     uses: ./.github/workflows/resource-methods-job.yml

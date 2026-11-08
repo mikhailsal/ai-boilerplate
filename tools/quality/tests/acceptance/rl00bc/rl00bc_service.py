@@ -13,7 +13,6 @@ import logging
 import os
 import re
 import select
-import stat
 import subprocess
 import time
 import uuid
@@ -22,6 +21,8 @@ from pathlib import Path
 
 from tests.acceptance.rl00a.rl00a_cgroup import SHIM, Group, load, save
 from tests.acceptance.rl00bc.rl00bc_errors import expired, invalid
+from tests.acceptance.rl00bc.rl00bc_guardian_race_support import locks as _locks
+from tests.acceptance.rl00bc.rl00bc_guardian_race_support import watch as _race_watch
 from tests.acceptance.rl00bc.rl00bc_service_backstop import backstop
 
 MIB = 1024 * 1024
@@ -265,9 +266,10 @@ class _Guardian:
         self.begin_cleanup("cleanup-start")
         assert self.cleanup_deadline_ns is not None
         self.record["cleanup_started_ns"] = time.monotonic_ns()
-        closing_published = False
+        closing_published = self.record.get("closing_published") is True
         try:
-            closing_published = self.publish_closing()
+            if not closing_published:
+                closing_published = self.publish_closing()
         except BaseException as error:
             logging.exception("guardian closing publication failed")
             self.note_error("closing", error)
@@ -314,28 +316,8 @@ class _Guardian:
         return 1
 
 
-def _locks(output: Path) -> tuple[int, int, int]:
-    lock_path = output / "lifecycle.lock"
-    guardian = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_RDWR | os.O_NOFOLLOW, 0o600)
-    try:
-        controller = os.open(lock_path, os.O_RDWR | os.O_NOFOLLOW)
-    except BaseException:
-        os.close(guardian)
-        raise
-    info = os.fstat(guardian)
-    if (
-        not stat.S_ISREG(info.st_mode)
-        or info.st_uid != os.getuid()
-        or stat.S_IMODE(info.st_mode) != 0o600
-        or os.fstat(controller).st_ino != info.st_ino
-    ):
-        os.close(guardian)
-        os.close(controller)
-        invalid("invalid lifecycle lock")
-    return guardian, controller, info.st_ino
-
-
-def provider(mode: str, output: Path, deadline: int, unit: str, argv: list[str]) -> int:
+def provider(mode: str, output: Path, deadline: int, unit: str, argv: list[str],
+             race: str = "") -> int:
     """Own only the current verified unit, and reap its work and control leaves."""
     if (
         os.getuid() == 0
@@ -368,7 +350,10 @@ def provider(mode: str, output: Path, deadline: int, unit: str, argv: list[str])
     try:
         guardian.prepare()
         guardian.start_controller()
-        guardian.watch()
+        if race:
+            _race_watch(guardian, race)
+        else:
+            guardian.watch()
     except BaseException as error:
         logging.exception("guardian execution failed")
         guardian.error = f"{type(error).__name__}: {error}"
@@ -383,12 +368,13 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--deadline-ns", type=int, required=True)
     parser.add_argument("--unit-name", required=True)
+    parser.add_argument("--race", choices=("launch-first", "closing-first"), default="")
     parser.add_argument("coordinator", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.coordinator
     if command and command[0] == "--":
         command = command[1:]
-    return provider(args.mode, args.output, args.deadline_ns, args.unit_name, command)
+    return provider(args.mode, args.output, args.deadline_ns, args.unit_name, command, args.race)
 
 
 if __name__ == "__main__":

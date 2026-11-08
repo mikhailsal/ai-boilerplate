@@ -20,10 +20,12 @@ PHASES = (
     "correctness",
     "methods",
     "lifecycle",
+    "nested",
     "compatibility",
     "candidates",
     "adoption",
     "measure",
+    *rl00bc_outside.RACES,
 )
 
 
@@ -55,6 +57,7 @@ def comparison_passed(phase: str, result: dict[str, object]) -> bool:
         "measure": result.get("status") == "timing-cells-pass-required-proofs-pending",
         "methods": result.get("status") == "observed-with-required-proofs-pending",
         "lifecycle": result.get("success") is True,
+        "nested": result.get("success") is True,
         "adoption": _adoption_passed(result),
     }[phase]
 
@@ -103,6 +106,8 @@ def _arguments() -> argparse.Namespace:
     parser.add_argument("--lifecycle-fd", type=int)
     parser.add_argument("--deadline-ns", type=int)
     result = parser.parse_args()
+    if result.inside and result.phase in rl00bc_outside.RACES:
+        parser.error("guardian races require their dedicated external coordinator")
     if result.phase == "measure" and not result.criterion_approval.strip():
         parser.error("measurement requires an explicit criterion approval reference")
     if not 1 <= result.samples <= 100 or not result.scratch.is_absolute():

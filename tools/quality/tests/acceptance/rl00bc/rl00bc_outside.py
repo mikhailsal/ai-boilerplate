@@ -17,10 +17,15 @@ from typing import cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import load, save
 from tests.acceptance.rl00bc.rl00bc_errors import invalid, unavailable
+from tests.acceptance.rl00bc.rl00bc_guardian_race_oracle import validate as validate_race
 from tests.acceptance.rl00bc.rl00bc_identity import capture
 
 MODULE = "tests.acceptance.rl00bc"
 RESERVE_NS = 3_000_000_000
+RACES = {
+    "guardian-race-launch-first": "launch-first",
+    "guardian-race-closing-first": "closing-first",
+}
 
 
 @dataclass(frozen=True)
@@ -128,6 +133,10 @@ def _command(request: Request, name: str, deadline: int) -> list[str]:
         "--criterion-approval",
         request.criterion_approval,
     ]
+    race = RACES.get(request.phase)
+    if race is not None:
+        coordinator = [sys.executable, "-m", f"{MODULE}.rl00bc_guardian_race_controller",
+                       "--race", race, "--output", str(request.output)]
     provider = [
         sys.executable,
         "-m",
@@ -140,9 +149,10 @@ def _command(request: Request, name: str, deadline: int) -> list[str]:
         str(deadline),
         "--unit-name",
         f"{name}.service",
-        "--",
-        *coordinator,
     ]
+    if race is not None:
+        provider.extend(["--race", race])
+    provider.extend(["--", *coordinator])
     return _unit(request, name, provider)
 
 
@@ -215,6 +225,21 @@ def _save_observation(path: Path, result: dict[str, object]) -> str | None:
     return None
 
 
+def _provider_result(request: Request, guardian: dict[str, object], status: int, *,
+                     alive: bool) -> dict[str, object] | None:
+    race = RACES.get(request.phase)
+    if race is not None:
+        observation = validate_race(race, guardian, request.output)
+        if status == 0 or guardian.get("success") is not False:
+            invalid("race provider did not preserve its raw non-success status")
+        if not alive:
+            unavailable("independent sentinel did not survive the race")
+        return observation
+    if status != 0 or guardian.get("success") is not True or not alive:
+        unavailable("provider, collector or sentinel did not complete correctly")
+    return None
+
+
 def _observe(
     request: Request, name: str, deadline: int, peer: tuple[subprocess.Popen[bytes], int]
 ) -> dict[str, object]:
@@ -243,8 +268,9 @@ def _observe(
     later_error = _save_observation(observation_path, result)
     if later_error is not None:
         result["metadata_error"] = later_error
-    if status != 0 or guardian.get("success") is not True or not alive:
-        unavailable("provider, collector or sentinel did not complete correctly")
+    race_observation = _provider_result(request, guardian, status, alive=alive)
+    if race_observation is not None:
+        result["race_observation"] = race_observation
     if metadata_error is not None or later_error is not None:
         unavailable("outer observation could not be persisted")
     result["collector_complete"] = True

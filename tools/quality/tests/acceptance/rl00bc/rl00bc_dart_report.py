@@ -13,20 +13,29 @@ from tests.acceptance.rl00bc.rl00bc_errors import invalid
 @dataclass
 class _Case:
     name: str
+    source: str | None
+    suite_id: int
     outcome: str | None = None
-    hidden: bool = False
+    hidden: bool | None = None
     errored: bool = False
 
-    def result(self, identifier: int, output: Path) -> dict[str, object] | None:
-        outcome = self.outcome or "error"
+    def result(
+        self, identifier: int, output: Path, *, partial: bool = False, include_hidden: bool = False
+    ) -> dict[str, object] | None:
+        outcome = self.outcome or ("incomplete" if partial else "error")
         if self.errored and outcome in ("passed", "skipped"):
             outcome = "error"
-        if self.hidden and outcome in ("passed", "skipped"):
+        if not include_hidden and self.hidden is True and outcome in ("passed", "skipped"):
             return None
         return {
             "id": self.name,
             "native_id": identifier,
+            "source": self.source,
+            "suite_id": self.suite_id,
             "outcome": outcome,
+            "visibility": "unknown" if self.hidden is None else "hidden" if self.hidden else "visible",
+            "test_done": self.outcome is not None,
+            "errored": self.errored,
             "native_report": str(output / "dart.json"),
             "raw_coverage": str(output / "coverage"),
         }
@@ -47,9 +56,10 @@ def _integer(event: dict[str, object], key: str) -> int:
 
 @dataclass
 class _Stream:
-    suites: set[int] = field(default_factory=set[int])
+    suites: dict[int, str | None] = field(default_factory=dict[int, str | None])
     cases: dict[int, _Case] = field(default_factory=dict[int, _Case])
     done: bool = False
+    done_success: bool | None = None
     focused: bool = False
 
     def start(self, event: dict[str, object]) -> None:
@@ -59,7 +69,7 @@ class _Stream:
         name = test.get("name")
         if identifier in self.cases or suite not in self.suites or not isinstance(name, str):
             invalid("invalid or repeated Dart test start")
-        self.cases[identifier] = _Case(name)
+        self.cases[identifier] = _Case(name, self.suites[suite], suite)
         metadata = test.get("metadata")
         if isinstance(metadata, dict):
             self.focused |= (
@@ -82,11 +92,13 @@ class _Stream:
         case.outcome = "skipped" if result == "passed" and event.get("skipped") is True else result
         case.hidden = event.get("hidden") is True
 
-    def read(self, value: object) -> None:
+    def read(self, value: object, *, partial: bool = False) -> None:
         event = _object(value, "event")
         kind = event.get("type")
         if kind == "suite":
-            self.suites.add(_integer(_object(event.get("suite"), "suite"), "id"))
+            suite = _object(event.get("suite"), "suite")
+            source = suite.get("path")
+            self.suites[_integer(suite, "id")] = source if isinstance(source, str) else None
         elif kind == "testStart":
             self.start(event)
         elif kind == "testDone":
@@ -94,9 +106,10 @@ class _Stream:
         elif kind == "error":
             self.case(event).errored = True
         elif kind == "done":
-            if self.done or event.get("success") is not True:
+            if self.done or (not partial and event.get("success") is not True):
                 invalid("Dart completion is repeated or unsuccessful")
             self.done = True
+            self.done_success = event.get("success") is True
 
 
 def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]]:
@@ -119,3 +132,51 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
     if not cases:
         invalid("Dart report has no visible cases")
     return cases
+
+
+def partial(
+    root: Path, output: Path, *, profile: str, kernel: dict[str, object]
+) -> dict[str, object]:
+    """Read surviving starts after a separately proven kernel resource stop."""
+    if profile != "dart":
+        invalid("expected dart profile")
+    violation = kernel.get("resource_violation")
+    if violation not in ("own-memory", "own-tasks", "ancestor-resource", "timeout"):
+        invalid("partial Dart evidence requires a proven kernel resource stop")
+    if kernel.get("success") is not False:
+        invalid("partial Dart evidence cannot represent a successful kernel run")
+    path = output / "dart.json"
+    with path.open("rb") as source:
+        data = source.read(1_048_577)
+    if len(data) > 1_048_576:
+        invalid("partial Dart report exceeds its byte bound")
+    lines = data.splitlines(keepends=True)
+    stream = _Stream()
+    truncated = False
+    for index, line in enumerate(lines):
+        if not line.strip():
+            continue
+        try:
+            value: object = json.loads(line)
+        except ValueError:
+            if index != len(lines) - 1 or line.endswith(b"\n"):
+                raise
+            truncated = True
+            break
+        stream.read(value, partial=True)
+    cases = [
+        case
+        for identifier, value in stream.cases.items()
+        if (case := value.result(identifier, output, partial=True)) is not None
+    ]
+    starts = [
+        value.result(identifier, output, partial=True, include_hidden=True)
+        for identifier, value in stream.cases.items()
+    ]
+    return {
+        "native_report": str(path), "native_cases": cases, "done": stream.done,
+        "all_observed_starts": starts,
+        "done_success": stream.done_success, "focused": stream.focused,
+        "truncated_tail": truncated, "resource_violation": violation,
+        "interpretation": "resource-stopped partial evidence",
+    }

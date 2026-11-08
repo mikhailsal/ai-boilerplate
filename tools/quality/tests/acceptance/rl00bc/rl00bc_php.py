@@ -9,6 +9,8 @@ from pathlib import Path
 from xml.sax.saxutils import escape, quoteattr
 
 from defusedxml import ElementTree
+
+from tests.acceptance.rl00bc.rl00bc_child_fixture import CHILD
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 SMALL = ("ordinary", "setup", "teardown", "child")
@@ -40,13 +42,41 @@ final class SubjectTest extends TestCase {
     private function active(string $label): bool {
         return getenv('RL00_MODE') === 'correctness' && getenv('RL00_TARGET') === $label;
     }
-    private static function event(string $label, string $phase): void {
+    private static function resourceObservation(): array {
+        $result = ['cgroup' => null, 'cgroup_inode' => null, 'memory_events_local' => null];
+        if (!is_readable('/proc/self/cgroup')) { return $result; }
+        $text = file_get_contents('/proc/self/cgroup');
+        if ($text === false) { return $result; }
+        $result['cgroup'] = $text;
+        if (!preg_match('/^0::(.*)$/m', $text, $match)) { return $result; }
+        $group = '/sys/fs/cgroup/' . ltrim($match[1], '/');
+        if (is_dir($group)) {
+            $info = stat($group);
+            if ($info !== false) { $result['cgroup_inode'] = $info['ino']; }
+        }
+        $path = $group . '/memory.events.local';
+        if (!is_readable($path)) { return $result; }
+        $raw = file_get_contents($path);
+        if ($raw === false) { return $result; }
+        $counters = [];
+        foreach (explode("\n", trim($raw)) as $line) {
+            if (!preg_match('/^(\S+)\s+([0-9]+)$/D', $line, $fields)) { return $result; }
+            $value = filter_var($fields[2], FILTER_VALIDATE_INT);
+            if ($value === false || $value < 0) { return $result; }
+            $counters[$fields[1]] = $value;
+        }
+        $result['memory_events_local'] = $counters;
+        return $result;
+    }
+    private static function event(string $label, string $phase, array $detail = []): void {
         if (getenv('RL00_INSTRUMENT') !== '1') { return; }
         $stamp = hrtime(true);
         $file = getenv('RL00_EVENT_DIR') . '/' . getmypid() . '-' . $stamp . '.json';
         file_put_contents($file, json_encode([
             'label' => $label, 'variant' => $label, 'phase' => $phase,
+            'fixture_context' => 'SubjectTest::setUpBeforeClass',
             'pid' => getmypid(), 'monotonic_ns' => $stamp,
+            'resource_observation' => self::resourceObservation(), ...$detail,
         ], JSON_THROW_ON_ERROR));
     }
     private static function mib(string $name, int $minimum, int $maximum): int {
@@ -59,6 +89,9 @@ final class SubjectTest extends TestCase {
             throw new RuntimeException('allocation outside experiment bound');
         }
         return $value;
+    }
+    private function caseEvent(string $phase, array $detail = []): void {
+        self::event($this->label(), $phase, ['native_id' => $this->sortId(), ...$detail]);
     }
     private function allocate(string $label): string {
         if (!$this->active($label)) { return str_repeat('x', 4096); }
@@ -80,29 +113,40 @@ final class SubjectTest extends TestCase {
         self::event('retained', 'class-teardown-end');
     }
     protected function setUp(): void {
-        $label = $this->label(); self::event($label, 'setup-start');
+        $label = $this->label(); $this->caseEvent('setup-start');
         $this->value = $this->allocate($label === 'setup' ? $label : 'none');
-        self::event($label, 'setup-end');
+        $this->caseEvent('setup-end');
     }
     protected function tearDown(): void {
-        $label = $this->label(); self::event($label, 'teardown-start');
+        $label = $this->label(); $this->caseEvent('teardown-start');
         if ($label === 'teardown') { $this->value = $this->allocate($label); }
-        self::event($label, 'teardown-end');
+        $this->caseEvent('teardown-end');
     }
     private function subject(string $label): void {
-        self::event($label, 'call-start');
+        $this->caseEvent('call-start');
         if (in_array($label, ['allocation', 'parameterHeavy', 'justified'], true)) {
             $this->value = $this->allocate($label);
         }
         if ($label === 'child' && $this->active($label)) {
             $mib = self::mib('RL00_ALLOC_MIB', 1, 1536);
-            $spec = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-            $proc = proc_open([getenv('RL00_CHILD_PYTHON'), '-c',
-                'import sys; x=bytearray(int(sys.argv[1])*1048576); print(len(x))', (string)$mib
-            ], $spec, $pipes);
+            $spec = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+            $proc = proc_open([getenv('RL00_CHILD_PYTHON'), 'owned_child.py', (string)$mib],
+                $spec, $pipes);
             if (!is_resource($proc)) { throw new RuntimeException('child failed to start'); }
-            stream_get_contents($pipes[1]); fclose($pipes[1]);
-            stream_get_contents($pipes[2]); fclose($pipes[2]);
+            $status = proc_get_status($proc);
+            $childPid = $status['pid'];
+            self::assertSame("ready\n", fgets($pipes[1]));
+            $cgroup = file_get_contents('/proc/' . $childPid . '/cgroup');
+            if ($cgroup === false) { throw new RuntimeException('child cgroup unavailable'); }
+            $this->caseEvent('child-ready', [
+                'child_pid' => $childPid, 'child_cgroup' => $cgroup,
+            ]);
+            $this->caseEvent('child-allocation-start', ['child_pid' => $childPid]);
+            fwrite($pipes[0], 'a'); fflush($pipes[0]);
+            self::assertSame("allocated\n", fgets($pipes[1]));
+            $this->caseEvent('child-allocation-end', ['child_pid' => $childPid]);
+            fwrite($pipes[0], 'x'); fclose($pipes[0]);
+            fclose($pipes[1]); stream_get_contents($pipes[2]); fclose($pipes[2]);
             self::assertSame(0, proc_close($proc));
         }
         if ($label === 'slow' && $this->active($label)) {
@@ -113,7 +157,7 @@ final class SubjectTest extends TestCase {
             usleep((int)($delay * 1000000));
         }
         self::assertSame(1, rl00_value()); self::assertNotSame('', $this->value);
-        self::event($label, 'call-end');
+        $this->caseEvent('call-end');
     }
     public static function parameters(): array {
         return ['parameterCheap' => ['parameterCheap'], 'parameterHeavy' => ['parameterHeavy']];
@@ -139,6 +183,7 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
     for name in ("RL00_PHP", "RL00_PHPUNIT", "RL00_PHP_AUTOLOAD"):
         _path(name)
     root.mkdir(parents=True, exist_ok=True)
+    (root / "owned_child.py").write_text(CHILD, encoding="utf-8")
     names = LARGE if os.environ.get("RL00_SIZE") == "large" else SMALL
     methods = "\n".join(
         f"    public function test{name}(): void {{ $this->subject('{name}'); }}"

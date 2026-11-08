@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 
 from defusedxml import ElementTree
+
+from tests.acceptance.rl00bc.rl00bc_child_fixture import CHILD
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 # The parent invokes these commands inside its finite cgroup and deadline.
@@ -24,7 +26,24 @@ if os.environ.get("RL00_SIZE") == "large":
     NAMES += ["allocation", "retained", "parameter-cheap", "parameter-heavy", "slow",
               "justified", "cheap-01", "cheap-02", "cheap-03", "cheap-04", "cheap-05", "cheap-06"]
 
-def event(label, phase):
+def resource_observation():
+    result = {"cgroup": None, "cgroup_inode": None, "memory_events_local": None}
+    try:
+        text = Path("/proc/self/cgroup").read_text()
+        result["cgroup"] = text
+        line = next(line for line in text.splitlines() if line.startswith("0::"))
+        group = Path("/sys/fs/cgroup") / line[3:].lstrip("/")
+        try: result["cgroup_inode"] = group.stat().st_ino
+        except OSError: pass
+        rows = (group / "memory.events.local").read_text().splitlines()
+        counters = {key: int(value) for key, value in (row.split() for row in rows)}
+        if any(value < 0 for value in counters.values()): raise ValueError("invalid counter")
+        result["memory_events_local"] = counters
+    except (OSError, ValueError, StopIteration):
+        pass
+    return result
+
+def event(label, phase, **detail):
     if os.environ.get("RL00_INSTRUMENT") != "1":
         return
     directory = Path(os.environ["RL00_EVENT_DIR"])
@@ -32,11 +51,17 @@ def event(label, phase):
     stamp = time.monotonic_ns()
     (directory / (str(os.getpid()) + "-" + str(stamp) + ".json")).write_text(json.dumps({
         "label": label, "variant": label, "phase": phase, "pid": os.getpid(),
-        "monotonic_ns": stamp,
+        "fixture_context": "test_subject.py::retained",
+        "monotonic_ns": stamp, "resource_observation": resource_observation(), **detail,
     }))
 
 def active(label):
     return os.environ.get("RL00_MODE") == "correctness" and os.environ.get("RL00_TARGET") == label
+
+def touched(value):
+    for offset in range(0, len(value), 4096):
+        value[offset] = 1
+    return value
 
 def allocate(label):
     if not active(label):
@@ -44,11 +69,39 @@ def allocate(label):
     mib = int(os.environ["RL00_ALLOC_MIB"])
     if not 1 <= mib <= 1536:
         raise ValueError("allocation outside experiment bound")
-    return bytearray(mib * 1024 * 1024)
+    return touched(bytearray(mib * 1024 * 1024))
+
+def worker_barrier():
+    if not Path("worker-sync.json").exists():
+        return
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if worker not in ("gw0", "gw1"):
+        raise ValueError("missing native xdist worker identity")
+    part = int(worker[-1]); directory = Path(os.environ["RL00_EVENT_DIR"])
+    ready = directory / f"python-ready-{part}"; peer = directory / f"python-ready-{1-part}"
+    seen = directory / f"python-seen-{part}"; other = directory / f"python-seen-{1-part}"
+    deadline = time.monotonic() + 10
+    event(worker, "worker-ready")
+    temporary = directory / f"python-ready-{part}.tmp"
+    temporary.write_text(str(os.getpid())); temporary.replace(ready)
+    peer_pid = 0
+    while peer_pid <= 0 and time.monotonic() < deadline:
+        if peer.exists():
+            text = peer.read_text()
+            if text: peer_pid = int(text)
+        time.sleep(.01)
+    if peer_pid <= 0 or peer_pid == os.getpid():
+        raise ValueError("worker readiness or identity mismatch")
+    event(worker, "worker-peer-observed", peer_pid=peer_pid)
+    seen.write_text(str(os.getpid()))
+    while not other.exists() and time.monotonic() < deadline: time.sleep(.01)
+    if not other.exists(): raise ValueError("worker acknowledgment timeout")
+    event(worker, "worker-overlap-complete", peer_pid=peer_pid)
 
 @pytest.fixture(scope="session")
 def retained():
     # A session allocation belongs to the shared subject, never to its first case.
+    worker_barrier()
     mib = int(os.environ["RL00_SHARED_MIB"])
     if not 0 <= mib <= 128:
         raise ValueError("shared allocation outside experiment bound")
@@ -56,7 +109,7 @@ def retained():
     if active("retained"):
         value = allocate("retained")
     else:
-        value = bytearray(mib * 1024 * 1024)
+        value = touched(bytearray(mib * 1024 * 1024))
     event("retained", "session-setup")
     yield value
     event("retained", "session-teardown")
@@ -64,19 +117,21 @@ def retained():
 @pytest.fixture
 def phases(request):
     label = request.param
-    event(label, "setup-start")
+    native_id = request.node.nodeid
+    event(label, "setup-start", native_id=native_id)
     value = allocate(label) if label == "setup" else bytearray(4096)
-    event(label, "setup-end")
+    event(label, "setup-end", native_id=native_id)
     yield value
-    event(label, "teardown-start")
+    event(label, "teardown-start", native_id=native_id)
     if label == "teardown":
         value = allocate(label)
-    event(label, "teardown-end")
+    event(label, "teardown-end", native_id=native_id)
 
 @pytest.mark.parametrize("phases", NAMES, ids=NAMES, indirect=True)
 def test_subject(phases, retained, request):
     label = request.node.callspec.id
-    event(label, "call-start")
+    native_id = request.node.nodeid
+    event(label, "call-start", native_id=native_id)
     value = phases
     if label in ("allocation", "parameter-heavy", "justified"):
         value = allocate(label)
@@ -84,19 +139,32 @@ def test_subject(phases, retained, request):
         mib = int(os.environ["RL00_ALLOC_MIB"])
         if not 1 <= mib <= 1536:
             raise ValueError("allocation outside experiment bound")
-        child = subprocess.run(
-            [os.environ["RL00_CHILD_PYTHON"], "-c",
-             "import sys; x=bytearray(int(sys.argv[1])*1048576); print(len(x))", str(mib)],
-            check=True, timeout=8, capture_output=True,
+        child = subprocess.Popen(
+            [os.environ["RL00_CHILD_PYTHON"], "owned_child.py", str(mib)],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
-        assert child.stdout
+        try:
+            assert child.stdout.readline() == b"ready\n"
+            cgroup = Path(f"/proc/{child.pid}/cgroup").read_text()
+            event(label, "child-ready", native_id=native_id,
+                  child_pid=child.pid, child_cgroup=cgroup)
+            event(label, "child-allocation-start", native_id=native_id, child_pid=child.pid)
+            child.stdin.write(b"a"); child.stdin.flush()
+            assert child.stdout.readline() == b"allocated\n"
+            event(label, "child-allocation-end", native_id=native_id, child_pid=child.pid)
+            child.stdin.write(b"x"); child.stdin.flush()
+            assert child.wait(timeout=8) == 0
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=8)
     if label == "slow" and active(label):
         delay = float(os.environ["RL00_SLOW_SECONDS"])
         if not 0 <= delay <= 30:
             raise ValueError("delay outside experiment bound")
         time.sleep(delay)
     assert value is not None and retained is not None and subject.value() == 1
-    event(label, "call-end")
+    event(label, "call-end", native_id=native_id)
 """
 
 PLUGIN = r"""import json
@@ -121,6 +189,7 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
     if profile != "python":
         invalid("expected python profile")
     root.mkdir(parents=True, exist_ok=True)
+    (root / "owned_child.py").write_text(CHILD, encoding="utf-8")
     (root / "test_subject.py").write_text(CORPUS, encoding="utf-8")
     (root / "conftest.py").write_text(PLUGIN, encoding="utf-8")
     (root / "pytest.ini").write_text("[pytest]\npythonpath = src\n", encoding="utf-8")
@@ -156,6 +225,8 @@ def command(
     ):
         invalid("invalid opaque parameter identity")
     output.mkdir(parents=True, exist_ok=True)
+    if workers == 2 and selected is None and os.environ.get("RL00_INSTRUMENT") == "1":
+        (root / "worker-sync.json").write_text("{}\n", encoding="utf-8")
     (output / "selection.json").write_text(json.dumps({"selected": selected}), encoding="utf-8")
     rc = output / "coveragerc"
     rc.write_text(f"[run]\nbranch = True\ndata_file = {output / '.coverage'}\n", encoding="utf-8")

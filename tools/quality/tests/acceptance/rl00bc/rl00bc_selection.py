@@ -111,6 +111,8 @@ def _selection(
         return all_ids, "first-adoption-full"
     if not changes:
         return all_ids, "unknown-influence-full"
+    if context.get("comparison_trusted") is not True:
+        return all_ids, "untrusted-comparison-full"
     if any(
         change.get("kind") in FULL_CHANGES or change.get("kind") != "test" for change in changes
     ):

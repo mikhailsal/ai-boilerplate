@@ -8,10 +8,12 @@ from typing import Protocol, TypedDict, Unpack, cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group
 from tests.acceptance.rl00bc import (
+    rl00bc_comparison_oracle,
     rl00bc_corpus,
     rl00bc_phase_oracle,
     rl00bc_selection,
     rl00bc_trials,
+    rl00bc_worker_oracle,
 )
 from tests.acceptance.rl00bc.rl00bc_errors import invalid, wrong_type
 
@@ -174,7 +176,7 @@ def _target(
     strict = run(f"{target}-strict", **strict_opts)
     key, _ = _selector_name(profile, target)
     selected_row = next(case for case in cases if case.get(key) == selected_case)
-    oracles[target] = rl00bc_phase_oracle.evaluate(
+    oracle = rl00bc_phase_oracle.evaluate(
         profile,
         target,
         cast(str, selected_row["id"]),
@@ -182,11 +184,14 @@ def _target(
         canonical,
         strict,
     )
+    oracles[target] = oracle
     if canonical.get("classification") != "observed-success":
         mismatches.append(f"{target} canonical nonpass")
     expected = "deadline-exceeded" if target == "slow" else "own-boundary-resource-violation"
     if strict.get("classification") != expected:
         mismatches.append(f"{target} strict expected {expected}")
+    if not rl00bc_comparison_oracle.matches(oracle, memory=target != "slow", shared=target == "retained"):
+        mismatches.append(f"{target} selected identity or phase scope unproved")
     if target == "retained":
         _check_retained(profile, canonical, strict, mismatches)
     if target == "justified":
@@ -208,8 +213,9 @@ def _target(
 
 
 def _parallel(
-    run: TrialRunner, discovered: list[dict[str, object]], coverage: bool, mismatches: list[str]
-) -> None:
+    run: TrialRunner, profile: str, discovered: list[dict[str, object]], coverage: bool,
+    mismatches: list[str],
+) -> dict[str, object]:
     parallel = run(
         "baseline-large-workers2",
         size="large",
@@ -225,8 +231,12 @@ def _parallel(
         expected_ids = {(case["id"], case["variant"]) for case in discovered}
         if parallel.get("classification") != "observed-success" or parallel_ids != expected_ids:
             mismatches.append("two-worker identity parity unavailable")
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         mismatches.append("two-worker native identity unavailable")
+    oracle = rl00bc_worker_oracle.evaluate(profile, parallel)
+    if oracle.get("status") != "observed-overlap":
+        mismatches.append("two-worker native overlap unproved")
+    return oracle
 
 
 def _scopes(
@@ -296,11 +306,12 @@ def _collect(
     large, small = _baselines(run, coverage, runs, mismatches)
     discovered, scopes = _scopes(profile, large, small, context, mismatches)
     cases = cast(list[dict[str, object]], large.get("native_cases", []))
+    worker_oracle: dict[str, object] = {"status": "unproved", "error": "worker trial not run"}
     if discovered:
         for target in TARGETS:
             _target(run, profile, target, cases, mismatches, oracles)
         if profile != "php":
-            _parallel(run, discovered, coverage, mismatches)
+            worker_oracle = _parallel(run, profile, discovered, coverage, mismatches)
         else:
             pending.append("php-native-parallel-not-supported")
     return {
@@ -309,6 +320,7 @@ def _collect(
         "scopes": scopes,
         "mismatches": mismatches,
         "target_phase_oracles": oracles,
+        "worker_oracle": worker_oracle,
         "required_proofs_pending": pending,
         "verdict": "comparisons-failed"
         if mismatches

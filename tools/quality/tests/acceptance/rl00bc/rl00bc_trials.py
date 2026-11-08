@@ -9,9 +9,10 @@ import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group
-from tests.acceptance.rl00bc import rl00bc_kernel
+from tests.acceptance.rl00bc import rl00bc_dart, rl00bc_kernel
 from tests.acceptance.rl00bc.rl00bc_errors import expired, invalid
 from tests.acceptance.rl00bc.rl00bc_trial_support import PATH_KEYS as PATH_KEYS
 from tests.acceptance.rl00bc.rl00bc_trial_support import (
@@ -22,6 +23,15 @@ from tests.acceptance.rl00bc.rl00bc_trial_support import (
     provider_commands,
     save_record,
 )
+
+
+def _native_rows(value: object) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        invalid("partial native evidence has no case list")
+    items = cast(list[object], value)
+    if not all(isinstance(item, dict) for item in items):
+        invalid("partial native evidence contains an invalid case")
+    return cast(list[dict[str, object]], items)
 
 
 @dataclass
@@ -44,6 +54,8 @@ class _Trial:
     justification: str | None
     ancestor_deadline_ns: int
     start_ns: int
+    partial_native: dict[str, object] | None = None
+    selection_error: str | None = None
     memory_mib: int = field(init=False)
     tasks: int = field(init=False)
     seconds: float = field(init=False)
@@ -161,22 +173,42 @@ class _Trial:
             payload_deadline_ns=self.deadline_ns,
         )
 
-    def parse(self) -> tuple[list[dict[str, object]], str | None]:
-        try:
-            cases = PROVIDERS[self.profile].results(
-                self.root, self.output / "native", profile=self.profile
+    def native_results(self, raw: dict[str, object]) -> list[dict[str, object]]:
+        if self.profile == "dart" and raw.get("success") is False and raw.get(
+            "resource_violation"
+        ) in ("own-memory", "own-tasks", "ancestor-resource", "timeout"):
+            self.partial_native = rl00bc_dart.partial_results(
+                self.root, self.output / "native", profile=self.profile, kernel=raw,
             )
-            if self.selected is not None:
-                matches = [c for c in cases if self.selected in (c.get("id"), c.get("variant"))]
-                if len(cases) != 1 or len(matches) != 1:
-                    invalid("native selected identity missing or unexpected")
+            return _native_rows(self.partial_native.get("native_cases"))
+        return PROVIDERS[self.profile].results(
+            self.root, self.output / "native", profile=self.profile
+        )
+
+    def parse(self, raw: dict[str, object]) -> tuple[list[dict[str, object]], str | None]:
+        try:
+            cases = self.native_results(raw)
         except Exception as error:
             logging.exception("Native result parsing failed")
             return [], f"{type(error).__name__}: {error}"[:1024]
-        return cases, None
+        self.selection_error = self.selection_problem(cases)
+        return cases, self.selection_error
+
+    def selection_problem(self, cases: list[dict[str, object]]) -> str | None:
+        if self.selected is None:
+            return None
+        if self.partial_native is not None and (
+            self.partial_native.get("focused") is True
+            or self.partial_native.get("truncated_tail") is True
+        ):
+            return "partial native stream leaves selection trust or exclusivity unproved"
+        matches = [case for case in cases if self.selected in (case.get("id"), case.get("variant"))]
+        if len(cases) != 1 or len(matches) != 1:
+            return "native selected identity missing, unexpected or visibility-ambiguous"
+        return None
 
     def record(self, raw: dict[str, object]) -> dict[str, object]:
-        cases, parse_error = self.parse()
+        cases, parse_error = self.parse(raw)
         result: dict[str, object] = {
             "profile": self.profile,
             "selected": self.selected,
@@ -187,13 +219,16 @@ class _Trial:
             if self.selected is None
             else "experimental-evidence-only",
             "native_cases": cases,
+            "partial_native_evidence": self.partial_native,
             "parse_error": parse_error,
+            "selection_error": self.selection_error,
             "kernel": raw,
             "native_plan_sha256": self.plan_hash,
             "native_plan": str(self.plan_path),
             "preparation_seconds": self.preparation_seconds,
             "kernel_evidence": str(self.output / "kernel/result.json"),
             "events": str(self.output / "events"),
+            "corpus_root": str(self.root),
             "memory_limit_mib": self.memory_mib,
             "task_limit": self.tasks,
             "native_deadline_ns": self.deadline_ns,

@@ -63,7 +63,6 @@ aggregate required status. The separate `resource-proof` workflow must retain
 all 26 pairs, all eight source inputs and the new directory-removal records.
 No merge, deployment, production enforcement or later RL00 work is claimed.
 
-
 ## Final remote proof
 
 The directory-observation revision passed its resource matrix but its normal

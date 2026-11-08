@@ -16,6 +16,7 @@ from tests.acceptance.rl00bc import (
     rl00bc_lifecycle,
     rl00bc_measure,
     rl00bc_methods,
+    rl00bc_nested,
 )
 
 
@@ -78,6 +79,12 @@ class _Phases:
             ancestor_deadline_ns=self.args.deadline_ns,
         )
 
+    def nested(self) -> dict[str, object]:
+        return rl00bc_nested.check(
+            self.work, self.repo, self.args.scratch / "nested", self.args.output / "nested",
+            self.environment, ancestor_deadline_ns=self.args.deadline_ns,
+        )
+
     def candidates(self) -> dict[str, object]:
         return rl00bc_candidates.prove(
             self.work,
@@ -123,6 +130,7 @@ def run(
         "correctness": phases.correctness,
         "methods": phases.methods,
         "lifecycle": phases.lifecycle,
+        "nested": phases.nested,
         "compatibility": phases.compatibility,
         "candidates": phases.candidates,
         "adoption": phases.adoption,

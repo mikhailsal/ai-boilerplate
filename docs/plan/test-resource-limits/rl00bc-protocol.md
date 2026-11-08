@@ -30,6 +30,20 @@ deadlines. Real guardian closing races, abrupt requester death, nested parent
 shares, descendant drift and residual-charge experiments remain required. A
 partial collection cannot close RL00b or establish an integration recommendation.
 
+Two opt-in guardian-race phases each use a fresh service unit: launch-first
+gates the real native handshake while the guardian attempts its actual lifecycle
+lock; closing-first publishes the actual closing marker before a gated native
+admission attempt. Raw expected termination outcomes remain separate from the
+enclosing proof oracle. Both retain the original three-second cleanup reserve.
+Abrupt guardian and requester death for this new source remain separate proofs.
+
+The `nested` phase assigns two domains before launching native parents. Each
+parent requests work through a bounded mailbox into its own delegated pool;
+native payloads receive no lifecycle authority. Sibling admission alone does
+not establish this parent/child proof, and the fixed fixture does not prove a
+general scheduler. The system-interpreter startup check parses the pre-bootstrap
+import surface remotely; it does not claim native execution or delegation.
+
 ## Subjects and memory quantity
 
 The enforced quantity is cgroup-v2 kernel-charged memory of the declared
@@ -82,6 +96,26 @@ native variant count can be greater. Record discovered and expected sets and
 reject missing, duplicate or unexpected identities. Keep native outcome and
 strict resource verification in separate fields.
 
+Dart and Node unit cases are partitioned across two real test files without
+changing their unique native names. Instrumented two-worker trials require
+reciprocal readiness and acknowledgment events from distinct native workers;
+Dart uses isolate identities and causal handshakes rather than comparing
+different Stopwatches. Phase events retain actual native identifiers where
+available, owned-child readiness/membership and real local memory-event counters.
+Unavailable fields remain unavailable. Partial Dart starts are retained only
+after a separately proven resource stop; canonical success still requires a
+complete successful producer report.
+
+Interrupted Dart streams retain every observed test start, its run-local numeric
+ID, source, error state and explicit visible/hidden/unknown status. Only a
+completed hidden success or skip can be excluded from visible-case cardinality.
+Unexplained competing starts, a focused stream or a truncated tail leave strict
+selection unproved while preserving the raw kernel resource cause. Cross-run
+binding compares actual corpus-relative source and native name; numeric test IDs
+are never assumed stable across runs. Retained fixtures are partitioned by
+actual worker and source/project context, including distinct files in a reused
+Node fork. Their shared costs remain separate from individual case attribution.
+
 | Example | Canonical expectation under the suite envelope | Strict expectation |
 | --- | --- | --- |
 | Ordinary call | Native success | Success without resource events |
@@ -119,6 +153,7 @@ Their final values and capability rows must be frozen before execution.
 | Controller/guardian reserve | Within that total; separately capped and recorded |
 | Runtime identity probe | 512 MiB, 64 tasks, twenty-second native allowance per command, within the original enclosing deadline |
 | Lifecycle proof subject | Finite requested caps within the work branch; sixty-second native allowance, clamped to the original ancestor deadline; above-capacity requests execute no payload |
+| Nested proof | Two 512 MiB/64-task domains; each has a 128 MiB/8-task parent leaf and a 320 MiB/40-task child pool; sixty-second enclosing proof bound within the original deadline |
 | Canonical suite subject | 3072 MiB, 256 tasks, 90-second native allowance |
 | Python/PHP fresh subject | 384 MiB, 128 tasks, five-second native allowance |
 | Node fresh subject | 768 MiB, 128 tasks, five-second native allowance |
@@ -153,6 +188,13 @@ or first adoption expands to the full relevant suite or fails. A static toy
 dependency map cannot prove arbitrary dynamic influence. No absence of cheap
 signals grants individual compliance. Preserve the failure if a later wider
 check supplies more evidence.
+
+Candidate observations use actual core snapshots, fresh native discovery and
+Git tree changes for each mutation, including deletion and rename. Narrowing
+is limited to the finite fixture's explicitly independent files; it does not
+prove arbitrary project influence. Unknown or untrusted comparisons expand
+fully. Scope-binding observations do not certify strict resource execution or
+real hook/export rejection.
 
 ## RL00c measurement and proposed release criterion
 
