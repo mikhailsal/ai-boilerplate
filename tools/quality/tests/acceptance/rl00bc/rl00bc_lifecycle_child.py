@@ -58,9 +58,18 @@ def _worker(args: argparse.Namespace) -> int:
         try:
             record = rl00bc_kernel.execute(
                 work,
-                [sys.executable, "-m", "tests.acceptance.rl00bc.rl00bc_lifecycle_child", "payload",
-                 "--marker", str(args.marker), "--release", str(args.release),
-                 "--deadline", str(args.payload_deadline)],
+                [
+                    sys.executable,
+                    "-m",
+                    "tests.acceptance.rl00bc.rl00bc_lifecycle_child",
+                    "payload",
+                    "--marker",
+                    str(args.marker),
+                    "--release",
+                    str(args.release),
+                    "--deadline",
+                    str(args.payload_deadline),
+                ],
                 args.repo,
                 {**os.environ, "PYTHONPATH": str(args.repo / "tools/quality")},
                 args.output,
@@ -97,8 +106,16 @@ def main() -> int:
     args = parser.parse_args()
     if args.mode == "payload":
         return _payload(args.marker, args.release, args.deadline)
-    required = (args.work_fd, args.repo, args.output, args.attempt, args.result,
-                args.memory_mib, args.tasks, args.payload_deadline)
+    required = (
+        args.work_fd,
+        args.repo,
+        args.output,
+        args.attempt,
+        args.result,
+        args.memory_mib,
+        args.tasks,
+        args.payload_deadline,
+    )
     if any(value is None for value in required):
         parser.error("worker arguments are required")
     return _worker(args)

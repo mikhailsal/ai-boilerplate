@@ -15,7 +15,16 @@ from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[4]
-PHASES = ("prepare", "correctness", "methods", "lifecycle", "compatibility", "candidates", "adoption", "measure")
+PHASES = (
+    "prepare",
+    "correctness",
+    "methods",
+    "lifecycle",
+    "compatibility",
+    "candidates",
+    "adoption",
+    "measure",
+)
 
 
 def _phase(args: argparse.Namespace, work: Group, environment: dict[str, str]) -> dict[str, object]:

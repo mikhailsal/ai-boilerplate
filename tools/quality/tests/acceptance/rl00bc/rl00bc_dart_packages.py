@@ -45,6 +45,7 @@ def prepare(repo: Path, root: Path, config: Path) -> None:
     entries = data.get("packages")
     if not isinstance(entries, list):
         invalid("Dart package configuration has no packages")
-    data["packages"] = [_package(value, config, root, match.group(1))
-                        for value in cast(list[object], entries)]
+    data["packages"] = [
+        _package(value, config, root, match.group(1)) for value in cast(list[object], entries)
+    ]
     (package_dir / "package_config.json").write_text(json.dumps(data), encoding="utf-8")

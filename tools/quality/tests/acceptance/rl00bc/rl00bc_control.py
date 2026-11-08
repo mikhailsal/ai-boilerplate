@@ -101,7 +101,10 @@ def prepare(work: Group, args: argparse.Namespace, repo: Path) -> dict[str, str]
         _prepare_command(work, args, index, request)
     resolved = rl00bc_tools.resolve(repo, args.scratch / "prepared")
     observed = rl00bc_runtime.probe(
-        work, repo, args.output / "runtime-probes", resolved,
+        work,
+        repo,
+        args.output / "runtime-probes",
+        resolved,
         ancestor_deadline_ns=args.deadline_ns,
     )
     if observed.get("status") != "verified":

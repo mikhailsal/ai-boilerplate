@@ -149,7 +149,9 @@ class _Execution:
         fcntl.flock(self.lifecycle, fcntl.LOCK_UN)
         self.locked = False
         self.observation.capture(
-            process, leaf, self.stop,
+            process,
+            leaf,
+            self.stop,
             lambda: rl00bc_integrity.validate(integrity, self.work, leaf),
         )
         self.result = self.observation.result(
@@ -174,8 +176,14 @@ class _Execution:
         handshake_entered = False
         try:
             integrity = rl00bc_integrity.capture(
-                self.work, leaf, process.pid,
-                work_limits=(str(capacity["memory_limit_bytes"]), str(capacity["tasks_limit"]), "0"),
+                self.work,
+                leaf,
+                process.pid,
+                work_limits=(
+                    str(capacity["memory_limit_bytes"]),
+                    str(capacity["tasks_limit"]),
+                    "0",
+                ),
                 leaf_limits=(str(self.memory_mib * 1024 * 1024), str(self.tasks), "0"),
             )
             self.integrity = integrity

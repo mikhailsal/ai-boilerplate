@@ -183,20 +183,18 @@ def _absence(request: Request, name: str, deadline: int) -> int:
     raise TimeoutError(message)
 
 
-def _cleanup_deadline(guardian: dict[str, object], original: int) -> int:
-    anchor = guardian.get("cleanup_anchor_ns")
-    started = guardian.get("cleanup_started_ns")
-    finished = guardian.get("finished_ns")
-    deadline = guardian.get("cleanup_deadline_ns")
-    if any(
-        isinstance(value, bool) or not isinstance(value, int)
-        for value in (anchor, started, finished, deadline)
-    ):
+def _timing_number(guardian: dict[str, object], key: str) -> int:
+    value = guardian.get(key)
+    if type(value) is not int:
         invalid("guardian cleanup timing is incomplete")
-    anchor = cast(int, anchor)
-    started = cast(int, started)
-    finished = cast(int, finished)
-    deadline = cast(int, deadline)
+    return value
+
+
+def _cleanup_deadline(guardian: dict[str, object], original: int) -> int:
+    anchor = _timing_number(guardian, "cleanup_anchor_ns")
+    started = _timing_number(guardian, "cleanup_started_ns")
+    finished = _timing_number(guardian, "finished_ns")
+    deadline = _timing_number(guardian, "cleanup_deadline_ns")
     if guardian.get("deadline_ns") != original or deadline != min(original, anchor + RESERVE_NS):
         invalid("guardian cleanup deadline does not match the original fixed reserve")
     if not 0 < anchor <= started <= finished <= time.monotonic_ns() or anchor > original:

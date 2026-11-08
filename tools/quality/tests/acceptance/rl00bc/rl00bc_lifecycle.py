@@ -45,14 +45,25 @@ class _Proof:
     cases: dict[str, object] = field(default_factory=dict[str, object])
 
     def launch(
-        self, name: str, memory: int, tasks: int, deadline: int | None = None, *,
+        self,
+        name: str,
+        memory: int,
+        tasks: int,
+        deadline: int | None = None,
+        *,
         hold_lock: bool = False,
     ) -> Worker:
         bound = self.deadline if deadline is None else min(self.deadline, deadline)
         worker = start(
-            self.work, self.repo, self.output / name, self.environment,
-            memory_mib=memory, tasks=tasks, deadline=bound,
-            payload_deadline=bound + 60_000_000_000, hold_lock=hold_lock,
+            self.work,
+            self.repo,
+            self.output / name,
+            self.environment,
+            memory_mib=memory,
+            tasks=tasks,
+            deadline=bound,
+            payload_deadline=bound + 60_000_000_000,
+            hold_lock=hold_lock,
         )
         self.workers.append(worker)
         return worker
@@ -69,8 +80,10 @@ class _Proof:
         if attempt.get("state") != "blocked" or second.path("marker").exists():
             invalid("second caller did not block on the first caller's admission lock")
         first.path("proceed").touch()
-        until(lambda: first.path("marker").is_file() and second.path("marker").is_file(),
-              self.observation_deadline())
+        until(
+            lambda: first.path("marker").is_file() and second.path("marker").is_file(),
+            self.observation_deadline(),
+        )
         markers = [marker(item, self.work) for item in (first, second)]
         for item in (first, second):
             item.release()
@@ -82,13 +95,17 @@ class _Proof:
             require_marker_result(native, result)
         require_clean(self.work, self.initial)
         self.cases["independent-callers"] = {
-            "first_held": load(first.path("held")), "second_attempt": attempt,
-            "markers": markers, "results": [first.result(), second.result()],
+            "first_held": load(first.path("held")),
+            "second_attempt": attempt,
+            "markers": markers,
+            "results": [first.result(), second.result()],
         }
 
     def _waiting_pair(self, workers: tuple[Worker, Worker], lock: int) -> int:
-        until(lambda: all(item.path("attempt").is_file() for item in workers),
-              self.observation_deadline())
+        until(
+            lambda: all(item.path("attempt").is_file() for item in workers),
+            self.observation_deadline(),
+        )
         attempts = [load(item.path("attempt")) for item in workers]
         if any(item.get("state") != "blocked" for item in attempts):
             invalid("independent admission did not block on held lifecycle lock")
@@ -103,8 +120,10 @@ class _Proof:
         locked = False
         try:
             identity = os.fstat(lock)
-            if (identity.st_ino != int(os.environ["RL00_LIFECYCLE_INODE"])
-                    or identity.st_uid != os.getuid()):
+            if (
+                identity.st_ino != int(os.environ["RL00_LIFECYCLE_INODE"])
+                or identity.st_uid != os.getuid()
+            ):
                 invalid("lifecycle lock authority changed")
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             locked = True
@@ -121,7 +140,11 @@ class _Proof:
         self._complete_pair(name, workers, memory, tasks, (held_ns, unlocked_ns))
 
     def _complete_pair(
-        self, name: str, workers: tuple[Worker, Worker], memory: int, tasks: int,
+        self,
+        name: str,
+        workers: tuple[Worker, Worker],
+        memory: int,
+        tasks: int,
         lock_times: tuple[int, int],
     ) -> None:
         winner, loser = self._pair_outcome(workers)
@@ -143,20 +166,28 @@ class _Proof:
         require_clean(self.work, self.initial)
         self.cases[name] = {
             "attempts": [load(item.path("attempt")) for item in workers],
-            "native_marker": native_marker, "admitted": admitted, "rejected": rejected,
-            "memory_mib_per_request": memory, "tasks_per_request": tasks,
-            "lock_held_observed_ns": lock_times[0], "lock_released_observed_ns": lock_times[1],
+            "native_marker": native_marker,
+            "admitted": admitted,
+            "rejected": rejected,
+            "memory_mib_per_request": memory,
+            "tasks_per_request": tasks,
+            "lock_held_observed_ns": lock_times[0],
+            "lock_released_observed_ns": lock_times[1],
         }
 
     def _pair_outcome(self, workers: tuple[Worker, Worker]) -> tuple[Worker, Worker]:
         first, second = workers
+
         def ready() -> bool:
             if first.path("marker").exists() and second.path("marker").exists():
                 invalid("two overcommitted payloads were admitted")
             return (
-                first.path("marker").is_file() and second.path("result").is_file()
-                or second.path("marker").is_file() and first.path("result").is_file()
+                (first.path("marker").is_file()
+                and second.path("result").is_file())
+                or (second.path("marker").is_file()
+                and first.path("result").is_file())
             )
+
         until(ready, self.observation_deadline())
         return (first, second) if first.path("marker").is_file() else (second, first)
 
@@ -180,8 +211,11 @@ class _Proof:
         worker.cancel()
         worker.wait(self.observation_deadline())
         result = worker.result()
-        if (result.get("success") is not False or result.get("cleanup_complete") is not True
-                or "KeyboardInterrupt" not in str(result.get("observation_error"))):
+        if (
+            result.get("success") is not False
+            or result.get("cleanup_complete") is not True
+            or "KeyboardInterrupt" not in str(result.get("observation_error"))
+        ):
             invalid("cooperative cancellation did not retain failure and clean up")
         require_clean(self.work, self.initial)
         self.cases["cooperative-cancel"] = {"marker": native, "result": result}
@@ -205,23 +239,31 @@ class _Proof:
         if child_deadline - time.monotonic_ns() < 6_000_000_000:
             invalid("insufficient original deadline for bounded deadline probe")
         worker = self.launch("deadline", 128, 8, child_deadline)
-        until(worker.path("marker").is_file, min(child_deadline - 3_000_000_000,
-                                                 self.observation_deadline()))
+        until(
+            worker.path("marker").is_file,
+            min(child_deadline - 3_000_000_000, self.observation_deadline()),
+        )
         native = marker(worker, self.work)
         worker.wait(child_deadline)
         observed = time.monotonic_ns()
         result = worker.result()
         removed = result.get("removal_observed_ns")
-        if (result.get("cause") != "timeout" or result.get("cleanup_complete") is not True
-                or not isinstance(removed, int) or removed > child_deadline
-                or observed > child_deadline):
+        if (
+            result.get("cause") != "timeout"
+            or result.get("cleanup_complete") is not True
+            or not isinstance(removed, int)
+            or removed > child_deadline
+            or observed > child_deadline
+        ):
             invalid("later requested deadline extended or defeated original deadline")
         require_marker_result(native, result)
         require_clean(self.work, self.initial)
         self.cases["deadline-clamped"] = {
             "original_deadline_ns": child_deadline,
             "requested_payload_deadline_ns": child_deadline + 60_000_000_000,
-            "completed_observed_ns": observed, "marker": native, "result": result,
+            "completed_observed_ns": observed,
+            "marker": native,
+            "result": result,
         }
 
     def expired_entry(self) -> None:
@@ -306,9 +348,13 @@ def check(
     initial = children(work)
     cases: dict[str, object] = {}
     result: dict[str, object] = {
-        "status": "in-progress", "success": False, "cases": cases,
-        "required_proofs_pending": list(PENDING), "original_deadline_ns": ancestor_deadline_ns,
-        "scratch": str(scratch), "initial_work_children": initial,
+        "status": "in-progress",
+        "success": False,
+        "cases": cases,
+        "required_proofs_pending": list(PENDING),
+        "original_deadline_ns": ancestor_deadline_ns,
+        "scratch": str(scratch),
+        "initial_work_children": initial,
         "lock_probe": "independent reopen and real nonblocking flock before real admission lock",
         "scope": "sibling admission and cooperative interruption; not a real guardian race",
     }
@@ -322,8 +368,15 @@ def check(
         _exercise(proof, result, memory, tasks)
         result["status"] = "observed-partial"
         result.pop("active_case", None)
-    except (OSError, ValueError, TypeError, RuntimeError, KeyError, AssertionError,
-            subprocess.SubprocessError) as error:
+    except (
+        OSError,
+        ValueError,
+        TypeError,
+        RuntimeError,
+        KeyError,
+        AssertionError,
+        subprocess.SubprocessError,
+    ) as error:
         result["status"] = "nonpass"
         result["error"] = f"{type(error).__name__}: {error}"
     finally:

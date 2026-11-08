@@ -76,8 +76,9 @@ class Observation:
     timed_out: bool = False
     leader_state: str = "unobserved"
 
-    def capture(self, process: subprocess.Popen[bytes], leaf: Group, stop: int,
-                integrity: Callable[[], str]) -> None:
+    def capture(
+        self, process: subprocess.Popen[bytes], leaf: Group, stop: int, integrity: Callable[[], str]
+    ) -> None:
         with selectors.DefaultSelector() as selector:
             assert process.stdout is not None and process.stderr is not None
             for label, pipe in (("stdout", process.stdout), ("stderr", process.stderr)):

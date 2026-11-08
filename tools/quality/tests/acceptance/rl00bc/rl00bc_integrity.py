@@ -107,7 +107,12 @@ def capture(
     pidfd = os.pidfd_open(pid)
     try:
         result = Capture(
-            pid, pidfd, _identity(work), _identity(leaf), work_limits, leaf_limits,
+            pid,
+            pidfd,
+            _identity(work),
+            _identity(leaf),
+            work_limits,
+            leaf_limits,
             _expected_membership(leaf),
         )
         _validate_groups(result, work, leaf)

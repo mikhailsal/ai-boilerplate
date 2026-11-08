@@ -10,16 +10,30 @@ from typing import cast
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 SUBJECTS = {
-    "python": ("src/subject.py", "def value():\n    return 1\n", "test_subject.py",
-               ("subject.value() == 1",)),
-    "php": ("subject.php", "<?php\nfunction rl00_value(): int { return 1; }\n",
-            "SubjectTest.php", ("self::assertSame(1, rl00_value())",)),
-    "dart": ("lib/subject.dart", "int subjectValue(bool enabled) => enabled ? 1 : 0;\n",
-             "test/resource_test.dart", ("expect(subjectValue(name.isNotEmpty), 1)",
-                                         "expect(subjectValue(false), 0)")),
-    "node": ("shared.mjs", "export const subjectValue = enabled => enabled ? 1 : 0;",
-             "resource.test.mjs", ("expect(subjectValue(name.length > 0)).toBe(1)",
-                                   "expect(subjectValue(false)).toBe(0)")),
+    "python": (
+        "src/subject.py",
+        "def value():\n    return 1\n",
+        "test_subject.py",
+        ("subject.value() == 1",),
+    ),
+    "php": (
+        "subject.php",
+        "<?php\nfunction rl00_value(): int { return 1; }\n",
+        "SubjectTest.php",
+        ("self::assertSame(1, rl00_value())",),
+    ),
+    "dart": (
+        "lib/subject.dart",
+        "int subjectValue(bool enabled) => enabled ? 1 : 0;\n",
+        "test/resource_test.dart",
+        ("expect(subjectValue(name.isNotEmpty), 1)", "expect(subjectValue(false), 0)"),
+    ),
+    "node": (
+        "shared.mjs",
+        "export const subjectValue = enabled => enabled ? 1 : 0;",
+        "resource.test.mjs",
+        ("expect(subjectValue(name.length > 0)).toBe(1)", "expect(subjectValue(false)).toBe(0)"),
+    ),
 }
 
 
@@ -90,6 +104,12 @@ class _Lcov:
         self.branches[key] = self.branches.get(key, 0) + count
 
 
+def _matches_source(root: Path, value: str, targets: set[str]) -> bool:
+    path = Path(value)
+    absolute = path if path.is_absolute() else root / path
+    return os.path.normpath(str(absolute)) in targets
+
+
 def _lcov(root: Path, report: Path, expected: str) -> _Lcov:
     result = _Lcov()
     active = False
@@ -98,8 +118,7 @@ def _lcov(root: Path, report: Path, expected: str) -> _Lcov:
     for raw in report.read_text(encoding="utf-8").splitlines():
         key, _, value = raw.strip().partition(":")
         if key == "SF":
-            path = Path(value)
-            active = os.path.normpath(str(path if path.is_absolute() else root / path)) in targets
+            active = _matches_source(root, value, targets)
             found |= active
         elif raw.strip() == "end_of_record":
             active = False
@@ -146,9 +165,22 @@ def _parsed(coverage: object, expected: str) -> tuple[set[int], set[int], tuple[
     return executable, covered, _branches(data.get("branches"))
 
 
+def _subject_hits(raw: _Lcov, subject_line: int) -> list[int]:
+    hits = [count for (line, _, _), count in raw.branches.items() if line == subject_line]
+    if len(hits) != 2 or any(count <= 0 for count in hits):
+        invalid("both registered subject branches must be recorded and covered")
+    return hits
+
+
 def _compare_lcov(
-    root: Path, native: Path, profile: str, expected: str, subject_line: int,
-    executable: set[int], covered: set[int], branches: tuple[int, int],
+    root: Path,
+    native: Path,
+    profile: str,
+    expected: str,
+    subject_line: int,
+    executable: set[int],
+    covered: set[int],
+    branches: tuple[int, int],
 ) -> list[int]:
     path = native / ("dart.lcov" if profile == "dart" else "coverage/lcov.info")
     raw = _lcov(root, path, expected)
@@ -157,10 +189,7 @@ def _compare_lcov(
     actual_branches = (sum(hits > 0 for hits in raw.branches.values()), len(raw.branches))
     if (actual_lines, actual_covered, actual_branches) != (executable, covered, branches):
         invalid("core coverage differs from native LCOV lines or branch totals")
-    subject_hits = [hits for (line, _, _), hits in raw.branches.items() if line == subject_line]
-    if len(subject_hits) != 2 or any(hits <= 0 for hits in subject_hits):
-        invalid("both registered subject branches must be recorded and covered")
-    return subject_hits
+    return _subject_hits(raw, subject_line)
 
 
 def verify(profile: str, root: Path, native: Path, coverage: object) -> dict[str, object]:
@@ -181,10 +210,15 @@ def verify(profile: str, root: Path, native: Path, coverage: object) -> dict[str
         if executable != expected_lines or covered != expected_lines or branches != (0, 0):
             invalid(f"{profile} constant subject coverage differs from its registered facts")
     return {
-        "source": expected, "subject_line": subject_line,
-        "executable": sorted(executable), "covered": sorted(covered),
-        "missed": sorted(executable - covered), "line_total": len(executable),
-        "line_covered": len(covered), "branch_total": branches[1],
-        "branch_covered": branches[0], "branch_missed": branches[1] - branches[0],
+        "source": expected,
+        "subject_line": subject_line,
+        "executable": sorted(executable),
+        "covered": sorted(covered),
+        "missed": sorted(executable - covered),
+        "line_total": len(executable),
+        "line_covered": len(covered),
+        "branch_total": branches[1],
+        "branch_covered": branches[0],
+        "branch_missed": branches[1] - branches[0],
         "subject_branch_hits": subject_branches,
     }

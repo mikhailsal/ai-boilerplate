@@ -45,6 +45,12 @@ def _target_case(profile: str, case: rl00bc_corpus.Case, label: str) -> bool:
     return case.identity == ("ordinary case" if profile == "dart" else "ordinary")
 
 
+def _allowance(profile: str, label: str, case: rl00bc_corpus.Case | None) -> str | None:
+    if case is not None and label == "justified" and _target_case(profile, case, label):
+        return "preregistered justified workload"
+    return None
+
+
 @dataclass
 class _Experiment:
     work: Group
@@ -66,27 +72,44 @@ class _Experiment:
         number = len(self.attempts)
         path = self.output / f"trial-{number:04d}"
         attempt: dict[str, object] = {
-            "label": label, "arm": arm, "path": str(path),
-            "selector": case.selector if case else None, "status": "in-progress",
+            "label": label,
+            "arm": arm,
+            "path": str(path),
+            "selector": case.selector if case else None,
+            "status": "in-progress",
         }
         self.attempts.append(attempt)
         self.persist()
         target = _target(self.profile, label)
-        allowance = "preregistered justified workload" if (
-            case is not None and label == "justified" and _target_case(self.profile, case, label)
-        ) else None
+        allowance = _allowance(self.profile, label, case)
         record = rl00bc_trials.one(
-            self.work, self.repo, self.scratch, path, self.profile, self.environment,
-            selected=case.selector if case else None, size="large",
-            mode="performance" if label == "ordinary" else "correctness", target=target,
-            allocation_mib=rl00bc_trials.STRICT[self.profile][0], shared_mib=64, workers=1,
-            coverage=case is None and self.profile != "browser", instrument=True,
-            justification=allowance, ancestor_deadline_ns=self.deadline,
+            self.work,
+            self.repo,
+            self.scratch,
+            path,
+            self.profile,
+            self.environment,
+            selected=case.selector if case else None,
+            size="large",
+            mode="performance" if label == "ordinary" else "correctness",
+            target=target,
+            allocation_mib=rl00bc_trials.STRICT[self.profile][0],
+            shared_mib=64,
+            workers=1,
+            coverage=case is None and self.profile != "browser",
+            instrument=True,
+            justification=allowance,
+            ancestor_deadline_ns=self.deadline,
         )
-        attempt.update({"status": "observed", "classification": record.get("classification"),
-                        "native_cases": record.get("native_cases"),
-                        "strict_verification": record.get("strict_verification"),
-                        "trial_record": str(path / "trial.json")})
+        attempt.update(
+            {
+                "status": "observed",
+                "classification": record.get("classification"),
+                "native_cases": record.get("native_cases"),
+                "strict_verification": record.get("strict_verification"),
+                "trial_record": str(path / "trial.json"),
+            }
+        )
         self.persist()
         return record
 
@@ -103,8 +126,11 @@ class _Experiment:
             native = record.get("native_cases")
             if native:
                 rl00bc_corpus.verify_selected(case, native)
-            expected = ("own-boundary-resource-violation" if label == "excessive"
-                        and _target_case(self.profile, case, label) else "observed-success")
+            expected = (
+                "own-boundary-resource-violation"
+                if label == "excessive" and _target_case(self.profile, case, label)
+                else "observed-success"
+            )
             self.attempts[-1]["expected_classification"] = expected
             self.attempts[-1]["native_identity_observed"] = bool(native)
             self.attempts[-1]["matches_expected"] = record.get("classification") == expected
@@ -127,7 +153,9 @@ class _Experiment:
         shared_rows = rl00bc_corpus.verify(self.profile, "large", shared.get("native_cases"))
         if _outcomes(rows) != _outcomes(shared_rows):
             invalid("shared and selected canonical native outcomes differ")
-        discovered = [{"id": case.identity, "variant": case.variant} for case in cases]
+        discovered: list[dict[str, object]] = [
+            {"id": case.identity, "variant": case.variant} for case in cases
+        ]
         scope = rl00bc_selection.build(self.context, discovered, [], first_adoption=True)
         selected = set(cast(list[str], scope["selected"]))
         if selected != {str(row["id"]) for row in rows}:
@@ -144,8 +172,9 @@ class _Experiment:
         try:
             for label in _LABELS:
                 self.compare(label, cases)
-            mismatches = [attempt for attempt in self.attempts
-                          if attempt.get("matches_expected") is False]
+            mismatches = [
+                attempt for attempt in self.attempts if attempt.get("matches_expected") is False
+            ]
             self.summary["status"] = (
                 "comparisons-mismatch" if mismatches else "observed-with-required-proofs-pending"
             )
@@ -171,29 +200,55 @@ def _mark_incomplete(matrix: dict[str, dict[str, str]]) -> None:
 
 
 def check(
-    work: Group, repo: Path, scratch: Path, output: Path, profile: str,
-    environment: dict[str, str], *, ancestor_deadline_ns: int,
+    work: Group,
+    repo: Path,
+    scratch: Path,
+    output: Path,
+    profile: str,
+    environment: dict[str, str],
+    *,
+    ancestor_deadline_ns: int,
 ) -> dict[str, object]:
     """Observe the three methods under a single caller-bound deadline."""
     rl00bc_corpus.expected(profile, "large")
     context = _context(environment)
     output.mkdir(parents=True, exist_ok=False)
-    native_environment = {key: value for key, value in environment.items()
-                          if not key.startswith("RL00_CONTEXT_")}
-    experiment = _Experiment(work, repo, scratch, output.absolute(), profile, native_environment,
-                             ancestor_deadline_ns, context)
+    native_environment = {
+        key: value for key, value in environment.items() if not key.startswith("RL00_CONTEXT_")
+    }
+    experiment = _Experiment(
+        work,
+        repo,
+        scratch,
+        output.absolute(),
+        profile,
+        native_environment,
+        ancestor_deadline_ns,
+        context,
+    )
     experiment.summary = {
-        "profile": profile, "size": "large", "labels": list(_LABELS),
-        "context": context, "attempts": experiment.attempts, "scopes": {},
-        "matrix": {label: {arm: "unrun" for arm in ("shared-worker", "full-fresh", "selected")}
-                   for label in _LABELS},
-        "status": "in-progress", "selection": "first-adoption full fallback",
+        "profile": profile,
+        "size": "large",
+        "labels": list(_LABELS),
+        "context": context,
+        "attempts": experiment.attempts,
+        "scopes": {},
+        "matrix": {
+            label: dict.fromkeys(("shared-worker", "full-fresh", "selected"), "unrun")
+            for label in _LABELS
+        },
+        "status": "in-progress",
+        "selection": "first-adoption full fallback",
         "shared_worker_attribution": "unsupported: lifetime evidence is not case certification",
         "required_proofs_pending": [
-            "case phase and child attribution", "shared fixture attribution and no-blame ordering",
-            "reordering and cheap additions", "concurrent strict and nested capacity",
-            "canonical coverage and scenario reconciliation", "narrow selection and cost",
-            "small-corpus labeled comparison", "human adoption and usefulness calibration",
+            "case phase and child attribution",
+            "shared fixture attribution and no-blame ordering",
+            "reordering and cheap additions",
+            "concurrent strict and nested capacity",
+            "canonical coverage and scenario reconciliation",
+            "narrow selection and cost",
+            "small-corpus labeled comparison",
+            "human adoption and usefulness calibration",
         ],
     }
     experiment.persist()

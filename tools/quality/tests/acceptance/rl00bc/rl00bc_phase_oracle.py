@@ -64,8 +64,9 @@ def _case_name(profile: str, identity: str, variant: str) -> str:
     return identity
 
 
-def _phases(events: list[dict[str, object]], profile: str, identity: str,
-            variant: str, *, retained: bool) -> set[str]:
+def _phases(
+    events: list[dict[str, object]], profile: str, identity: str, variant: str, *, retained: bool
+) -> set[str]:
     name = "retained" if retained else _case_name(profile, identity, variant)
     phases: set[str] = set()
     for event in events:
@@ -80,8 +81,9 @@ def _phases(events: list[dict[str, object]], profile: str, identity: str,
     return phases
 
 
-def _phase_evidence(profile: str, target: str, canonical: set[str], strict: set[str],
-                    gaps: list[str]) -> dict[str, object]:
+def _phase_evidence(
+    profile: str, target: str, canonical: set[str], strict: set[str], gaps: list[str]
+) -> dict[str, object]:
     phase = _PHASE.get(target, "call")
     if phase == "retained":
         start, end = _RETAINED[profile]
@@ -90,8 +92,11 @@ def _phase_evidence(profile: str, target: str, canonical: set[str], strict: set[
         if profile in ("node", "browser", "dart"):
             gaps.append("retained shared event cannot be bound to an individual native case")
     elif profile in ("python", "php"):
-        required = {f"{part}-{boundary}" for part in ("setup", "call", "teardown")
-                    for boundary in ("start", "end")}
+        required = {
+            f"{part}-{boundary}"
+            for part in ("setup", "call", "teardown")
+            for boundary in ("start", "end")
+        }
         canonical_complete = required <= canonical
         entered = f"{phase}-start" in strict
     else:
@@ -102,30 +107,45 @@ def _phase_evidence(profile: str, target: str, canonical: set[str], strict: set[
         gaps.append("canonical phase completion not established")
     if not entered:
         gaps.append(f"strict {phase} entry not observed")
-    return {"expected_phase": phase, "canonical_complete": canonical_complete,
-            "strict_phase_entered": entered, "canonical_phases": sorted(canonical),
-            "strict_phases": sorted(strict)}
+    return {
+        "expected_phase": phase,
+        "canonical_complete": canonical_complete,
+        "strict_phase_entered": entered,
+        "canonical_phases": sorted(canonical),
+        "strict_phases": sorted(strict),
+    }
 
 
 def _retained_case_phases(profile: str, phases: set[str], gaps: list[str]) -> dict[str, object]:
     if profile not in ("python", "php"):
         gaps.append("canonical case completion cannot be derived from coarse phase events")
         return {"phases": sorted(phases), "complete": None}
-    required = {f"{part}-{boundary}" for part in ("setup", "call", "teardown")
-                for boundary in ("start", "end")}
+    required = {
+        f"{part}-{boundary}"
+        for part in ("setup", "call", "teardown")
+        for boundary in ("start", "end")
+    }
     complete = required <= phases
     if not complete:
         gaps.append("canonical retained case phases are incomplete")
     return {"phases": sorted(phases), "complete": complete}
 
 
-def evaluate(profile: str, target: str, identity: str, variant: str,
-             canonical: dict[str, object], strict: dict[str, object]) -> dict[str, object]:
+def evaluate(
+    profile: str,
+    target: str,
+    identity: str,
+    variant: str,
+    canonical: dict[str, object],
+    strict: dict[str, object],
+) -> dict[str, object]:
     """Return event and native-ID evidence independently of the kernel classification."""
     canonical_events, canonical_gaps = _events(canonical)
     strict_events, strict_gaps = _events(strict)
-    gaps = [*(f"canonical: {gap}" for gap in canonical_gaps),
-            *(f"strict: {gap}" for gap in strict_gaps)]
+    gaps = [
+        *(f"canonical: {gap}" for gap in canonical_gaps),
+        *(f"strict: {gap}" for gap in strict_gaps),
+    ]
     canonical_bound = _binding(canonical, identity, variant, single=False)
     strict_bound = _binding(strict, identity, variant, single=True)
     if not canonical_bound:
@@ -142,7 +162,13 @@ def evaluate(profile: str, target: str, identity: str, variant: str,
     if target == "child":
         gaps.append("owned child membership has not been independently observed")
     gaps.append("phase event and resource event ordering has not been established")
-    return {"identity": identity, "variant": variant, "canonical_identity_bound": canonical_bound,
-            "strict_identity_bound": strict_bound,
-            "resource_classification": strict.get("classification"),
-            "evidence": evidence, "gaps": gaps, "case_attribution": "unproved"}
+    return {
+        "identity": identity,
+        "variant": variant,
+        "canonical_identity_bound": canonical_bound,
+        "strict_identity_bound": strict_bound,
+        "resource_classification": strict.get("classification"),
+        "evidence": evidence,
+        "gaps": gaps,
+        "case_attribution": "unproved",
+    }

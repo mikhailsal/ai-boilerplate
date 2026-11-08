@@ -82,23 +82,49 @@ def start(
     output.mkdir(parents=True, exist_ok=False)
     lifecycle_fd = int(os.environ["RL00_LIFECYCLE_FD"])
     command = [
-        sys.executable, "-m", "tests.acceptance.rl00bc.rl00bc_lifecycle_child", "worker",
-        "--work-fd", str(work.fd), "--repo", str(repo), "--output", str(output / "kernel"),
-        "--marker", str(output / "marker.json"), "--release", str(output / "release.json"),
-        "--attempt", str(output / "attempt.json"), "--result", str(output / "result.json"),
-        "--memory-mib", str(memory_mib), "--tasks", str(tasks), "--deadline", str(deadline),
-        "--payload-deadline", str(payload_deadline),
+        sys.executable,
+        "-m",
+        "tests.acceptance.rl00bc.rl00bc_lifecycle_child",
+        "worker",
+        "--work-fd",
+        str(work.fd),
+        "--repo",
+        str(repo),
+        "--output",
+        str(output / "kernel"),
+        "--marker",
+        str(output / "marker.json"),
+        "--release",
+        str(output / "release.json"),
+        "--attempt",
+        str(output / "attempt.json"),
+        "--result",
+        str(output / "result.json"),
+        "--memory-mib",
+        str(memory_mib),
+        "--tasks",
+        str(tasks),
+        "--deadline",
+        str(deadline),
+        "--payload-deadline",
+        str(payload_deadline),
     ]
     if hold_lock:
-        command.extend(["--held", str(output / "held.json"),
-                        "--proceed", str(output / "proceed.json")])
+        command.extend(
+            ["--held", str(output / "held.json"), "--proceed", str(output / "proceed.json")]
+        )
     env = {**os.environ, **environment, "PYTHONPATH": str(repo / "tools/quality")}
     for key in ("RL00_LIFECYCLE_FD", "RL00_LIFECYCLE_INODE", "RL00_LIFECYCLE_CLOSING"):
         env[key] = os.environ[key]
     with (output / "worker.log").open("wb") as log:
         process = subprocess.Popen(
-            command, cwd=repo, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-            stderr=log, pass_fds=(work.fd, lifecycle_fd),
+            command,
+            cwd=repo,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=log,
+            pass_fds=(work.fd, lifecycle_fd),
         )
     return Worker(process, output, deadline)
 
@@ -110,7 +136,7 @@ def marker(worker: Worker, work: Group) -> dict[str, object]:
     if not isinstance(group, str) or not group.startswith(expected):
         invalid("native marker is outside the owned work branch")
     pid = data.get("pid")
-    if re.fullmatch(r"[a-f0-9]{32}", group[len(expected):]) is None:
+    if re.fullmatch(r"[a-f0-9]{32}", group[len(expected) :]) is None:
         invalid("native marker does not identify a direct leaf")
     if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
         invalid("native marker does not identify a direct leaf")

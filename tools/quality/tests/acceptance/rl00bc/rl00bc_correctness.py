@@ -52,8 +52,12 @@ def _selector_name(profile: str, target: str) -> tuple[str, str]:
             label = "parameterHeavy"
         return "variant", label
     label = {
-        "native": "ordinary", "setup": "fixture", "teardown": "fixture",
-        "slow": "ordinary", "justified": "ordinary", "retained": "ordinary",
+        "native": "ordinary",
+        "setup": "fixture",
+        "teardown": "fixture",
+        "slow": "ordinary",
+        "justified": "ordinary",
+        "retained": "ordinary",
     }.get(target, target)
     if profile == "dart":
         return "id", f"{label} case"
@@ -110,8 +114,9 @@ def _retained_phases(run: dict[str, object]) -> set[str]:
     return phases
 
 
-def _check_retained(profile: str, canonical: dict[str, object], strict: dict[str, object],
-                    mismatches: list[str]) -> None:
+def _check_retained(
+    profile: str, canonical: dict[str, object], strict: dict[str, object], mismatches: list[str]
+) -> None:
     start, end = {
         "python": ("session-setup-start", "session-setup"),
         "php": ("class-setup-start", "class-setup-end"),
@@ -120,9 +125,10 @@ def _check_retained(profile: str, canonical: dict[str, object], strict: dict[str
         "dart": ("retained-allocation-start", "retained-allocation-end"),
     }[profile]
     kernel = strict.get("kernel")
-    if not isinstance(kernel, dict) or cast(dict[str, object], kernel).get(
-        "resource_violation"
-    ) != "own-memory":
+    if (
+        not isinstance(kernel, dict)
+        or cast(dict[str, object], kernel).get("resource_violation") != "own-memory"
+    ):
         mismatches.append("retained strict did not hit its own memory boundary")
     if start not in _retained_phases(strict) or not {start, end} <= _retained_phases(canonical):
         mismatches.append("retained shared setup boundaries missing")
@@ -136,27 +142,45 @@ def _native_target(profile: str, target: str) -> str:
     return target
 
 
-def _target(run: TrialRunner, profile: str, target: str, cases: list[dict[str, object]],
-            mismatches: list[str], oracles: dict[str, object]) -> None:
+def _target_options(profile: str, target: str) -> TrialOptions:
+    return {
+        "size": "large",
+        "mode": "correctness",
+        "target": _native_target(profile, target),
+        "allocation_mib": rl00bc_trials.STRICT[profile][0],
+        "shared_mib": 64,
+        "coverage": profile != "browser",
+        "instrument": True,
+    }
+
+
+def _target(
+    run: TrialRunner,
+    profile: str,
+    target: str,
+    cases: list[dict[str, object]],
+    mismatches: list[str],
+    oracles: dict[str, object],
+) -> None:
     try:
         selected_case = _selector(profile, target, cases)
     except ValueError as error:
         mismatches.append(str(error))
         oracles[target] = {"case_attribution": "unproved", "gaps": [str(error)]}
         return
-    opts: TrialOptions = {
-        "size": "large", "mode": "correctness", "target": _native_target(profile, target),
-        "allocation_mib": rl00bc_trials.STRICT[profile][0], "shared_mib": 64,
-        "coverage": profile != "browser", "instrument": True,
-    }
+    opts = _target_options(profile, target)
     canonical = run(f"{target}-canonical", **opts)
     strict_opts: TrialOptions = {**opts, "selected": selected_case, "coverage": False}
     strict = run(f"{target}-strict", **strict_opts)
     key, _ = _selector_name(profile, target)
     selected_row = next(case for case in cases if case.get(key) == selected_case)
     oracles[target] = rl00bc_phase_oracle.evaluate(
-        profile, target, cast(str, selected_row["id"]),
-        cast(str, selected_row.get("variant", "default")), canonical, strict,
+        profile,
+        target,
+        cast(str, selected_row["id"]),
+        cast(str, selected_row.get("variant", "default")),
+        canonical,
+        strict,
     )
     if canonical.get("classification") != "observed-success":
         mismatches.append(f"{target} canonical nonpass")
@@ -167,24 +191,37 @@ def _target(run: TrialRunner, profile: str, target: str, cases: list[dict[str, o
         _check_retained(profile, canonical, strict, mismatches)
     if target == "justified":
         justified_opts: TrialOptions = {
-            **strict_opts, "justification": "preregistered justified workload"
+            **strict_opts,
+            "justification": "preregistered justified workload",
         }
         justified = run("justified-allowance", **justified_opts)
         oracles["justified-allowance"] = rl00bc_phase_oracle.evaluate(
-            profile, target, cast(str, selected_row["id"]),
-            cast(str, selected_row.get("variant", "default")), canonical, justified,
+            profile,
+            target,
+            cast(str, selected_row["id"]),
+            cast(str, selected_row.get("variant", "default")),
+            canonical,
+            justified,
         )
         if justified.get("classification") != "observed-success":
             mismatches.append("justified allowance nonpass")
 
 
-def _parallel(run: TrialRunner, discovered: list[dict[str, object]], coverage: bool,
-              mismatches: list[str]) -> None:
-    parallel = run("baseline-large-workers2", size="large", mode="performance", workers=2,
-                   coverage=coverage, instrument=True)
+def _parallel(
+    run: TrialRunner, discovered: list[dict[str, object]], coverage: bool, mismatches: list[str]
+) -> None:
+    parallel = run(
+        "baseline-large-workers2",
+        size="large",
+        mode="performance",
+        workers=2,
+        coverage=coverage,
+        instrument=True,
+    )
     try:
-        parallel_ids = {(case["id"], case["variant"])
-                        for case in _identities(parallel.get("native_cases"))}
+        parallel_ids = {
+            (case["id"], case["variant"]) for case in _identities(parallel.get("native_cases"))
+        }
         expected_ids = {(case["id"], case["variant"]) for case in discovered}
         if parallel.get("classification") != "observed-success" or parallel_ids != expected_ids:
             mismatches.append("two-worker identity parity unavailable")
@@ -192,9 +229,13 @@ def _parallel(run: TrialRunner, discovered: list[dict[str, object]], coverage: b
         mismatches.append("two-worker native identity unavailable")
 
 
-def _scopes(profile: str, large: dict[str, object], small: dict[str, object],
-            context: dict[str, str],
-            mismatches: list[str]) -> tuple[list[dict[str, object]], dict[str, object]]:
+def _scopes(
+    profile: str,
+    large: dict[str, object],
+    small: dict[str, object],
+    context: dict[str, str],
+    mismatches: list[str],
+) -> tuple[list[dict[str, object]], dict[str, object]]:
     try:
         rl00bc_corpus.verify(profile, "large", large["native_cases"])
         rl00bc_corpus.verify(profile, "small", small["native_cases"])
@@ -208,8 +249,10 @@ def _scopes(profile: str, large: dict[str, object], small: dict[str, object],
             scope_context, discovered, [{"kind": "unknown", "path": "unknown"}]
         )
         selected = {cast(str, item["id"]) for item in discovered}
-        if (set(cast(list[str], first["selected"])) != selected
-            or set(cast(list[str], unknown["selected"])) != selected):
+        if (
+            set(cast(list[str], first["selected"])) != selected
+            or set(cast(list[str], unknown["selected"])) != selected
+        ):
             mismatches.append("selection fallback incomplete")
     except (KeyError, ValueError, TypeError) as error:
         mismatches.append("native discovery or selection failed")
@@ -218,12 +261,31 @@ def _scopes(profile: str, large: dict[str, object], small: dict[str, object],
         return discovered, {"first_adoption": first, "unknown": unknown}
 
 
-def _collect(run: TrialRunner, profile: str, context: dict[str, str],
-             runs: dict[str, object]) -> dict[str, object]:
+def _baselines(
+    run: TrialRunner, coverage: bool, runs: dict[str, object], mismatches: list[str]
+) -> tuple[dict[str, object], dict[str, object]]:
+    for size in ("small", "large"):
+        baseline = run(
+            f"baseline-{size}", size=size, mode="performance", coverage=coverage, instrument=True
+        )
+        if baseline.get("classification") != "observed-success":
+            mismatches.append(f"baseline-{size} nonpass")
+    large = cast(dict[str, object], runs["baseline-large"])
+    small = cast(dict[str, object], runs["baseline-small"])
+    return large, small
+
+
+def _collect(
+    run: TrialRunner, profile: str, context: dict[str, str], runs: dict[str, object]
+) -> dict[str, object]:
     coverage = profile != "browser"
     pending = [
-        "real-git-candidate-mutations", "canonical-quality-coverage-and-scenario-reconciliation",
-        "worker-attribution", "nested-capacity", "order-perturbation", "target-phase-attribution",
+        "real-git-candidate-mutations",
+        "canonical-quality-coverage-and-scenario-reconciliation",
+        "worker-attribution",
+        "nested-capacity",
+        "order-perturbation",
+        "target-phase-attribution",
         "owned-child-membership",
     ]
     mismatches: list[str] = []
@@ -231,13 +293,7 @@ def _collect(run: TrialRunner, profile: str, context: dict[str, str],
         target: {"case_attribution": "unproved", "gaps": ["target trial not run"]}
         for target in TARGETS
     }
-    for size in ("small", "large"):
-        baseline = run(f"baseline-{size}", size=size, mode="performance", coverage=coverage,
-                       instrument=True)
-        if baseline.get("classification") != "observed-success":
-            mismatches.append(f"baseline-{size} nonpass")
-    large = cast(dict[str, object], runs["baseline-large"])
-    small = cast(dict[str, object], runs["baseline-small"])
+    large, small = _baselines(run, coverage, runs, mismatches)
     discovered, scopes = _scopes(profile, large, small, context, mismatches)
     cases = cast(list[dict[str, object]], large.get("native_cases", []))
     if discovered:
@@ -248,10 +304,14 @@ def _collect(run: TrialRunner, profile: str, context: dict[str, str],
         else:
             pending.append("php-native-parallel-not-supported")
     return {
-        "profile": profile, "runs": runs, "scopes": scopes, "mismatches": mismatches,
+        "profile": profile,
+        "runs": runs,
+        "scopes": scopes,
+        "mismatches": mismatches,
         "target_phase_oracles": oracles,
         "required_proofs_pending": pending,
-        "verdict": "comparisons-failed" if mismatches
+        "verdict": "comparisons-failed"
+        if mismatches
         else "comparisons-passed-external-proofs-pending",
         "worker_instrumentation": (
             "event boundaries and kernel lifetime totals only; no case-memory attribution"

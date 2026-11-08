@@ -111,8 +111,11 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
         invalid("Dart report has no done event")
     if stream.focused:
         invalid("focused Dart suite cannot provide canonical evidence")
-    cases = [case for identifier, value in stream.cases.items()
-             if (case := value.result(identifier, output)) is not None]
+    cases = [
+        case
+        for identifier, value in stream.cases.items()
+        if (case := value.result(identifier, output)) is not None
+    ]
     if not cases:
         invalid("Dart report has no visible cases")
     return cases

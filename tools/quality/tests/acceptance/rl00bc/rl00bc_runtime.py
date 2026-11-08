@@ -68,8 +68,11 @@ def _dependency(project: dict[str, object], name: str) -> str:
     if not isinstance(group, list):
         invalid("missing Python development dependency pins")
     prefix = name + "=="
-    pins = [value.removeprefix(prefix) for value in cast(list[object], group)
-            if isinstance(value, str) and value.startswith(prefix)]
+    pins = [
+        value.removeprefix(prefix)
+        for value in cast(list[object], group)
+        if isinstance(value, str) and value.startswith(prefix)
+    ]
     if len(pins) != 1:
         invalid(f"missing or ambiguous {name} version pin")
     return pins[0]
@@ -98,16 +101,29 @@ class _Prober:
     def run(self, name: str, argv: list[str]) -> str:
         directory = self.output / name
         env = {
-            "HOME": str(self.output / "home"), "TMPDIR": str(self.output / "tmp"),
-            "PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8", "XDEBUG_MODE": "off",
+            "HOME": str(self.output / "home"),
+            "TMPDIR": str(self.output / "tmp"),
+            "PATH": "/usr/local/bin:/usr/bin:/bin",
+            "LANG": "C.UTF-8",
+            "XDEBUG_MODE": "off",
         }
         kernel = rl00bc_kernel.execute(
-            self.work, argv, self.repo, env, directory, memory_mib=512, tasks=64,
-            native_seconds=20, ancestor_deadline_ns=self.ancestor_deadline_ns,
+            self.work,
+            argv,
+            self.repo,
+            env,
+            directory,
+            memory_mib=512,
+            tasks=64,
+            native_seconds=20,
+            ancestor_deadline_ns=self.ancestor_deadline_ns,
         )
         self.records[name] = {
-            "argv": argv, "kernel": kernel, "kernel_record": str(directory / "result.json"),
-            "stdout": str(directory / "stdout.log"), "stderr": str(directory / "stderr.log"),
+            "argv": argv,
+            "kernel": kernel,
+            "kernel_record": str(directory / "result.json"),
+            "stdout": str(directory / "stdout.log"),
+            "stderr": str(directory / "stderr.log"),
         }
         if not kernel.get("success") or not kernel.get("cleanup_complete"):
             invalid(f"{name} runtime probe failed")
@@ -139,10 +155,22 @@ class _Prober:
         self.xdebug_loaded = initial.get("xdebug") is not None
         measured = initial
         if not self.xdebug_loaded:
-            measured = _object(json.loads(self.run(
-                "php-xdebug", [php, "-d", "display_errors=stderr", "-d", "zend_extension=xdebug",
-                               "-r", PHP_CODE]
-            )))
+            measured = _object(
+                json.loads(
+                    self.run(
+                        "php-xdebug",
+                        [
+                            php,
+                            "-d",
+                            "display_errors=stderr",
+                            "-d",
+                            "zend_extension=xdebug",
+                            "-r",
+                            PHP_CODE,
+                        ],
+                    )
+                )
+            )
         for name in ("php", "xdebug"):
             expected = _string(_nested(self.manifest, "runtimes", name, "version"))
             self.versions[name] = _minor(measured.get(name), expected, name)
@@ -187,13 +215,17 @@ class _Prober:
         )
         for name, script, group, package in commands:
             expected = _string(_nested(self.manifest, "packages", group, package))
-            self.versions[name] = _pin(_version(self.run(name, [node, str(script), "--version"])),
-                                       expected, name)
+            self.versions[name] = _pin(
+                _version(self.run(name, [node, str(script), "--version"])), expected, name
+            )
 
     def collect(self) -> None:
         self.python()
-        for name, key in (("node", "RL00_NODE"), ("dart", "RL00_DART"),
-                          ("chromium", "RL00_CHROMIUM")):
+        for name, key in (
+            ("node", "RL00_NODE"),
+            ("dart", "RL00_DART"),
+            ("chromium", "RL00_CHROMIUM"),
+        ):
             self.pinned(name, name, [str(self.path(key)), "--version"])
         self.dart_packages()
         self.php()
@@ -201,7 +233,11 @@ class _Prober:
 
 
 def probe(
-    work: Group, repo: Path, output: Path, environment: dict[str, str], *,
+    work: Group,
+    repo: Path,
+    output: Path,
+    environment: dict[str, str],
+    *,
     ancestor_deadline_ns: int,
 ) -> dict[str, object]:
     """Record actual runtime versions and bounded process evidence; failures are setup nonpasses."""

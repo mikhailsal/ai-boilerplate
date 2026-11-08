@@ -36,12 +36,12 @@ def _component_files(root: Path, version: str, versions: dict[str, str]) -> None
     (root / "src/pricing/__init__.py").write_text("", encoding="utf-8")
     (root / "src/pricing/core.py").write_text(
         '"""Small adoption fixture."""\n\n\ndef sign(value: int) -> int:\n'
-        '    return -1 if value < 0 else 1\n',
+        "    return -1 if value < 0 else 1\n",
         encoding="utf-8",
     )
     (root / "tests/test_pricing.py").write_text(
         '"""Exercise the fixture."""\n\nfrom pricing.core import sign\n\n\n'
-        'def test_sign() -> None:\n'
+        "def test_sign() -> None:\n"
         "    assert sign(-3) == -1\n    assert sign(4) == 1\n",
         encoding="utf-8",
     )
@@ -84,9 +84,9 @@ def _component(project: Path) -> None:
 
 
 def _exports(root: Path, repo: Path, require: Callable[[str, list[str], Path], None]) -> None:
-    template, old, project, new = (root / name for name in (
-        "template-source", "template-old", "project", "template-new"
-    ))
+    template, old, project, new = (
+        root / name for name in ("template-source", "template-old", "project", "template-new")
+    )
     git = "/usr/bin/git"
     require("clone-template", [git, "clone", "--no-hardlinks", str(repo), str(template)], root)
     quality = str(template / "quality")
@@ -97,8 +97,9 @@ def _exports(root: Path, repo: Path, require: Callable[[str, list[str], Path], N
     marker = "\n<!-- RL00 lifecycle fixture: template update -->\n"
     readme.write_text(readme.read_text(encoding="utf-8") + marker, encoding="utf-8")
     require("stage-template-update", [git, "add", "README.md"], template)
-    require("commit-template-update", [git, "commit", "-m", "Add lifecycle fixture marker"],
-            template)
+    require(
+        "commit-template-update", [git, "commit", "-m", "Add lifecycle fixture marker"], template
+    )
     require("source-new-revision", [git, "rev-parse", "HEAD"], template)
     require("export-new", [quality, "template", "export", str(new)], template)
 
@@ -113,32 +114,52 @@ def _onboard(project: Path, require: Callable[[str, list[str], Path], None]) -> 
         "Small adoption fixture.", "Downstream customized pricing fixture."
     )
     customization.write_text(custom_text, encoding="utf-8")
-    require("component-add", [str(project / "quality"), "component", "add", "libs/pricing",
-                              "--no-boundary-reason", "Pure calculations without a boundary."],
-            project)
+    require(
+        "component-add",
+        [
+            str(project / "quality"),
+            "component",
+            "add",
+            "libs/pricing",
+            "--no-boundary-reason",
+            "Pure calculations without a boundary.",
+        ],
+        project,
+    )
     require("stage-component", [git, "add", "quality.toml", "libs/pricing"], project)
     require("bootstrap-component", [str(project / "quality"), "bootstrap"], project)
     require("native-check", [str(project / "quality"), "check"], project)
-    require("first-protected-own-test",
-            [str(project / "quality"), "test", "--component", "pricing"], project)
+    require(
+        "first-protected-own-test",
+        [str(project / "quality"), "test", "--component", "pricing"],
+        project,
+    )
     require("commit-component", [git, "commit", "-m", "Add pricing fixture"], project)
     return custom_text
 
 
-def _update(root: Path, custom_text: str, gaps: list[str],
-            require: Callable[[str, list[str], Path], None]) -> None:
+def _update(
+    root: Path, custom_text: str, gaps: list[str], require: Callable[[str, list[str], Path], None]
+) -> None:
     project, old, new = root / "project", root / "template-old", root / "template-new"
     git = "/usr/bin/git"
-    branch = str(tomllib.loads((project / "quality.toml").read_text(encoding="utf-8"))
-                 ["repository"].get("default_branch", "main"))
+    branch = str(
+        tomllib.loads((project / "quality.toml").read_text(encoding="utf-8"))["repository"].get(
+            "default_branch", "main"
+        )
+    )
     require("fetch-old", [git, "fetch", str(old), f"{branch}:template-old"], project)
     require("fetch-new", [git, "fetch", str(new), f"{branch}:template-new"], project)
     patch = root / "update.patch"
-    require("update-diff", [git, "diff", "--binary", f"--output={patch}",
-                            "template-old", "template-new"], project)
+    require(
+        "update-diff",
+        [git, "diff", "--binary", f"--output={patch}", "template-old", "template-new"],
+        project,
+    )
     if patch.stat().st_size == 0:
-        gaps.append("Old and new exports have no difference; "
-                    "update and rollback cannot be demonstrated.")
+        gaps.append(
+            "Old and new exports have no difference; update and rollback cannot be demonstrated."
+        )
         return
     marker = "\n<!-- RL00 lifecycle fixture: template update -->\n"
     customization = project / "libs/pricing/src/pricing/core.py"
@@ -170,14 +191,22 @@ class _Runner:
             if remaining <= 3:
                 expired("original deadline exhausted")
             result = rl00bc_kernel.execute(
-                self.work, argv, cwd, self.env, self.output / name,
-                memory_mib=3072, tasks=256, native_seconds=remaining,
+                self.work,
+                argv,
+                cwd,
+                self.env,
+                self.output / name,
+                memory_mib=3072,
+                tasks=256,
+                native_seconds=remaining,
                 ancestor_deadline_ns=self.deadline,
             )
             self.phases[name] = {
-                "argv": argv, "cwd": str(cwd),
+                "argv": argv,
+                "cwd": str(cwd),
                 "evidence": str(self.output / name / "result.json"),
-                "success": result.get("success"), "cause": result.get("cause"),
+                "success": result.get("success"),
+                "cause": result.get("cause"),
                 "native_status": result.get("native_status"),
                 "cleanup_complete": result.get("cleanup_complete"),
                 "elapsed_seconds": result.get("elapsed_seconds"),
@@ -191,7 +220,9 @@ class _Runner:
         except (OSError, ValueError, RuntimeError, TypeError, KeyError) as error:
             if name not in self.phases:
                 self.phases[name] = {
-                    "argv": argv, "cwd": str(cwd), "error": f"{type(error).__name__}: {error}"
+                    "argv": argv,
+                    "cwd": str(cwd),
+                    "error": f"{type(error).__name__}: {error}",
                 }
             raise
 
@@ -200,10 +231,16 @@ def _environment(home: Path, environment: dict[str, str]) -> dict[str, str]:
     cache = home / ".cache"
     env = {
         "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
-        "HOME": str(home), "XDG_CACHE_HOME": str(cache), "UV_CACHE_DIR": str(cache / "uv"),
-        "CI": "1", "LANG": "C.UTF-8", "GIT_CONFIG_NOSYSTEM": "1",
-        "GIT_CONFIG_GLOBAL": "/dev/null", "GIT_AUTHOR_NAME": "RL00 fixture",
-        "GIT_AUTHOR_EMAIL": "rl00@example.invalid", "GIT_COMMITTER_NAME": "RL00 fixture",
+        "HOME": str(home),
+        "XDG_CACHE_HOME": str(cache),
+        "UV_CACHE_DIR": str(cache / "uv"),
+        "CI": "1",
+        "LANG": "C.UTF-8",
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_CONFIG_GLOBAL": "/dev/null",
+        "GIT_AUTHOR_NAME": "RL00 fixture",
+        "GIT_AUTHOR_EMAIL": "rl00@example.invalid",
+        "GIT_COMMITTER_NAME": "RL00 fixture",
         "GIT_COMMITTER_EMAIL": "rl00@example.invalid",
     }
     for key in ("RL00_PYTHON", "RL00_CHILD_PYTHON"):
@@ -213,18 +250,31 @@ def _environment(home: Path, environment: dict[str, str]) -> dict[str, str]:
 
 
 def _report(runner: _Runner, project: Path, gaps: list[str], started: int) -> dict[str, object]:
-    gaps.extend([
-        "Human understanding, administrator wait and novice usability are unmeasured.",
-        "Only the Python onboarding fixture is exercised; other profile adoption remains unproved.",
-        "The standalone experimental kernel overlay is not integrated into "
-        "exported quality or hooks.",
-        "Missing-delegation failure is unrun; actual host provisioning is "
-        "a separate parent-mode observation.",
-        "The update fixture changes an exported document, "
-        "not a matched resource-policy core or schema.",
-    ])
+    gaps.extend(
+        [
+            "Human understanding, administrator wait and novice usability are unmeasured.",
+            (
+                "Only the Python onboarding fixture is exercised; "
+                "other profile adoption remains unproved."
+            ),
+            (
+                "The standalone experimental kernel overlay is not integrated into "
+                "exported quality or hooks."
+            ),
+            (
+                "Missing-delegation failure is unrun; actual host provisioning is "
+                "a separate parent-mode observation."
+            ),
+            (
+                "The update fixture changes an exported document, "
+                "not a matched resource-policy core or schema."
+            ),
+        ]
+    )
     return {
-        "phases": runner.phases, "required_gaps": gaps, "fixture": str(project),
+        "phases": runner.phases,
+        "required_gaps": gaps,
+        "fixture": str(project),
         "source_revisions": {
             "old": "scratch clone initial HEAD; see source-old-revision log",
             "new": "scratch clone fixture commit; see source-new-revision log",
@@ -237,14 +287,19 @@ def _report(runner: _Runner, project: Path, gaps: list[str], started: int) -> di
         },
         "timing": {
             "total_seconds": (time.monotonic_ns() - started) / 1e9,
-            "active_command_seconds": runner.active, "human_wait_seconds": None,
-            "administrator_wait_seconds": None, "understanding_seconds": None,
+            "active_command_seconds": runner.active,
+            "human_wait_seconds": None,
+            "administrator_wait_seconds": None,
+            "understanding_seconds": None,
         },
         "limits": {"memory_mib": 3072, "tasks": 256, "ancestor_deadline_ns": runner.deadline},
-        "protection": ("experimental standalone overlay only; unmodified export and hooks "
-                       "do not enforce resource policy"),
+        "protection": (
+            "experimental standalone overlay only; unmodified export and hooks "
+            "do not enforce resource policy"
+        ),
         "provisioning": "parent service supplies prepared or administrator-required host mode",
-        "profile": "python", "result_understood_by_human": None,
+        "profile": "python",
+        "result_understood_by_human": None,
     }
 
 

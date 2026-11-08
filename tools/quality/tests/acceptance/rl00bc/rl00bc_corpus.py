@@ -18,10 +18,26 @@ class Case:
 
 
 _PY_SMALL = ("ordinary", "setup", "teardown", "child")
-_PY_LARGE = (*_PY_SMALL, "allocation", "retained", "parameter-cheap", "parameter-heavy",
-             "slow", "justified", *(f"cheap-{i:02d}" for i in range(1, 7)))
-_PHP_LARGE = (*_PY_SMALL, "allocation", "retained", "parameterCheap", "parameterHeavy",
-              "slow", "justified", *(f"cheap{i:02d}" for i in range(1, 7)))
+_PY_LARGE = (
+    *_PY_SMALL,
+    "allocation",
+    "retained",
+    "parameter-cheap",
+    "parameter-heavy",
+    "slow",
+    "justified",
+    *(f"cheap-{i:02d}" for i in range(1, 7)),
+)
+_PHP_LARGE = (
+    *_PY_SMALL,
+    "allocation",
+    "retained",
+    "parameterCheap",
+    "parameterHeavy",
+    "slow",
+    "justified",
+    *(f"cheap{i:02d}" for i in range(1, 7)),
+)
 _VM_SMALL = ("ordinary", "fixture", "child", "parameter-heavy")
 _VM_LARGE = (*_VM_SMALL, "parameter-cheap", *(f"cheap-{i}" for i in range(11)))
 
@@ -35,8 +51,11 @@ def _php(size: str) -> list[Case]:
     names = _PY_SMALL if size == "small" else _PHP_LARGE
     cases: list[Case] = []
     for name in names:
-        method = (f'testparameter with data set "{name}"' if name.startswith("parameter")
-                  else f"test{name}")
+        method = (
+            f'testparameter with data set "{name}"'
+            if name.startswith("parameter")
+            else f"test{name}"
+        )
         cases.append(Case(f"SubjectTest::{method}", name, name))
     return cases
 
@@ -47,8 +66,11 @@ def _vm(profile: str, size: str) -> list[Case]:
         return [Case(name, "default", name) for name in names]
     if profile == "dart":
         return [Case(f"{name} case", "default", f"{name} case") for name in names]
-    return [Case(f"parameter:{name}[{project}]", project, f"parameter:{name}[{project}]")
-            for name in names for project in ("desktop", "mobile")]
+    return [
+        Case(f"parameter:{name}[{project}]", project, f"parameter:{name}[{project}]")
+        for name in names
+        for project in ("desktop", "mobile")
+    ]
 
 
 def expected(profile: str, size: str) -> list[Case]:
@@ -61,7 +83,8 @@ def expected(profile: str, size: str) -> list[Case]:
         return _php(size)
     if profile in ("node", "dart", "browser"):
         return _vm(profile, size)
-    invalid("unknown corpus profile")
+    message = "unknown corpus profile"
+    raise ValueError(message)
 
 
 def verify(profile: str, size: str, cases: object) -> list[dict[str, object]]:

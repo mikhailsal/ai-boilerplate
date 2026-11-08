@@ -313,7 +313,9 @@ def measure(
     attempts: list[dict[str, object]] = []
     summary = _summary(profile, environment, samples, criterion, cells, attempts)
     summary["criterion_approval"] = approval
-    summary["criterion_status"] = "caller-asserted-owner-review; independent approval audit required"
+    summary["criterion_status"] = (
+        "caller-asserted-owner-review; independent approval audit required"
+    )
     run = _Measurement(
         work,
         repo,
