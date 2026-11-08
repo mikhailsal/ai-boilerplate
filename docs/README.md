@@ -87,7 +87,9 @@
 - [RL00a cache-split evidence](plan/test-resource-limits/rl00a-cache-split-evidence.md):
   approved cache verdicts, complete local 26-pair matrix and pending live proof.
 - [RL00a remote evidence](plan/test-resource-limits/rl00a-remote-evidence.md):
-  actual remote 26-pair observation and stricter directory-removal verification.
+  final 26-pair proof, bounded directory removal and passing required quality gate.
+- [RL00b/c experiment protocol](plan/test-resource-limits/rl00bc-protocol.md):
+  proposed native method comparison, selection proof, cost criteria and adoption trials.
 - [Resource developer experience](plan/test-resource-limits/developer-experience.md):
   setup, diagnostics, migration, CLI proposals and adoption trials.
 

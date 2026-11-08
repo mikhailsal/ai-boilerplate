@@ -2,19 +2,15 @@
 
 Status: owner D4 research amendment accepted on 2026-11-04; affected
 engineering re-review and final owner plan approval completed on 2026-11-06.
-RL00a has passing local matrices and required-proof failures in the first two
-CI runs, including the [diagnostic observation](rl00a-diagnostic-evidence.md).
-Full live GitHub proof and the complete RL00 go/no-go remain pending.
-The owner-approved [cache-split local matrix](rl00a-cache-split-evidence.md)
-passed all 26 pairs. The [amended remote run](rl00a-remote-evidence.md) passed
-its implemented assertions; direct directory-removal verification is pending.
-The owner subsequently required remote-only heavy validation and explicitly
-permitted current-task local hook skips; the full remote gates still apply.
-Separate approvals for the original and diagnostic workflows were granted
-on 2026-11-07; neither turns a failed observation into a pass.
-The owner selected D5=A on 2026-11-06. No implementation, privileged setup, CI publication or merge is
-authorized by this review. Missing required evidence is no-go, not permission
-to substitute aggregate-only or unbounded certification.
+RL00a is technically complete within the limits of the [final remote evidence](rl00a-remote-evidence.md);
+earlier failed CI observations remain recorded. RL00b and RL00c are unperformed,
+and the complete RL00 go/no-go remains pending. The owner selected D5=A on
+2026-11-06. Plan approval did not itself authorize execution; subsequent owner
+instructions authorized the recorded experiments and require future heavy checks
+in CI. Current-task commit and push hook skips were explicitly permitted without
+changing installed hooks. Merge and product integration are not authorized.
+Missing required evidence is no-go, not permission to substitute aggregate-only
+or unbounded certification.
 
 ## Sequential feasibility and integration
 

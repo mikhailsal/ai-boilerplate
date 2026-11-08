@@ -2,7 +2,8 @@
 
 Status: REQUIRED outcome. Owner approved selective-first D4 research on
 2026-11-04. Affected engineering re-review and final owner plan approval
-completed on 2026-11-06; RL00 evidence remains pending.
+completed on 2026-11-06. RL00a is technically complete within its
+[recorded limits](rl00a-remote-evidence.md); RL00b and RL00c are unperformed.
 Source: [amended design](../test-resource-limits.md) and the owner's question
 about expensive individual tests passing while the suite is still small.
 The owner requested skill-based plan refinement after this gap was identified.
@@ -208,7 +209,7 @@ side channel. Do not claim a cheap or reproducible gate without this proof.
 
 The required goal is early detection of resource-hungry individual tests.
 The architecture, exact measurement/selection protocol, numbers and release
-overhead threshold remain open for RL00 and owner review; the provisional method above is not proven. No product
-implementation, machine reconfiguration, CI push or budget relaxation is
-authorized by the plan-refinement request. The earlier initial-design verdict
+overhead threshold remain open for RL00 and owner review; the provisional method above is not proven. The plan-refinement request did not authorize product implementation, machine
+reconfiguration, CI push or budget relaxation; later owner instructions
+authorized the recorded RL00a executions. Product integration remains unauthorized. The earlier initial-design verdict
 does not cover this amendment; final approval covers the reviewed plan only.

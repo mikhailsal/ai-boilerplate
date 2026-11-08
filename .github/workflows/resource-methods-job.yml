@@ -1,0 +1,86 @@
+# Reusable bounded collector; a successful job is not an integration decision.
+name: resource-methods-job
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        type: string
+        required: true
+      mode:
+        type: string
+        required: true
+      profile:
+        type: string
+        required: true
+      experiment-ref:
+        type: string
+        required: true
+
+permissions: {}
+
+jobs:
+  collect:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 55
+    permissions:
+      contents: read
+    steps:
+      - name: Check out frozen experiment inputs
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Resolve the explicitly reviewed phase
+        id: phase
+        env:
+          EXPERIMENT_REF: ${{ inputs.experiment-ref }}
+        run: |
+          case "$EXPERIMENT_REF" in
+            spike/rl00bc-prepare) phase=prepare ;;
+            spike/rl00bc-correctness) phase=correctness ;;
+            spike/rl00bc-compatibility) phase=compatibility ;;
+            spike/rl00bc-candidates) phase=candidates ;;
+            spike/rl00bc-measure) phase=measure ;;
+            spike/rl00bc-adoption) phase=adoption ;;
+            *) exit 2 ;;
+          esac
+          echo "name=$phase" >> "$GITHUB_OUTPUT"
+      - name: Install supported system PHP and browser prerequisites
+        run: |
+          sudo add-apt-repository --yes ppa:ondrej/php
+          sudo apt-get update
+          sudo apt-get install --yes php8.4-cli php8.4-xml php8.4-mbstring php8.4-zip php8.4-xdebug php8.4-pcov
+          sudo phpdismod -v 8.4 -s ALL xdebug pcov
+          sudo update-alternatives --set php /usr/bin/php8.4
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Restore architecture-specific package caches
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/quality
+          key: quality-methods-${{ runner.arch }}-${{ hashFiles('tools/quality/toolchains.toml', '**/*.lock', '**/package-lock.json') }}
+          restore-keys: quality-methods-${{ runner.arch }}-
+      - name: Collect bounded unprivileged native evidence
+        env:
+          PHASE: ${{ steps.phase.outputs.name }}
+          PROFILE: ${{ inputs.profile }}
+          MODE: ${{ inputs.mode }}
+        # sudo is limited by the collector to UUID-named finite transient units.
+        # The owner reviews this workflow and protocol before a trigger ref push.
+        run: |
+          timeout --signal=TERM --kill-after=5s 2750s \
+            env PYTHONPATH="$PWD/tools/quality" python3 -m tests.acceptance.rl00bc.rl00bc_driver \
+            --phase "$PHASE" --profile "$PROFILE" --mode "$MODE" \
+            --output "$PWD/reports/rl00bc" --scratch "$PWD/.gstack/tmp/rl00bc" \
+            --samples 20 --criterion A
+      - name: Preserve source, producer and kernel records
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rl00bc-${{ steps.phase.outputs.name }}-${{ inputs.profile }}-${{ inputs.mode }}-${{ inputs.runner }}
+          path: |
+            reports/rl00bc
+            !reports/rl00bc/measurement/**/artifacts/**
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 1

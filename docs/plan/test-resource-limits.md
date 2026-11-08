@@ -3,11 +3,11 @@
 Initial office-hours design: 2026-10-31. Autoplan amendment: 2026-11-01.
 Branch: `docs/test-resource-limits-plan`. Owner revisions: 2026-11-04/06.
 Status: CEO, DX and affected engineering reviews completed with concerns and
-explicit RL00 proof gates. Owner approved the plan and all choices on
-2026-11-06. RL00a passed its final local matrix; the first real GitHub run
-stopped at a required cache proof after six successful pairs. The
-[evidence and next observation proposal](test-resource-limits/rl00a-evidence.md)
-record this nonpass. RL00a is not complete. Product implementation has not started.
+explicit RL00 proof gates. The owner approved the plan on 2026-11-06. RL00a
+is technically complete within the recorded environment and observation limits;
+[final remote evidence](test-resource-limits/rl00a-remote-evidence.md) preserves
+earlier nonpasses. RL00b and RL00c are unperformed. Product implementation
+has not started.
 
 ## Problem and intended outcome
 
@@ -30,6 +30,8 @@ The reviewed contract is split into linked pages:
   hierarchy, supervision, worker capacity, evidence and policy proposal.
 - [Verification](test-resource-limits/verification.md): staged feasibility,
   calibration, proof matrix and implementation dependencies.
+- [RL00b/c protocol](test-resource-limits/rl00bc-protocol.md): proposed native
+  comparisons, selection proofs, cost criteria and adoption experiments.
 - [Developer experience](test-resource-limits/developer-experience.md): setup,
   diagnostics, migration, proposed CLI and fresh-export trials.
 - [Scope and review](test-resource-limits/ceo-scope.md): decisions,
@@ -94,13 +96,10 @@ provisional limits, including case protection; no unbounded measure-only pass.
 ## Evidence and remaining uncertainty
 
 Static inspection verified existing process cleanup, isolated candidates,
-native runners, browser watchdog/subreaper and CLI/report contracts. The final
-local 24-pair kernel matrix passed on both provisioning paths. The older local
-kernel lacks `memory.peak`. The first real CI run passed six host pairs, then
-failed during the cache writer; 17 pairs were not executed. Its artifact shows
-payload-subtree OOM activity and invocation cleanup, but lacks the failed
-payload's native status and own-leaf counters. CI death/timeout cleanup and the
-prepared path remain unproved. Per-case methods and cost calibration have not
+native runners, browser watchdog/subreaper and CLI/report contracts. The local
+26-pair baseline and final remote 26-pair matrix cover both provisioning paths;
+the final driver and bounded directory removal were verified in CI only. Earlier
+CI nonpasses remain recorded. Per-case methods and cost calibration have not
 run. Exact peak telemetry is distinct from verified enforcement and attribution.
 
 The review compared instrumentation, isolated execution and hybrid approaches.
@@ -163,11 +162,10 @@ Document prerequisites and migration cost before release.
 
 ## Next handoff
 
-The owner approved this gated plan on 2026-11-06 and separately approved
-publication and the real RL00a run on 2026-11-07. The
-[bounded protocol](test-resource-limits/rl00a-protocol.md) remains unchanged.
-Review the [recorded CI nonpass and diagnostic proposal](test-resource-limits/rl00a-evidence.md)
-before a further live experiment. Preserve the original dirty-file fixture,
-limits and failed observation; resolve attribution and evidence gaps first.
-RL00a completion, RL00b/c, product integration and merge remain pending.
-Historical office-hours PASS and plan approval do not establish live feasibility.
+The owner approved the gated plan on 2026-11-06 and subsequently authorized
+specific RL00a executions. The [bounded protocol](test-resource-limits/rl00a-protocol.md)
+and prior failed observations remain unchanged. The final remote evidence closes
+RL00a within its stated limits; RL00b/c and an evidence-based integration
+recommendation remain to be completed. All future heavy checks are CI-only by
+owner instruction. The owner permitted current-task commit and push hook skips;
+installed hooks remain unchanged. Merge and product integration are not authorized.

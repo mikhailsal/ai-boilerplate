@@ -3,7 +3,9 @@
 Autoplan: 2026-11-01, SELECTIVE EXPANSION. CEO, DX and engineering primary
 reviews completed with concerns; design review skipped because there is no UI.
 The owner D4 amendment received affected engineering re-review on 2026-11-06;
-the owner approved the final plan on 2026-11-06; live feasibility remains pending.
+the owner approved the final plan on 2026-11-06. [RL00a](rl00a-remote-evidence.md)
+is technically complete within its recorded limits; RL00b and RL00c remain
+unperformed.
 Source: [amended design](../test-resource-limits.md).
 
 ## Retained scope and complexity
@@ -63,7 +65,8 @@ Cross-phase themes were shared-cost attribution, proof before rollout, cleanup
 and supervisor survival, preserved evidence, usable fail-closed setup/migration,
 and bounded checker overhead. Raw outside responses, model usage, voices,
 decision audit, reality receipts and the 20-card test plan remain in the private
-review archive. No completed review establishes RL00 feasibility.
+review archive. No completed review establishes full RL00 feasibility; the recorded RL00a
+experiments establish only their stated observations.
 
 ## Owner choices
 
@@ -91,5 +94,6 @@ review archive. No completed review establishes RL00 feasibility.
 
 The final plan decision approves this gated work plan only. Numerical values,
 method feasibility and overhead criteria remain subject to RL00 and owner
-review; product code, privileged setup, CI push, publication and merge are not
-included in review approval.
+review; product code, privileged setup, CI push, publication and merge were not
+included in review approval. Later owner instructions authorized the recorded
+RL00a executions; merge and product integration remain unauthorized.

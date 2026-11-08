@@ -182,6 +182,8 @@ unscored = "error"
 [template]
 exclude = [
     ".github/workflows/resource-proof.yml",
+    ".github/workflows/resource-methods.yml",
+    ".github/workflows/resource-methods-job.yml",
     "LICENSE",
     "PLAN.md",
     "FRONTEND_PLAN.md",

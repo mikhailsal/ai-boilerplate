@@ -1,10 +1,9 @@
 # RL00a: remote verification and directory-removal evidence
 
-Status on 2026-11-08: the amended resource workflow passed all 26 pairs on
-GitHub Actions. Its stronger directory-removal obligation remains unproved
-by the original driver, so RL00a completion is not declared from that result.
-The follow-up driver records and requires actual removal within the original
-deadline; its remote validation is pending.
+Status on 2026-11-08: RL00a is technically complete within the environment and
+observation limits below. The final remote matrix proves directory removal within
+the existing deadline. Earlier failed observations and the original driver gap
+remain part of the record. RL00b and RL00c are unperformed.
 
 ## Observed remote matrix
 
@@ -63,3 +62,33 @@ existing full `quality` workflow: main lane, browser lane, advisory audit and
 aggregate required status. The separate `resource-proof` workflow must retain
 all 26 pairs, all eight source inputs and the new directory-removal records.
 No merge, deployment, production enforcement or later RL00 work is claimed.
+
+
+## Final remote proof
+
+The directory-observation revision passed its resource matrix but its normal
+quality run failed Pyright on a numeric comparison through a heterogeneous
+evidence dictionary. The subsequent revision computes the same duration in a
+float local before storing it; the expression, assertions, deadlines and caps
+remain unchanged. No local validation was run for the final driver.
+
+[Resource run 42421777851](https://github.com/mikhailsal/ai-boilerplate/actions/runs/42421777851),
+job `128551544721`, tested commit `50f7c1bf887d78859c7d949f333d2ef12dfc7718`.
+Its independently audited [artifact](https://github.com/mikhailsal/ai-boilerplate/actions/runs/42421777851/artifacts/13593742505)
+has ZIP SHA-256 `6cbd9cc8a2123c89c141e5d3638e5f0ab0e5593792ad3b1eddd065bd009cdcb4`.
+All eight captured sources match the commit and expected inputs; all 26 pairs
+passed, unrelated sentinels survived, and all service roots were observed absent
+before their deadlines. The minimum observed deadline margin was approximately
+0.673 seconds. Absence observation is an upper bound on removal time. Guardian
+cleanup timing excludes detection, and residual charges were nonzero in the
+recorded range. File-refault counts are leaf-wide, not per-inode measurements.
+
+The [normal quality run 42421781481](https://github.com/mikhailsal/ai-boilerplate/actions/runs/42421781481)
+passed its required job `128562795632` for the merge candidate with that head.
+Its main reports contain 3,518 tests with no failures or skips, five unit reports
+with 100% line and branch coverage, and 11 of 11 required scenarios proved.
+The earlier local `165ef689` baseline does not execute the final driver or prove
+local guardian-root removal within the deadline. The final removal proof is CI
+only, consistent with the owner's remote-only instruction; it does not establish
+behavior on every supported host. RL00a does not prove per-case attribution,
+useful verdicts, overhead, onboarding or integration readiness.

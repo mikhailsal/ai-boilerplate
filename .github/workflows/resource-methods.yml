@@ -1,0 +1,139 @@
+# Maintainer-only research. Diagnostic success never replaces quality/required.
+# Experimental trigger refs are pushed only after concrete owner review.
+name: resource-methods
+
+on:
+  push:
+    branches:
+      - spike/rl00a-proof
+      - spike/rl00bc-prepare
+      - spike/rl00bc-correctness
+      - spike/rl00bc-compatibility
+      - spike/rl00bc-candidates
+      - spike/rl00bc-measure
+      - spike/rl00bc-adoption
+
+permissions: {}
+
+jobs:
+  preparation-diagnostics:
+    if: github.ref_name == 'spike/rl00a-proof'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the exact preparation revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install the supported PHP prerequisite
+        run: |
+          sudo add-apt-repository --yes ppa:ondrej/php
+          sudo apt-get update
+          sudo apt-get install --yes php8.4-cli php8.4-xml php8.4-mbstring php8.4-zip php8.4-xdebug php8.4-pcov
+          sudo phpdismod -v 8.4 -s ALL xdebug pcov
+          sudo update-alternatives --set php /usr/bin/php8.4
+      - name: Restore compatible package and tool caches
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/quality
+          key: quality-cache-${{ hashFiles('tools/quality/toolchains.toml', '**/*.lock', '**/package-lock.json') }}
+          restore-keys: quality-cache-
+      - name: Prepare pinned analysis tools
+        run: ./quality bootstrap
+      - name: Collect early source diagnostics without executing the corpus
+        # These advisory native diagnostics shorten iteration. Only quality makes
+        # the required verdict. Formatter changes stay on this disposable runner.
+        run: |
+          mkdir -p reports/preparation
+          tools/quality/.venv/bin/python - <<'PY'
+          import json
+          import dataclasses
+          import subprocess
+          import sys
+          import tomllib
+          from pathlib import Path
+          root = Path.cwd()
+          tools = root / 'tools/quality/.venv/bin'
+          source = 'tools/quality/tests/acceptance/rl00bc'
+          checks = [
+              ('format', [str(tools / 'ruff'), 'format', source]),
+              ('lint', [str(tools / 'ruff'), 'check', source, '--output-format', 'json']),
+              ('types', [str(tools / 'pyright'), '--project', 'tools/quality/pyproject.toml', '--outputjson']),
+          ]
+          observations = []
+          for name, argv in checks:
+              completed = subprocess.run(argv, capture_output=True, timeout=180, check=False)
+              Path(f'reports/preparation/{name}.stdout').write_bytes(completed.stdout)
+              Path(f'reports/preparation/{name}.stderr').write_bytes(completed.stderr)
+              observations.append({'check': name, 'status': completed.returncode})
+          patch = subprocess.run(['git', 'diff', '--binary'], capture_output=True, timeout=10, check=True)
+          Path('reports/preparation/format.patch').write_bytes(patch.stdout)
+          Path('reports/preparation/observations.json').write_text(json.dumps(observations, indent=2) + '\n')
+          sys.path.insert(0, str(root / 'tools/quality/src'))
+          from quality.adapters.python.structure import PythonStructure
+          from quality.policy import Thresholds
+          from quality.rules.structure import check_structure
+          policy = tomllib.loads(Path('quality.toml').read_text())
+          thresholds = Thresholds.model_validate(policy['thresholds'])
+          diagnostics = []
+          sizes = []
+          for path in sorted(Path(source).glob('*.py')):
+              data = path.read_bytes()
+              metrics = PythonStructure().analyze(path.as_posix(), data)
+              diagnostics.extend(dataclasses.asdict(item) for item in check_structure(metrics, thresholds))
+              sizes.append({'path': path.as_posix(), 'physical_lines': len(data.splitlines())})
+          Path('reports/preparation/structure.json').write_text(json.dumps(diagnostics, indent=2, default=str) + '\n')
+          Path('reports/preparation/sizes.json').write_text(json.dumps(sizes, indent=2) + '\n')
+          PY
+      - name: Preserve diagnostic output and proposed formatter patch
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: rl00bc-preparation
+          path: reports/preparation
+          if-no-files-found: error
+          retention-days: 1
+
+  risk-models:
+    if: >-
+      github.ref_name == 'spike/rl00bc-correctness' ||
+      github.ref_name == 'spike/rl00bc-compatibility' ||
+      github.ref_name == 'spike/rl00bc-measure'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        mode: [host, prepared]
+        profile: [dart, browser]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/resource-methods-job.yml
+    with:
+      runner: ${{ matrix.runner }}
+      mode: ${{ matrix.mode }}
+      profile: ${{ matrix.profile }}
+      experiment-ref: ${{ github.ref_name }}
+
+  remaining-models:
+    needs: risk-models
+    if: >-
+      always() && github.ref_name != 'spike/rl00a-proof' &&
+      (needs.risk-models.result == 'success' || needs.risk-models.result == 'skipped')
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+        mode: [host, prepared]
+        profile: ${{ fromJSON((github.ref_name == 'spike/rl00bc-prepare' || github.ref_name == 'spike/rl00bc-candidates' || github.ref_name == 'spike/rl00bc-adoption') && '["python"]' || '["node","php","python"]') }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/resource-methods-job.yml
+    with:
+      runner: ${{ matrix.runner }}
+      mode: ${{ matrix.mode }}
+      profile: ${{ matrix.profile }}
+      experiment-ref: ${{ github.ref_name }}
