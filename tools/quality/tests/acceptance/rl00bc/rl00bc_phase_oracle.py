@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import stat
 from pathlib import Path
 from typing import cast
 
 from tests.acceptance.rl00bc import (
     rl00bc_dart_binding,
     rl00bc_event_binding,
+    rl00bc_phase_window,
     rl00bc_resource_oracle,
     rl00bc_shared_oracle,
 )
@@ -29,10 +31,14 @@ def _events(run: dict[str, object]) -> tuple[list[dict[str, object]], list[str]]
         return [], ["event directory unavailable"]
     events: list[dict[str, object]] = []
     gaps: list[str] = []
-    for path in Path(directory).glob("*.json"):
+    for index, path in enumerate(Path(directory).glob("*.json")):
+        if index >= 512:
+            gaps.append("event directory exceeds its finite entry bound")
+            break
         try:
-            if path.stat().st_size > 16_384:
-                gaps.append(f"oversized event: {path.name}")
+            info = path.lstat()
+            if not stat.S_ISREG(info.st_mode) or info.st_size > 16_384:
+                gaps.append(f"unsafe or oversized event: {path.name}")
                 continue
             value: object = json.loads(path.read_text(encoding="utf-8"))
         except OSError, ValueError:
@@ -116,7 +122,7 @@ def _retained_case_phases(phases: set[str], gaps: list[str]) -> dict[str, object
 
 
 def _entry(profile: str, target: str, events: list[dict[str, object]]) -> dict[str, object] | None:
-    phase = _RETAINED[profile][0] if target == "retained" else f"{_PHASE.get(target, 'call')}-start"
+    phase = rl00bc_phase_window.names(profile, target)[0]
     matches = [event for event in events if event.get("phase") == phase]
     return matches[0] if len(matches) == 1 else None
 
@@ -149,17 +155,21 @@ def _resource(
         gaps.append("phase-entry cgroup membership or inode cannot be bound to the supervisor leaf")
     elif leaf["native_inode_unavailable"] is True:
         gaps.append("native cgroup inode unavailable; stable supervisor inode and membership used")
-    memory = rl00bc_resource_oracle.memory(event, strict)
+    boundary, window = rl00bc_phase_window.select(profile, target, events, event, strict)
+    memory = rl00bc_resource_oracle.memory(
+        event, strict, boundary=boundary, boundary_is_valid=window["valid"] is True,
+    )
     kernel = strict.get("kernel")
     raw = cast(dict[str, object], kernel) if isinstance(kernel, dict) else {}
     own_memory = raw.get("resource_violation") == "own-memory"
-    proved = own_memory and leaf["bound"] is True and memory["oom_growth_after_entry"] is True
+    proved = own_memory and leaf["bound"] is True and memory["oom_growth_within_phase"] is True
     if own_memory and not proved:
         gaps.append("local OOM counter growth after phase entry is not established")
     return {
         "entry_available": True,
         "leaf": leaf,
         "memory": memory,
+        "phase_window": window,
         "own_memory_after_entry": proved,
         "phase_entry": event,
     }
@@ -233,6 +243,7 @@ def _result(
         "resource_classification": strict.get("classification"),
         "kernel_cause": kernel.get("cause"),
         "native_status": kernel.get("native_status"),
+        "cleanup_complete": kernel.get("cleanup_complete"),
         "evidence": evidence,
         "gaps": gaps,
         "case_attribution": _attribution(
@@ -251,7 +262,10 @@ def _retained_details(
     gaps: list[str],
 ) -> list[dict[str, object]]:
     case_phases = _phases(canonical_rows, profile, identity, variant, retained=False)
-    evidence["canonical_case"] = _retained_case_phases(case_phases, gaps)
+    case = _retained_case_phases(case_phases, gaps)
+    case["ordered"] = _canonical_order(profile, "native", canonical_rows)
+    case["complete"] = case["complete"] is True and case["ordered"] is True
+    evidence["canonical_case"] = case
     return [event for event in strict_events if event.get("label", event.get("case")) == "retained"]
 
 
@@ -263,6 +277,7 @@ def _binding(
     strict: dict[str, object],
     events: tuple[list[dict[str, object]], list[dict[str, object]]],
     gaps: list[str],
+    *, strict_events_valid: bool,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]], dict[str, object]]:
     canonical_events, strict_events = events
     canonical_bound = rl00bc_event_binding.report_has(canonical, identity, variant, single=False)
@@ -282,7 +297,7 @@ def _binding(
         strict_events,
         canonical_bound,
         strict_report,
-        strict_scope_valid=strict.get("selection_error") is None,
+        strict_scope_valid=strict.get("selection_error") is None and strict_events_valid,
     )
     binding["dart_report_binding"] = dart_binding
     strict_bound = binding["strict_identity_bound"] is True
@@ -316,6 +331,7 @@ def evaluate(
         strict,
         (canonical_events, strict_events),
         gaps,
+        strict_events_valid=not strict_gaps,
     )
     retained = target == "retained"
     phase_canonical = canonical_events if retained else canonical_rows
@@ -333,6 +349,7 @@ def evaluate(
     canonical_phases = _phases(phase_canonical, profile, identity, variant, retained=retained)
     strict_phases = _phases(phase_strict, profile, identity, variant, retained=retained)
     evidence = _phase_evidence(profile, target, canonical_phases, strict_phases, gaps)
+    evidence["event_files_valid"] = not canonical_gaps and not strict_gaps
     evidence["shared_fixture_contexts"] = shared
     ordered = _canonical_order(profile, target, phase_canonical)
     evidence["canonical_phases_ordered"] = ordered
@@ -343,7 +360,8 @@ def evaluate(
         phase_strict = _retained_details(
             canonical_rows, phase_strict, profile, identity, variant, evidence, gaps
         )
-    evidence["resource"] = _resource(profile, target, phase_strict, strict, gaps)
+    resource_events = [*phase_strict, *strict_rows] if retained else phase_strict
+    evidence["resource"] = _resource(profile, target, resource_events, strict, gaps)
     if target == "child":
         evidence["child"] = _child(profile, canonical_rows, strict_rows, canonical, strict, gaps)
     gaps.append("no exact per-phase memory amount is inferred from cgroup counters")

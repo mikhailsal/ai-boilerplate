@@ -68,7 +68,7 @@ jobs:
               ('startup', ['/usr/bin/python3', source + '/rl00bc_startup.py',
                            '--repo', str(root), '--output', 'reports/preparation/startup.json']),
               ('evidence-tests', [str(tools / 'python'), '-m', 'unittest', 'discover',
-                                  '-s', source, '-p', 'test_rl00bc_evidence.py', '-v']),
+                                  '-s', source, '-p', 'test_rl00bc_*.py', '-v']),
               ('types', [str(tools / 'pyright'), '--project', 'tools/quality/pyproject.toml', '--outputjson']),
           ]
           observations = []

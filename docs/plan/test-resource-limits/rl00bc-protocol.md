@@ -116,6 +116,15 @@ are never assumed stable across runs. Retained fixtures are partitioned by
 actual worker and source/project context, including distinct files in a reused
 Node fork. Their shared costs remain separate from individual case attribution.
 
+Case-event bridges additionally require an exclusive native identity and one
+emitter in a valid bounded event-file set. Unknown, malformed or oversized files
+cannot be dropped to manufacture uniqueness. Resource attribution uses actual
+entry and end counters; a completed phase with no counter growth cannot inherit
+a later OOM. An interrupted open phase ends at the kernel stop observation only
+when no later fixture phase was observed. Shared comparisons retain selection
+validity, canonical case completion and cleanup requirements without assigning
+their retained allocation to an individual first consumer.
+
 | Example | Canonical expectation under the suite envelope | Strict expectation |
 | --- | --- | --- |
 | Ordinary call | Native success | Success without resource events |

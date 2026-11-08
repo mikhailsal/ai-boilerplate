@@ -4,6 +4,33 @@ from __future__ import annotations
 
 from typing import cast
 
+CASE_PHASES = frozenset(
+    f"{phase}-{boundary}" for phase in ("setup", "call", "teardown")
+    for boundary in ("start", "end")
+) | {"child-ready", "child-allocation-start", "child-allocation-end"}
+
+
+def _emitters(events: list[dict[str, object]]) -> set[tuple[int, str]] | None:
+    result: set[tuple[int, str]] = set()
+    for event in events:
+        pid = event.get("pid")
+        if type(pid) is not int or pid <= 0:
+            return None
+        result.add((pid, str(event.get("worker", pid))))
+    return result
+
+
+def exclusivity(profile: str, identity: str, variant: str,
+                events: list[dict[str, object]]) -> dict[str, object]:
+    """Assess every case event before allowing an incomplete-report identity bridge."""
+    rows = [event for event in events if event.get("phase") in CASE_PHASES]
+    unexpected = [event for event in rows if not _matches(event, profile, identity, variant)]
+    emitters = _emitters(rows)
+    no_competitor = not unexpected and emitters is not None and len(emitters) <= 1
+    return {"case_event_count": len(rows), "unexpected_case_events": unexpected,
+            "emitter_count": len(emitters) if emitters is not None else None,
+            "no_competing_case": no_competitor, "single_case": bool(rows) and no_competitor}
+
 
 def report_has(run: dict[str, object], identity: str, variant: str, *, single: bool) -> bool:
     """Require an exact native identity/variant in the final or partial report."""
@@ -84,6 +111,19 @@ def _bridge(
     return bridge, compatible
 
 
+def _binding_evidence(scope_valid: bool, exclusive: dict[str, object],
+                      report: bool, bridge: bool, canonical_report: bool) -> dict[str, object]:
+    valid = scope_valid and exclusive["no_competing_case"] is True
+    single = exclusive["single_case"] is True
+    bridge = valid and single and bridge
+    return {
+        "canonical_report_identity": canonical_report, "strict_scope_valid": valid,
+        "strict_report_identity": report, "canonical_event_bridge": bridge,
+        "event_exclusivity": single, "event_exclusivity_evidence": exclusive,
+        "strict_identity_bound": valid and single and (report or bridge),
+    }
+
+
 def select(
     profile: str,
     identity: str,
@@ -98,23 +138,18 @@ def select(
     """Use observed hooks as a bridge only where canonical mapping is unique."""
     canonical_rows = [event for event in canonical if _matches(event, profile, identity, variant)]
     strict_rows = [event for event in strict if _matches(event, profile, identity, variant)]
+    exclusive = exclusivity(profile, identity, variant, strict)
     bridge, compatible = _bridge(
         profile,
         canonical,
         canonical_rows,
         strict_rows,
         variant,
-        strict_scope_valid and canonical_report,
+        canonical_report,
     )
-    strict_report = strict_report and compatible
     return (
         canonical_rows,
         strict_rows,
-        {
-            "canonical_report_identity": canonical_report,
-            "strict_scope_valid": strict_scope_valid,
-            "strict_report_identity": strict_report,
-            "canonical_event_bridge": bridge,
-            "strict_identity_bound": strict_scope_valid and (strict_report or bridge),
-        },
+        _binding_evidence(strict_scope_valid, exclusive, strict_report and compatible,
+                          bridge, canonical_report),
     )

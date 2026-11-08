@@ -69,24 +69,81 @@ def _counter(value: object, key: str) -> int | None:
     return number if type(number) is int and number >= 0 else None
 
 
-def memory(event: dict[str, object], run: dict[str, object]) -> dict[str, object]:
-    """Compare real local OOM counters at phase entry and around the run."""
+def _monotone_counter(
+    first: int | None, entry: int | None, boundary: int | None, last: int | None,
+) -> bool:
+    if first is None or entry is None or boundary is None or last is None:
+        return False
+    return first <= entry <= boundary <= last
+
+
+def _counter_evidence(
+    key: str, before: object, entry: object, boundary: object, after: object,
+) -> tuple[dict[str, object], bool, bool, bool]:
+    first = _counter(before, key)
+    middle = _counter(entry, key)
+    end = _counter(boundary, key)
+    last = _counter(after, key)
+    growth = (
+        first is not None and middle is not None and last is not None and first <= middle < last
+    )
+    monotone = _monotone_counter(first, middle, end, last)
+    grew_to_boundary = middle is not None and end is not None and middle < end
+    return (
+        {
+            "before": first, "entry": middle, "boundary": end, "after": last,
+            "grew_after_entry": growth, "counter_increased_to_boundary": grew_to_boundary,
+            "monotone_through_boundary": monotone,
+        },
+        growth,
+        monotone,
+        grew_to_boundary,
+    )
+
+
+def memory(
+    event: dict[str, object],
+    run: dict[str, object],
+    *,
+    boundary: dict[str, object] | None = None,
+    boundary_is_valid: bool = True,
+) -> dict[str, object]:
+    """Retain run-wide growth and separately prove growth within a valid boundary."""
     kernel = _mapping(run.get("kernel"))
     before, after = _mapping(kernel.get("before")), _mapping(kernel.get("after"))
     obs = _mapping(event.get("resource_observation"))
     baseline = obs.get("memory_events_local")
+    if boundary is None:
+        boundary_source = "kernel-after-snapshot"
+        boundary_observation = kernel.get("after")
+        boundary_counters = after.get("memory.events.local")
+    else:
+        boundary_source = "native-boundary-event"
+        boundary_observation = boundary.get("resource_observation")
+        boundary_counters = _mapping(boundary_observation).get("memory_events_local")
     result: dict[str, object] = {}
     proved = False
+    phase_complete = boundary_is_valid
+    phase_growth = False
     for key in ("oom", "oom_kill"):
-        first = _counter(before.get("memory.events.local"), key)
-        entry = _counter(baseline, key)
-        last = _counter(after.get("memory.events.local"), key)
-        growth = (
-            first is not None and entry is not None and last is not None and first <= entry < last
+        evidence, growth, monotone, grew_to_boundary = _counter_evidence(
+            key, before.get("memory.events.local"), baseline, boundary_counters,
+            after.get("memory.events.local"),
         )
-        result[key] = {"before": first, "entry": entry, "after": last, "grew_after_entry": growth}
+        result[key] = evidence
         proved = proved or growth
-    return {"oom_growth_after_entry": proved, "counters": result}
+        phase_complete = phase_complete and monotone
+        phase_growth = phase_growth or grew_to_boundary
+    return {
+        "oom_growth_after_entry": proved,
+        "oom_growth_within_phase": phase_complete and phase_growth,
+        "boundary_source": boundary_source,
+        "boundary_supplied": boundary is not None,
+        "boundary_is_valid": boundary_is_valid,
+        "boundary_observation": boundary_observation,
+        "phase_counter_evidence_valid": phase_complete,
+        "counters": result,
+    }
 
 
 def _child_pids(events: list[dict[str, object]]) -> tuple[set[int], bool]:
