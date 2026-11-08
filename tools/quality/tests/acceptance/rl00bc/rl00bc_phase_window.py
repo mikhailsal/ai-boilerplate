@@ -16,7 +16,14 @@ def names(profile: str, target: str) -> tuple[str, str]:
 
 def _advanced(target: str, events: list[dict[str, object]]) -> bool:
     subsequent = {
-        "retained": ("setup-start", "setup-end", "call-start", "call-end", "teardown-start", "teardown-end"),
+        "retained": (
+            "setup-start",
+            "setup-end",
+            "call-start",
+            "call-end",
+            "teardown-start",
+            "teardown-end",
+        ),
         "setup": ("call-start", "call-end", "teardown-start", "teardown-end"),
         "teardown": (),
         "child": ("call-end", "teardown-start", "teardown-end"),
@@ -24,21 +31,37 @@ def _advanced(target: str, events: list[dict[str, object]]) -> bool:
     return any(event.get("phase") in subsequent for event in events)
 
 
-def select(profile: str, target: str, events: list[dict[str, object]],
-           entry: dict[str, object], run: dict[str, object],
-           ) -> tuple[dict[str, object] | None, dict[str, object]]:
-    """An absent end is usable only while no later fixture phase was observed."""
+def select(
+    profile: str,
+    target: str,
+    events: list[dict[str, object]],
+    entry: dict[str, object],
+    run: dict[str, object],
+) -> tuple[dict[str, object] | None, dict[str, object]]:
+    """Use an absent end only while no later fixture phase was observed."""
     start, end = names(profile, target)
     matches = [event for event in events if event.get("phase") == end]
     boundary = matches[0] if len(matches) == 1 else None
     if matches:
-        valid = len(matches) == 1 and rl00bc_resource_oracle.ordered([entry, *matches], (start, end))
-        membership = rl00bc_resource_oracle.leaf(boundary, run, profile) if boundary is not None else {}
+        valid = len(matches) == 1 and rl00bc_resource_oracle.ordered(
+            [entry, *matches], (start, end)
+        )
+        membership = (
+            rl00bc_resource_oracle.leaf(boundary, run, profile) if boundary is not None else {}
+        )
         valid = valid and membership.get("bound") is True
-        return boundary, {"valid": valid, "end_event_count": len(matches),
-                          "end_phase": end, "end_leaf": membership,
-                          "scope": "observed entry-to-end counter interval"}
+        return boundary, {
+            "valid": valid,
+            "end_event_count": len(matches),
+            "end_phase": end,
+            "end_leaf": membership,
+            "scope": "observed entry-to-end counter interval",
+        }
     advanced = _advanced(target, events)
-    return None, {"valid": not advanced, "end_event_count": 0, "end_phase": end,
-                  "later_phase_observed": advanced,
-                  "scope": "open phase until kernel stop; no exact native phase-end time"}
+    return None, {
+        "valid": not advanced,
+        "end_event_count": 0,
+        "end_phase": end,
+        "later_phase_observed": advanced,
+        "scope": "open phase until kernel stop; no exact native phase-end time",
+    }

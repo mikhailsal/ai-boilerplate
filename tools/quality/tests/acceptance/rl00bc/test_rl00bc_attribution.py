@@ -30,7 +30,8 @@ def _event(variant: str, phase: str, stamp: int, oom: int) -> dict[str, object]:
         "fixture_context": _CONTEXT,
         "monotonic_ns": stamp,
         "resource_observation": {
-            "cgroup": _MEMBER, "cgroup_inode": 867,
+            "cgroup": _MEMBER,
+            "cgroup_inode": 867,
             "memory_events_local": {"oom": oom, "oom_kill": 0},
         },
     }
@@ -60,36 +61,64 @@ class AttributionEvidenceTests(unittest.TestCase):
         return directory
 
     def _runs(
-        self, *, variant: str = "ordinary", canonical_rows: list[dict[str, object]] | None = None,
+        self,
+        *,
+        variant: str = "ordinary",
+        canonical_rows: list[dict[str, object]] | None = None,
         strict_rows: list[dict[str, object]] | None = None,
     ) -> tuple[dict[str, object], dict[str, object], str]:
-        canonical_rows = canonical_rows if canonical_rows is not None else [
-            _event(variant, phase, index + 1, 0) for index, phase in enumerate(_PHASES)
-        ]
-        strict_rows = strict_rows if strict_rows is not None else [_event(variant, "call-start", 10, 0)]
+        canonical_rows = (
+            canonical_rows
+            if canonical_rows is not None
+            else [_event(variant, phase, index + 1, 0) for index, phase in enumerate(_PHASES)]
+        )
+        strict_rows = (
+            strict_rows if strict_rows is not None else [_event(variant, "call-start", 10, 0)]
+        )
         identity = f"test_subject::test_subject[{variant}]"
         canonical: dict[str, object] = {
-            "events": str(self._files("canonical", canonical_rows)), "corpus_root": str(self.root),
+            "events": str(self._files("canonical", canonical_rows)),
+            "corpus_root": str(self.root),
             "native_cases": [{"id": identity, "variant": variant, "outcome": "passed"}],
-            "selected": None, "scope": "canonical-suite", "classification": "observed-success",
-            "parse_error": None, "selection_error": None,
+            "selected": None,
+            "scope": "canonical-suite",
+            "classification": "observed-success",
+            "parse_error": None,
+            "selection_error": None,
         }
         strict: dict[str, object] = {
-            "events": str(self._files("strict", strict_rows)), "corpus_root": str(self.root),
-            "native_cases": [], "parse_error": None, "selection_error": None,
-            "selected": variant, "scope": "selected-case",
+            "events": str(self._files("strict", strict_rows)),
+            "corpus_root": str(self.root),
+            "native_cases": [],
+            "parse_error": None,
+            "selection_error": None,
+            "selected": variant,
+            "scope": "selected-case",
             "classification": "own-boundary-resource-violation",
-            "kernel": {"cause": "own-memory", "resource_violation": "own-memory",
-                       "success": False, "native_status": -9, "cleanup_complete": True,
-                       "before": _snapshot(0), "after": _snapshot(1)},
+            "kernel": {
+                "cause": "own-memory",
+                "resource_violation": "own-memory",
+                "success": False,
+                "native_status": -9,
+                "cleanup_complete": True,
+                "before": _snapshot(0),
+                "after": _snapshot(1),
+            },
         }
         return canonical, strict, identity
 
     def _evaluate(
-        self, canonical: dict[str, object], strict: dict[str, object], identity: str,
-        *, target: str = "native", variant: str = "ordinary",
+        self,
+        canonical: dict[str, object],
+        strict: dict[str, object],
+        identity: str,
+        *,
+        target: str = "native",
+        variant: str = "ordinary",
     ) -> dict[str, object]:
-        result = rl00bc_phase_oracle.evaluate("python", target, identity, variant, canonical, strict)
+        result = rl00bc_phase_oracle.evaluate(
+            "python", target, identity, variant, canonical, strict
+        )
         self.assertEqual(result["resource_classification"], "own-boundary-resource-violation")
         self.assertEqual(result["kernel_cause"], "own-memory")
         self.assertEqual(result["native_status"], _part(strict, "kernel")["native_status"])
@@ -133,14 +162,20 @@ class AttributionEvidenceTests(unittest.TestCase):
         self.assertTrue(rl00bc_comparison_oracle.matches(result, memory=True))
 
     def test_later_phase_cannot_close_a_missing_call_end(self) -> None:
-        rows = [_event("ordinary", "call-start", 10, 0), _event("ordinary", "teardown-start", 11, 0)]
+        rows = [
+            _event("ordinary", "call-start", 10, 0),
+            _event("ordinary", "teardown-start", 11, 0),
+        ]
         canonical, strict, identity = self._runs(strict_rows=rows)
         result = self._evaluate(canonical, strict, identity)
         self.assertFalse(rl00bc_comparison_oracle.matches(result, memory=True))
 
     def test_duplicate_call_end_is_ambiguous(self) -> None:
-        rows = [_event("ordinary", "call-start", 10, 0), _event("ordinary", "call-end", 11, 1),
-                _event("ordinary", "call-end", 12, 1)]
+        rows = [
+            _event("ordinary", "call-start", 10, 0),
+            _event("ordinary", "call-end", 11, 1),
+            _event("ordinary", "call-end", 12, 1),
+        ]
         canonical, strict, identity = self._runs(strict_rows=rows)
         result = self._evaluate(canonical, strict, identity)
         self.assertFalse(rl00bc_comparison_oracle.matches(result, memory=True))
@@ -158,8 +193,9 @@ class AttributionEvidenceTests(unittest.TestCase):
         result = self._evaluate(canonical, strict, identity)
         self.assertFalse(rl00bc_comparison_oracle.matches(result, memory=True))
 
-    def _retained_runs(self, *, incomplete_case: bool = False
-                       ) -> tuple[dict[str, object], dict[str, object], str]:
+    def _retained_runs(
+        self, *, incomplete_case: bool = False
+    ) -> tuple[dict[str, object], dict[str, object], str]:
         phases = _PHASES[:-1] if incomplete_case else _PHASES
         canonical = [_shared("session-setup-start", 1, 0), _shared("session-setup", 2, 0)]
         canonical += [_event("retained", phase, index + 3, 0) for index, phase in enumerate(phases)]

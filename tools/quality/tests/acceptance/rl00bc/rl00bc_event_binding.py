@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import cast
 
 CASE_PHASES = frozenset(
-    f"{phase}-{boundary}" for phase in ("setup", "call", "teardown")
+    f"{phase}-{boundary}"
+    for phase in ("setup", "call", "teardown")
     for boundary in ("start", "end")
 ) | {"child-ready", "child-allocation-start", "child-allocation-end"}
 
@@ -20,16 +21,21 @@ def _emitters(events: list[dict[str, object]]) -> set[tuple[int, str]] | None:
     return result
 
 
-def exclusivity(profile: str, identity: str, variant: str,
-                events: list[dict[str, object]]) -> dict[str, object]:
+def exclusivity(
+    profile: str, identity: str, variant: str, events: list[dict[str, object]]
+) -> dict[str, object]:
     """Assess every case event before allowing an incomplete-report identity bridge."""
     rows = [event for event in events if event.get("phase") in CASE_PHASES]
     unexpected = [event for event in rows if not _matches(event, profile, identity, variant)]
     emitters = _emitters(rows)
     no_competitor = not unexpected and emitters is not None and len(emitters) <= 1
-    return {"case_event_count": len(rows), "unexpected_case_events": unexpected,
-            "emitter_count": len(emitters) if emitters is not None else None,
-            "no_competing_case": no_competitor, "single_case": bool(rows) and no_competitor}
+    return {
+        "case_event_count": len(rows),
+        "unexpected_case_events": unexpected,
+        "emitter_count": len(emitters) if emitters is not None else None,
+        "no_competing_case": no_competitor,
+        "single_case": bool(rows) and no_competitor,
+    }
 
 
 def report_has(run: dict[str, object], identity: str, variant: str, *, single: bool) -> bool:
@@ -111,15 +117,23 @@ def _bridge(
     return bridge, compatible
 
 
-def _binding_evidence(scope_valid: bool, exclusive: dict[str, object],
-                      report: bool, bridge: bool, canonical_report: bool) -> dict[str, object]:
+def _binding_evidence(
+    scope_valid: bool,
+    exclusive: dict[str, object],
+    report: bool,
+    bridge: bool,
+    canonical_report: bool,
+) -> dict[str, object]:
     valid = scope_valid and exclusive["no_competing_case"] is True
     single = exclusive["single_case"] is True
     bridge = valid and single and bridge
     return {
-        "canonical_report_identity": canonical_report, "strict_scope_valid": valid,
-        "strict_report_identity": report, "canonical_event_bridge": bridge,
-        "event_exclusivity": single, "event_exclusivity_evidence": exclusive,
+        "canonical_report_identity": canonical_report,
+        "strict_scope_valid": valid,
+        "strict_report_identity": report,
+        "canonical_event_bridge": bridge,
+        "event_exclusivity": single,
+        "event_exclusivity_evidence": exclusive,
         "strict_identity_bound": valid and single and (report or bridge),
     }
 
@@ -150,6 +164,7 @@ def select(
     return (
         canonical_rows,
         strict_rows,
-        _binding_evidence(strict_scope_valid, exclusive, strict_report and compatible,
-                          bridge, canonical_report),
+        _binding_evidence(
+            strict_scope_valid, exclusive, strict_report and compatible, bridge, canonical_report
+        ),
     )

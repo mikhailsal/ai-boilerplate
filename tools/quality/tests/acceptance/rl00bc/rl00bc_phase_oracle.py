@@ -157,7 +157,10 @@ def _resource(
         gaps.append("native cgroup inode unavailable; stable supervisor inode and membership used")
     boundary, window = rl00bc_phase_window.select(profile, target, events, event, strict)
     memory = rl00bc_resource_oracle.memory(
-        event, strict, boundary=boundary, boundary_is_valid=window["valid"] is True,
+        event,
+        strict,
+        boundary=boundary,
+        boundary_is_valid=window["valid"] is True,
     )
     kernel = strict.get("kernel")
     raw = cast(dict[str, object], kernel) if isinstance(kernel, dict) else {}
@@ -277,7 +280,8 @@ def _binding(
     strict: dict[str, object],
     events: tuple[list[dict[str, object]], list[dict[str, object]]],
     gaps: list[str],
-    *, strict_events_valid: bool,
+    *,
+    strict_events_valid: bool,
 ) -> tuple[list[dict[str, object]], list[dict[str, object]], dict[str, object]]:
     canonical_events, strict_events = events
     canonical_bound = rl00bc_event_binding.report_has(canonical, identity, variant, single=False)
@@ -306,6 +310,20 @@ def _binding(
     if not strict_bound:
         gaps.append("strict exact native identity and variant unavailable")
     return canonical_rows, strict_rows, binding
+
+
+def _record_order(
+    profile: str,
+    target: str,
+    events: list[dict[str, object]],
+    evidence: dict[str, object],
+    gaps: list[str],
+) -> None:
+    ordered = _canonical_order(profile, target, events)
+    evidence["canonical_phases_ordered"] = ordered
+    if not ordered:
+        evidence["canonical_complete"] = False
+        gaps.append("canonical phase completion order is unavailable or ambiguous")
 
 
 def evaluate(
@@ -351,11 +369,7 @@ def evaluate(
     evidence = _phase_evidence(profile, target, canonical_phases, strict_phases, gaps)
     evidence["event_files_valid"] = not canonical_gaps and not strict_gaps
     evidence["shared_fixture_contexts"] = shared
-    ordered = _canonical_order(profile, target, phase_canonical)
-    evidence["canonical_phases_ordered"] = ordered
-    if not ordered:
-        evidence["canonical_complete"] = False
-        gaps.append("canonical phase completion order is unavailable or ambiguous")
+    _record_order(profile, target, phase_canonical, evidence, gaps)
     if retained:
         phase_strict = _retained_details(
             canonical_rows, phase_strict, profile, identity, variant, evidence, gaps

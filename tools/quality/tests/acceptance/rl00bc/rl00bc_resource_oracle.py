@@ -70,7 +70,10 @@ def _counter(value: object, key: str) -> int | None:
 
 
 def _monotone_counter(
-    first: int | None, entry: int | None, boundary: int | None, last: int | None,
+    first: int | None,
+    entry: int | None,
+    boundary: int | None,
+    last: int | None,
 ) -> bool:
     if first is None or entry is None or boundary is None or last is None:
         return False
@@ -78,7 +81,11 @@ def _monotone_counter(
 
 
 def _counter_evidence(
-    key: str, before: object, entry: object, boundary: object, after: object,
+    key: str,
+    before: object,
+    entry: object,
+    boundary: object,
+    after: object,
 ) -> tuple[dict[str, object], bool, bool, bool]:
     first = _counter(before, key)
     middle = _counter(entry, key)
@@ -91,8 +98,12 @@ def _counter_evidence(
     grew_to_boundary = middle is not None and end is not None and middle < end
     return (
         {
-            "before": first, "entry": middle, "boundary": end, "after": last,
-            "grew_after_entry": growth, "counter_increased_to_boundary": grew_to_boundary,
+            "before": first,
+            "entry": middle,
+            "boundary": end,
+            "after": last,
+            "grew_after_entry": growth,
+            "counter_increased_to_boundary": grew_to_boundary,
             "monotone_through_boundary": monotone,
         },
         growth,
@@ -127,7 +138,10 @@ def memory(
     phase_growth = False
     for key in ("oom", "oom_kill"):
         evidence, growth, monotone, grew_to_boundary = _counter_evidence(
-            key, before.get("memory.events.local"), baseline, boundary_counters,
+            key,
+            before.get("memory.events.local"),
+            baseline,
+            boundary_counters,
             after.get("memory.events.local"),
         )
         result[key] = evidence
