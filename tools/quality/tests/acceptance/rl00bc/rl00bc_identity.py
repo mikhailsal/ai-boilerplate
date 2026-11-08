@@ -16,6 +16,7 @@ from tests.acceptance.rl00bc.rl00bc_errors import invalid
 INPUTS = (
     "tools/quality/tests/acceptance/rl00a/rl00a_cgroup.py",
     "docs/plan/test-resource-limits/rl00bc-protocol.md",
+    "docs/plan/test-resource-limits/rl00bc-proofs.md",
     ".github/workflows/resource-methods.yml",
     ".github/workflows/resource-methods-job.yml",
     "quality.toml",

@@ -90,6 +90,8 @@
   final 26-pair proof, bounded directory removal and passing required quality gate.
 - [RL00b/c experiment protocol](plan/test-resource-limits/rl00bc-protocol.md):
   proposed native method comparison, selection proof, cost criteria and adoption trials.
+- [RL00b/c proof contract](plan/test-resource-limits/rl00bc-proofs.md):
+  subjects, corpus, expected verdicts, proposed finite bounds and candidate selection.
 - [Resource developer experience](plan/test-resource-limits/developer-experience.md):
   setup, diagnostics, migration, CLI proposals and adoption trials.
 

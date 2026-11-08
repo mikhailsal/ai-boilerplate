@@ -92,9 +92,23 @@ jobs:
           from quality.adapters.python.structure import PythonStructure
           from quality.diagnostics.render import diagnostic_to_dict
           from quality.policy import Thresholds
+          from quality.rules.markdown import parse_markdown
+          from quality.rules.model import physical_lines
           from quality.rules.structure import check_structure
           policy = tomllib.loads(Path('quality.toml').read_text())
           thresholds = Thresholds.model_validate(policy['thresholds'])
+          documentation = []
+          for name in ('docs/README.md', 'docs/plan/test-resource-limits/rl00bc-protocol.md',
+                       'docs/plan/test-resource-limits/rl00bc-proofs.md'):
+              data = Path(name).read_bytes()
+              lines = physical_lines(data)
+              words = parse_markdown(data.decode('utf-8')).prose_words
+              documentation.append({'path': name, 'physical_lines': lines, 'prose_words': words,
+                                    'line_cap': thresholds.doc_page_lines,
+                                    'word_cap': thresholds.doc_page_words,
+                                    'within_declared_caps': lines <= thresholds.doc_page_lines
+                                    and words <= thresholds.doc_page_words})
+          Path('reports/preparation/documentation.json').write_text(json.dumps(documentation, indent=2) + '\n')
           diagnostics = []
           sizes = []
           for path in sorted(Path(source).glob('*.py')):
