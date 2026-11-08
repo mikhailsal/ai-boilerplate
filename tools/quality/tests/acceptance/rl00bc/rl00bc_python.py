@@ -5,7 +5,10 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from xml.etree import ElementTree
+
+from defusedxml import ElementTree
+
+from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 # The parent invokes these commands inside its finite cgroup and deadline.
 CORPUS = r"""import json
@@ -19,7 +22,8 @@ import subject
 
 NAMES = ["ordinary", "setup", "teardown", "child"]
 if os.environ.get("RL00_SIZE") == "large":
-    NAMES += ["allocation", "retained", "parameter-cheap", "parameter-heavy", "slow", "justified", "cheap-01", "cheap-02", "cheap-03", "cheap-04", "cheap-05", "cheap-06"]
+    NAMES += ["allocation", "retained", "parameter-cheap", "parameter-heavy", "slow",
+              "justified", "cheap-01", "cheap-02", "cheap-03", "cheap-04", "cheap-05", "cheap-06"]
 
 def event(label, phase):
     if os.environ.get("RL00_INSTRUMENT") != "1":
@@ -27,7 +31,10 @@ def event(label, phase):
     directory = Path(os.environ["RL00_EVENT_DIR"])
     directory.mkdir(parents=True, exist_ok=True)
     stamp = time.monotonic_ns()
-    (directory / (str(os.getpid()) + "-" + str(stamp) + ".json")).write_text(json.dumps({"label": label, "variant": label, "phase": phase, "pid": os.getpid(), "monotonic_ns": stamp}))
+    (directory / (str(os.getpid()) + "-" + str(stamp) + ".json")).write_text(json.dumps({
+        "label": label, "variant": label, "phase": phase, "pid": os.getpid(),
+        "monotonic_ns": stamp,
+    }))
 
 def active(label):
     return os.environ.get("RL00_MODE") == "correctness" and os.environ.get("RL00_TARGET") == label
@@ -78,7 +85,11 @@ def test_subject(phases, retained, request):
         mib = int(os.environ["RL00_ALLOC_MIB"])
         if not 1 <= mib <= 1536:
             raise ValueError("allocation outside experiment bound")
-        child = subprocess.run([os.environ["RL00_CHILD_PYTHON"], "-c", "import sys; x=bytearray(int(sys.argv[1])*1048576); print(len(x))", str(mib)], check=True, timeout=8, capture_output=True)
+        child = subprocess.run(
+            [os.environ["RL00_CHILD_PYTHON"], "-c",
+             "import sys; x=bytearray(int(sys.argv[1])*1048576); print(len(x))", str(mib)],
+            check=True, timeout=8, capture_output=True,
+        )
         assert child.stdout
     if label == "slow" and active(label):
         delay = float(os.environ["RL00_SLOW_SECONDS"])
@@ -109,7 +120,7 @@ def pytest_collection_finish(session):
 def prepare(root: Path, repo: Path, profile: str) -> None:
     """Create only the experimental fixture in the caller's scratch root."""
     if profile != "python":
-        raise ValueError("expected python profile")
+        invalid("expected python profile")
     root.mkdir(parents=True, exist_ok=True)
     (root / "test_subject.py").write_text(CORPUS, encoding="utf-8")
     (root / "conftest.py").write_text(PLUGIN, encoding="utf-8")
@@ -125,7 +136,7 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
     )
     python = Path(os.environ["RL00_PYTHON"])
     if not python.is_absolute() or not python.is_file():
-        raise ValueError("RL00_PYTHON must name the bootstrapped absolute interpreter")
+        invalid("RL00_PYTHON must name the bootstrapped absolute interpreter")
 
 
 def command(
@@ -140,11 +151,11 @@ def command(
 ) -> list[str]:
     """Construct pytest execution; selection is one discovered parameter ID."""
     if profile != "python" or workers not in (1, 2):
-        raise ValueError("unsupported profile or worker count")
+        invalid("unsupported profile or worker count")
     if selected is not None and (
         not selected or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in selected)
     ):
-        raise ValueError("invalid opaque parameter identity")
+        invalid("invalid opaque parameter identity")
     output.mkdir(parents=True, exist_ok=True)
     (output / "selection.json").write_text(json.dumps({"selected": selected}), encoding="utf-8")
     rc = output / "coveragerc"
@@ -181,10 +192,18 @@ def command(
     return argv
 
 
+def _check_identities(cases: list[dict[str, object]], selected: object) -> None:
+    ids = [str(case["id"]) for case in cases]
+    if not cases or len(ids) != len(set(ids)):
+        invalid("native result identity mismatch")
+    if selected is not None and (len(cases) != 1 or cases[0]["variant"] != selected):
+        invalid("native result identity mismatch")
+
+
 def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]]:
     """Parse native JUnit and reject missing, duplicate or unexpected selections."""
     if profile != "python":
-        raise ValueError("expected python profile")
+        invalid("expected python profile")
     document = ElementTree.parse(output / "junit.xml")
     cases: list[dict[str, object]] = []
     for case in document.iter("testcase"):
@@ -205,11 +224,5 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
             }
         )
     selected = json.loads((output / "selection.json").read_text(encoding="utf-8"))["selected"]
-    ids = [str(case["id"]) for case in cases]
-    if (
-        not cases
-        or len(ids) != len(set(ids))
-        or (selected is not None and (len(cases) != 1 or cases[0]["variant"] != selected))
-    ):
-        raise ValueError("native result identity mismatch")
+    _check_identities(cases, selected)
     return cases

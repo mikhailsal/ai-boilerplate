@@ -6,11 +6,15 @@ import json
 import os
 import re
 from pathlib import Path
-from xml.etree import ElementTree
 from xml.sax.saxutils import escape, quoteattr
 
+from defusedxml import ElementTree
+
+from tests.acceptance.rl00bc.rl00bc_errors import invalid
+
 SMALL = ("ordinary", "setup", "teardown", "child")
-LARGE = SMALL + (
+LARGE = (
+    *SMALL,
     "allocation",
     "retained",
     "parameterCheap",
@@ -41,7 +45,10 @@ final class SubjectTest extends TestCase {
         if (getenv('RL00_INSTRUMENT') !== '1') { return; }
         $stamp = hrtime(true);
         $file = getenv('RL00_EVENT_DIR') . '/' . getmypid() . '-' . $stamp . '.json';
-        file_put_contents($file, json_encode(['label' => $label, 'variant' => $label, 'phase' => $phase, 'pid' => getmypid(), 'monotonic_ns' => $stamp], JSON_THROW_ON_ERROR));
+        file_put_contents($file, json_encode([
+            'label' => $label, 'variant' => $label, 'phase' => $phase,
+            'pid' => getmypid(), 'monotonic_ns' => $stamp,
+        ], JSON_THROW_ON_ERROR));
     }
     private static function mib(string $name, int $minimum, int $maximum): int {
         $raw = getenv($name);
@@ -49,7 +56,9 @@ final class SubjectTest extends TestCase {
             throw new RuntimeException('invalid allocation input');
         }
         $value = (int)$raw;
-        if ($value < $minimum || $value > $maximum) { throw new RuntimeException('allocation outside experiment bound'); }
+        if ($value < $minimum || $value > $maximum) {
+            throw new RuntimeException('allocation outside experiment bound');
+        }
         return $value;
     }
     private function allocate(string $label): string {
@@ -83,21 +92,29 @@ final class SubjectTest extends TestCase {
     }
     private function subject(string $label): void {
         self::event($label, 'call-start');
-        if (in_array($label, ['allocation', 'parameterHeavy', 'justified'], true)) { $this->value = $this->allocate($label); }
+        if (in_array($label, ['allocation', 'parameterHeavy', 'justified'], true)) {
+            $this->value = $this->allocate($label);
+        }
         if ($label === 'child' && $this->active($label)) {
             $mib = self::mib('RL00_ALLOC_MIB', 1, 1536);
             $spec = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-            $proc = proc_open([getenv('RL00_CHILD_PYTHON'), '-c', 'import sys; x=bytearray(int(sys.argv[1])*1048576); print(len(x))', (string)$mib], $spec, $pipes);
+            $proc = proc_open([getenv('RL00_CHILD_PYTHON'), '-c',
+                'import sys; x=bytearray(int(sys.argv[1])*1048576); print(len(x))', (string)$mib
+            ], $spec, $pipes);
             if (!is_resource($proc)) { throw new RuntimeException('child failed to start'); }
-            stream_get_contents($pipes[1]); fclose($pipes[1]); stream_get_contents($pipes[2]); fclose($pipes[2]);
+            stream_get_contents($pipes[1]); fclose($pipes[1]);
+            stream_get_contents($pipes[2]); fclose($pipes[2]);
             self::assertSame(0, proc_close($proc));
         }
         if ($label === 'slow' && $this->active($label)) {
             $delay = (float)getenv('RL00_SLOW_SECONDS');
-            if ($delay < 0 || $delay > 30) { throw new RuntimeException('delay outside experiment bound'); }
+            if ($delay < 0 || $delay > 30) {
+                throw new RuntimeException('delay outside experiment bound');
+            }
             usleep((int)($delay * 1000000));
         }
-        self::assertSame(1, rl00_value()); self::assertNotSame('', $this->value); self::event($label, 'call-end');
+        self::assertSame(1, rl00_value()); self::assertNotSame('', $this->value);
+        self::event($label, 'call-end');
     }
     public static function parameters(): array {
         return ['parameterCheap' => ['parameterCheap'], 'parameterHeavy' => ['parameterHeavy']];
@@ -112,14 +129,14 @@ __METHODS__
 def _path(name: str) -> Path:
     path = Path(os.environ[name])
     if not path.is_absolute() or not path.is_file():
-        raise ValueError(f"{name} must name an absolute bootstrapped file")
+        invalid(f"{name} must name an absolute bootstrapped file")
     return path
 
 
 def prepare(root: Path, repo: Path, profile: str) -> None:
     """Write the fixture; the caller supplies the bootstrapped tool paths."""
     if profile != "php":
-        raise ValueError("expected php profile")
+        invalid("expected php profile")
     for name in ("RL00_PHP", "RL00_PHPUNIT", "RL00_PHP_AUTOLOAD"):
         _path(name)
     root.mkdir(parents=True, exist_ok=True)
@@ -149,6 +166,39 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
     )
 
 
+def _validate_command(profile: str, workers: int, selected: str | None) -> None:
+    if profile != "php" or workers != 1:
+        invalid("PHP fixture supports only one worker")
+    if selected is not None and selected not in LARGE:
+        invalid("invalid selected identity")
+
+
+def _config(root: Path, output: Path, coverage: bool) -> Path:
+    autoload = str(_path("RL00_PHP_AUTOLOAD")).replace("\\", "\\\\").replace("'", "\\'")
+    bootstrap = output / "bootstrap.php"
+    bootstrap.write_text(
+        f"<?php\nrequire_once '{autoload}';\nrequire_once '{root / 'subject.php'}';\n",
+        encoding="utf-8",
+    )
+    source = ""
+    if coverage:
+        source = (
+            f'<source><include><file>{escape(str(root / "subject.php"))}</file></include></source>'
+            '<coverage includeUncoveredFiles="true" branchCoverage="true" '
+            'disableCodeCoverageIgnore="true" ignoreDeprecatedCodeUnits="false"/>'
+        )
+    xml = (
+        f'<?xml version="1.0"?><phpunit bootstrap={quoteattr(str(bootstrap))} '
+        f'cacheDirectory={quoteattr(str(output / "cache"))} '
+        'colors="false" recordTestRunHistory="false"><testsuites><testsuite name="unit">'
+        f'<file>{escape(str(root / "SubjectTest.php"))}</file></testsuite></testsuites>'
+        f'{source}</phpunit>'
+    )
+    config = output / "phpunit.xml"
+    config.write_text(xml, encoding="utf-8")
+    return config
+
+
 def command(
     root: Path,
     repo: Path,
@@ -160,26 +210,10 @@ def command(
     coverage: bool,
 ) -> list[str]:
     """Build the adapter-style command; PHPUnit here supports serial execution only."""
-    if profile != "php" or workers != 1:
-        raise ValueError("PHP fixture supports only one worker")
-    if selected is not None and selected not in LARGE:
-        raise ValueError("invalid selected identity")
+    _validate_command(profile, workers, selected)
     output.mkdir(parents=True, exist_ok=True)
     (output / "selection.json").write_text(json.dumps({"selected": selected}), encoding="utf-8")
-    autoload = str(_path("RL00_PHP_AUTOLOAD")).replace("\\", "\\\\").replace("'", "\\'")
-    bootstrap = output / "bootstrap.php"
-    bootstrap.write_text(
-        f"<?php\nrequire_once '{autoload}';\nrequire_once '{root / 'subject.php'}';\n",
-        encoding="utf-8",
-    )
-    source = (
-        f'<source><include><file>{escape(str(root / "subject.php"))}</file></include></source><coverage includeUncoveredFiles="true" branchCoverage="true" disableCodeCoverageIgnore="true" ignoreDeprecatedCodeUnits="false"/>'
-        if coverage
-        else ""
-    )
-    xml = f'<?xml version="1.0"?><phpunit bootstrap={quoteattr(str(bootstrap))} cacheDirectory={quoteattr(str(output / "cache"))} colors="false" recordTestRunHistory="false"><testsuites><testsuite name="unit"><file>{escape(str(root / "SubjectTest.php"))}</file></testsuite></testsuites>{source}</phpunit>'
-    config = output / "phpunit.xml"
-    config.write_text(xml, encoding="utf-8")
+    config = _config(root, output, coverage)
     # Disabling PHP's own limit is valid only under the parent's finite cgroup.
     argv = [str(_path("RL00_PHP")), "-d", "display_errors=stderr", "-d", "memory_limit=-1"]
     if coverage and os.environ.get("RL00_XDEBUG_LOADED") != "1":
@@ -202,27 +236,38 @@ def command(
     return argv
 
 
+def _variant(name: str) -> str:
+    if not name.startswith("testparameter"):
+        return name.removeprefix("test")
+    match = re.search(r"parameter(?:Cheap|Heavy)", name)
+    if match is None:
+        invalid(f"unrecognized native PHPUnit data-set identity: {name}")
+    return match.group(0)
+
+
+def _check_identities(cases: list[dict[str, object]], selected: object) -> None:
+    ids = [str(case["id"]) for case in cases]
+    if not cases or len(ids) != len(set(ids)):
+        invalid("native result identity mismatch")
+    if selected is not None and (len(cases) != 1 or cases[0]["variant"] != selected):
+        invalid("native result identity mismatch")
+
+
 def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]]:
     """Parse PHPUnit identities and reject a filtered multi-match or absent case."""
     if profile != "php":
-        raise ValueError("expected php profile")
+        invalid("expected php profile")
     cases: list[dict[str, object]] = []
     for case in ElementTree.parse(output / "junit.xml").iter("testcase"):
         name = case.get("name", "")
         identity = f"{case.get('classname', '')}::{name}"
-        variant = name.removeprefix("test")
-        if name.startswith("testparameter"):
-            match = re.search(r"parameter(?:Cheap|Heavy)", name)
-            if match is None:
-                raise ValueError(f"unrecognized native PHPUnit data-set identity: {name}")
-            variant = match.group(0)
         outcome = next(
             (tag for tag in ("error", "failure", "skipped") if case.find(tag) is not None), "passed"
         )
         cases.append(
             {
                 "id": identity,
-                "variant": variant,
+                "variant": _variant(name),
                 "outcome": outcome,
                 "coverage": str(output / "clover.xml")
                 if (output / "clover.xml").is_file()
@@ -233,11 +278,5 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
             }
         )
     selected = json.loads((output / "selection.json").read_text(encoding="utf-8"))["selected"]
-    ids = [str(case["id"]) for case in cases]
-    if (
-        not cases
-        or len(ids) != len(set(ids))
-        or (selected is not None and (len(cases) != 1 or cases[0]["variant"] != selected))
-    ):
-        raise ValueError("native result identity mismatch")
+    _check_identities(cases, selected)
     return cases

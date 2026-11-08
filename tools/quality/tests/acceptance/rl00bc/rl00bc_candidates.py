@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import time
 from pathlib import Path
+from typing import cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group
 from tests.acceptance.rl00bc import rl00bc_kernel
+from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 # This source is persisted before execution so the executed experiment is reviewable.
 CHILD = r"""from __future__ import annotations
@@ -17,14 +18,17 @@ import hashlib, json, os, subprocess, sys, traceback, unittest
 from pathlib import Path
 
 repo, root, out = map(Path, sys.argv[1:])
-sys.path[:0] = [str(repo / "tools/quality/src"), str(repo), str(root)]
+sys.path[:0] = [str(repo / "tools/quality/src"), str(repo / "tools/quality"), str(root)]
 from quality.gitio.candidate import staged, revision
 from quality.gitio.revisions import push_candidate, merge_candidate
 from quality.gitio.repo import Repository
 from quality.gitio.errors import GitioError
 from tests.acceptance.rl00bc import rl00bc_selection as selection
 
-progress = {"completed": [], "success": False, "claim_limit": "Finite fixture and conservative fallback only; neither arbitrary dependency soundness nor strict execution success is proved."}
+progress = {"completed": [], "success": False,
+            "claim_limit": "Finite fixture and conservative fallback only; "
+                           "neither arbitrary dependency soundness nor "
+                           "strict execution success is proved."}
 def save():
     (out / "candidate-evidence.json").write_text(json.dumps(progress, sort_keys=True) + "\n")
 def mark(name, value=True):
@@ -58,8 +62,10 @@ def main():
     git("init", "--quiet", "--initial-branch=main", "--template", str(templates))
     git("config", "user.name", "RL00 fixture")
     git("config", "user.email", "rl00@example.invalid")
-    write("test_alpha.py", "import unittest\nclass Alpha(unittest.TestCase):\n def test_one(self): pass\n def test_two(self): pass\n")
-    write("test_beta.py", "import unittest\nclass Beta(unittest.TestCase):\n def test_one(self): pass\n")
+    write("test_alpha.py", "import unittest\nclass Alpha(unittest.TestCase):\n"
+          " def test_one(self): pass\n def test_two(self): pass\n")
+    write("test_beta.py", "import unittest\nclass Beta(unittest.TestCase):\n"
+          " def test_one(self): pass\n")
     write("source.py", "VALUE = 1\n")
     write("fixture.txt", "fixture\n")
     write("data.txt", "data\n")
@@ -78,7 +84,8 @@ def main():
         require(module in {"test_alpha", "test_beta"}, "unexpected collector module")
         cases.append({"id": identity, "variant": identity, "file": module + ".py"})
     cases.sort(key=lambda case: case["id"])
-    require(len(cases) == 3 and len({case["id"] for case in cases}) == 3, "collector identity mismatch")
+    require(len(cases) == 3 and len({case["id"] for case in cases}) == 3,
+            "collector identity mismatch")
     mark("native-discovery", cases)
     write("source.py", "VALUE = 2\n")
     git("add", "source.py")
@@ -96,29 +103,36 @@ def main():
     merge = merge_candidate(repository, base, head, head)
     queue = merge_candidate(repository, base, head, head, queue=True)
     for candidate in (rev, push, merge, queue):
-        require(candidate.tree == tree and candidate.base_tree == repository.tree_of(base), "candidate comparison mismatch")
+        require(candidate.tree == tree and candidate.base_tree == repository.tree_of(base),
+                "candidate comparison mismatch")
         candidate.verify_unchanged()
-    require(push.lines is not None and merge.lines is not None and queue.lines is not None, "missing comparisons")
+    require(push.lines is not None and merge.lines is not None and queue.lines is not None,
+            "missing comparisons")
     mark("candidate-identities", {"base_tree": rev.base_tree, "tested_tree": tree,
                                   "staged_tree": index_candidate.tree, "head": head})
     context = {"candidate": head, "base": rev.base_tree, "tested_tree": tree,
                "policy": digest(repo / "quality.toml"),
-               "runtime": hashlib.sha256((sys.version + "\n" + digest(Path(sys.executable))).encode()).hexdigest(),
-               "source": hashlib.sha256((digest(repo / "tools/quality/src/quality/gitio/candidate.py") +
+               "runtime": hashlib.sha256((sys.version + "\n" +
+                   digest(Path(sys.executable))).encode()).hexdigest(),
+               "source": hashlib.sha256((
+                   digest(repo / "tools/quality/src/quality/gitio/candidate.py") +
                    digest(repo / "tools/quality/src/quality/gitio/revisions.py") +
                    digest(repo / "tools/quality/src/quality/gitio/repo.py") +
                    digest(repo / "tools/quality/tests/acceptance/rl00bc/rl00bc_selection.py") +
+                   digest(repo / "tools/quality/tests/acceptance/rl00bc/rl00bc_errors.py") +
                    digest(out / "candidate-child.py")).encode()).hexdigest(),
                "native_file_mapping_complete": True}
     all_ids = sorted(case["id"] for case in cases)
     def check(change, expected, first=False, candidate=None):
         bound = dict(context)
         if candidate is not None:
-            bound.update(candidate=candidate.tree, base=candidate.base_tree, tested_tree=candidate.tree)
+            bound.update(candidate=candidate.tree, base=candidate.base_tree,
+                         tested_tree=candidate.tree)
         scope = selection.build(bound, cases, [change], first_adoption=first)
         require(scope["selected"] == expected, "wrong selection for " + str(change))
         selection.verify(scope, bound, cases, expected)
-        require(scope["canonical_success"] is None and not scope["selection_soundness_proved"], "invalid claim")
+        require(scope["canonical_success"] is None and not scope["selection_soundness_proved"],
+                "invalid claim")
         return scope
     # Each change corresponds to an actual new Git candidate in this fixture.
     edits = [("test", "test_alpha.py"), ("source", "source.py"), ("fixture", "fixture.txt"),
@@ -127,17 +141,20 @@ def main():
              ("volatile", "volatile.txt")]
     selected = sorted(case["id"] for case in cases if case["file"] == "test_alpha.py")
     for kind, path in edits:
-        write(path, (root / path).read_text() + "\n# mutation\n" if (root / path).exists() else "mutation\n")
+        write(path, (root / path).read_text() + "\n# mutation\n"
+              if (root / path).exists() else "mutation\n")
         git("add", path)
         changed = staged(repository)
-        require(changed.tree != tree and changed.base_tree == tree, "mutation did not change candidate")
+        require(changed.tree != tree and changed.base_tree == tree,
+                "mutation did not change candidate")
         change = {"kind": kind, "path": path, "shared": "false", "dynamic": "false"}
         check(change, selected if kind == "test" else all_ids, candidate=changed)
         git("reset", "--quiet", "HEAD", "--", path)
         if path in ("unknown.txt", "volatile.txt"): (root / path).unlink()
         else: git("restore", "--worktree", "--", path)
         mark("mutation-" + kind, changed.tree)
-    check({"kind": "test", "path": "test_alpha.py", "shared": "false", "dynamic": "false"}, all_ids, True)
+    check({"kind": "test", "path": "test_alpha.py", "shared": "false", "dynamic": "false"},
+          all_ids, True)
     check({"kind": "test", "path": "absent.py", "shared": "false", "dynamic": "false"}, all_ids)
     for attribute in ("shared", "dynamic"):
         change = {"kind": "test", "path": "test_alpha.py", "shared": "false", "dynamic": "false"}
@@ -146,7 +163,8 @@ def main():
     git("mv", "test_alpha.py", "test_renamed.py")
     renamed = staged(repository)
     require(renamed.tree != tree, "rename did not change candidate")
-    check({"kind": "test", "path": "test_renamed.py", "shared": "false", "dynamic": "false"}, all_ids, candidate=renamed)
+    check({"kind": "test", "path": "test_renamed.py", "shared": "false", "dynamic": "false"},
+          all_ids, candidate=renamed)
     git("reset", "--quiet", "HEAD")
     git("restore", "--worktree", "test_alpha.py")
     (root / "test_renamed.py").unlink()
@@ -162,7 +180,8 @@ def main():
     changed_cases[0]["variant"] = "unexpected"
     rejects(lambda: selection.verify(scope, context, changed_cases, all_ids))
     diagnostic = selection.build(context, cases, [], explicit_ids=[all_ids[0]])
-    require(not diagnostic["automatic_selection"] and diagnostic["canonical_success"] is None, "diagnostic promoted")
+    require(not diagnostic["automatic_selection"] and diagnostic["canonical_success"] is None,
+            "diagnostic promoted")
     selection.verify(diagnostic, context, cases, [all_ids[0]])
     mark("strict-evidence-rejections", {"scope_sha256": scope["scope_sha256"], "context": context})
     # A symbolic revision must notice a subsequent commit; fixed commit IDs remain stable.
@@ -187,6 +206,48 @@ except BaseException as error:
 """
 
 
+def _valid_completed(completed: object) -> bool:
+    required = {
+        "native-discovery", "candidate-identities", "fallback-and-rename",
+        "strict-evidence-rejections", "revision-drift",
+    } | {
+        "mutation-" + kind
+        for kind in (
+            "test", "source", "fixture", "data", "parameter", "dependency",
+            "runtime", "config", "unknown", "volatile",
+        )
+    }
+    items = cast(list[object], completed) if isinstance(completed, list) else []
+    valid = all(isinstance(item, str) for item in items)
+    names = cast(list[str], items) if valid else []
+    return valid and len(names) == len(set(names)) and set(names) == required
+
+
+def _evaluate(output: Path, source: Path, raw: dict[str, object]) -> dict[str, object]:
+    evidence: dict[str, object] = {}
+    try:
+        value: object = json.loads((output / "candidate-evidence.json").read_text(encoding="utf-8"))
+        if isinstance(value, dict):
+            evidence = cast(dict[str, object], value)
+    except OSError, ValueError:
+        pass
+    completed = evidence.get("completed")
+    success = bool(raw.get("success") and raw.get("cleanup_complete")
+                   and evidence.get("success") is True and _valid_completed(completed))
+    return {
+        "success": success,
+        "classification": "observed-success" if success else "nonpass",
+        "completed": completed if isinstance(completed, list) else [],
+        "child_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        "kernel_cause": raw.get("cause"),
+        "cleanup_complete": raw.get("cleanup_complete"),
+        "claim_limit": (
+            "Finite fixture and conservative fallback only; no selection soundness, "
+            "strict execution success, or cached verdict is claimed."
+        ),
+    }
+
+
 def prove(
     work: Group,
     repo: Path,
@@ -200,12 +261,12 @@ def prove(
     repo, scratch, output = repo.absolute(), scratch.absolute(), output.absolute()
     python = Path(environment["RL00_PYTHON"])
     if not python.is_absolute() or not python.is_file():
-        raise ValueError("RL00_PYTHON must be an absolute executable file")
+        invalid("RL00_PYTHON must be an absolute executable file")
     output.mkdir(parents=True, exist_ok=False)
     scratch.mkdir(parents=True, exist_ok=True)
     root = scratch / "candidate-fixture"
     if root.exists():
-        raise ValueError("candidate fixture must be fresh")
+        invalid("candidate fixture must be fresh")
     source = output / "candidate-child.py"
     source.write_text(CHILD, encoding="utf-8")
     (output / "kernel").mkdir()
@@ -232,56 +293,4 @@ def prove(
         ancestor_deadline_ns=ancestor_deadline_ns,
         payload_deadline_ns=deadline,
     )
-    evidence: dict[str, object] = {}
-    try:
-        value = json.loads((output / "candidate-evidence.json").read_text(encoding="utf-8"))
-        if isinstance(value, dict):
-            evidence = value
-    except OSError, ValueError:
-        pass
-    required = {
-        "native-discovery",
-        "candidate-identities",
-        "fallback-and-rename",
-        "strict-evidence-rejections",
-        "revision-drift",
-    } | {
-        "mutation-" + kind
-        for kind in (
-            "test",
-            "source",
-            "fixture",
-            "data",
-            "parameter",
-            "dependency",
-            "runtime",
-            "config",
-            "unknown",
-            "volatile",
-        )
-    }
-    completed = evidence.get("completed")
-    valid = (
-        isinstance(completed, list)
-        and len(completed) == len(set(completed))
-        and set(completed) == required
-    )
-    return {
-        "success": bool(
-            raw.get("success")
-            and raw.get("cleanup_complete")
-            and evidence.get("success") is True
-            and valid
-        ),
-        "classification": "observed-success"
-        if raw.get("success")
-        and raw.get("cleanup_complete")
-        and evidence.get("success") is True
-        and valid
-        else "nonpass",
-        "completed": completed if isinstance(completed, list) else [],
-        "child_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
-        "kernel_cause": raw.get("cause"),
-        "cleanup_complete": raw.get("cleanup_complete"),
-        "claim_limit": "Finite fixture and conservative fallback only; no selection soundness, strict execution success, or cached verdict is claimed.",
-    }
+    return _evaluate(output, source, raw)

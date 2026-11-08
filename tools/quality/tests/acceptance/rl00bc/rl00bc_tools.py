@@ -13,12 +13,14 @@ import os
 import shutil
 import tomllib
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 
 def _file(path: Path, *, executable: bool = False) -> Path:
     if not path.is_file() or (executable and not os.access(path, os.X_OK)):
-        raise ValueError(f"missing {'executable' if executable else 'file'}: {path}")
+        invalid(f"missing {'executable' if executable else 'file'}: {path}")
     # Do not resolve the venv interpreter symlink: Python needs its venv path.
     return path.absolute()
 
@@ -52,7 +54,7 @@ def _node_modules(repo: Path, prepared: Path) -> Path:
         expected = lock["packages"][f"node_modules/{name}"]["version"]
         actual = _json(modules / name / "package.json").get("version")
         if actual != expected:
-            raise ValueError(f"{name} installed version {actual!r} differs from lock {expected!r}")
+            invalid(f"{name} installed version {actual!r} differs from lock {expected!r}")
     for name in ("vitest/vitest.mjs", "@playwright/test/cli.js", "vite/bin/vite.js"):
         _file(modules / name)
     return modules.absolute()
@@ -61,27 +63,35 @@ def _node_modules(repo: Path, prepared: Path) -> Path:
 def _dart_config(repo: Path, prepared: Path) -> Path:
     path = _file(prepared / "dart/.dart_tool/package_config.json")
     data = _json(path)
-    packages = data.get("packages")
-    if not isinstance(packages, list) or not any(p.get("name") == "test" for p in packages):
-        raise ValueError(f"Dart test package missing from {path}")
+    packages = cast("object", data.get("packages"))
+    if not isinstance(packages, list):
+        invalid(f"Dart test package missing from {path}")
+    entries = cast("list[object]", packages)
+    if not any(
+        isinstance(p, dict) and cast("dict[str, object]", p).get("name") == "test"
+        for p in entries
+    ):
+        invalid(f"Dart test package missing from {path}")
     # Verify the prepared lock is the helper lock, without claiming runtime version.
     lock = _file(repo / "tools/quality/helpers/dart/pubspec.lock")
     if _file(prepared / "dart/pubspec.lock").read_bytes() != lock.read_bytes():
-        raise ValueError("prepared Dart lock differs from helper lock")
+        invalid("prepared Dart lock differs from helper lock")
     return path
 
 
 def _php_files(repo: Path, prepared: Path) -> tuple[Path, Path]:
     source = _file(repo / "tools/quality/helpers/php/composer.lock")
     if _file(prepared / "php/composer.lock").read_bytes() != source.read_bytes():
-        raise ValueError("prepared PHP lock differs from helper lock")
+        invalid("prepared PHP lock differs from helper lock")
     lock = _json(source)
-    installed = _json(prepared / "php/vendor/composer/installed.json")
-    entries = installed.get("packages", installed) if isinstance(installed, dict) else installed
+    installed: object = _json(prepared / "php/vendor/composer/installed.json")
+    if isinstance(installed, dict):
+        installed = cast("dict[str, object]", installed).get("packages", installed)
+    entries = cast("list[dict[str, Any]]", installed)
     expected = [p["version"] for p in lock["packages-dev"] if p["name"] == "phpunit/phpunit"]
     actual = [p["version"] for p in entries if p["name"] == "phpunit/phpunit"]
     if len(expected) != 1 or actual != expected:
-        raise ValueError("installed PHPUnit does not match the helper lock")
+        invalid("installed PHPUnit does not match the helper lock")
     return (_file(prepared / "php/vendor/bin/phpunit"), _file(prepared / "php/vendor/autoload.php"))
 
 
@@ -100,23 +110,11 @@ def _context(repo: Path) -> tuple[Path, dict[str, Any], Path, Path]:
         None,
     )
     if php is None:
-        raise ValueError("system PHP missing from quality's fixed system directories")
+        invalid("system PHP missing from quality's fixed system directories")
     return core, manifest, cache, _file(php, executable=True)
 
 
-def materialization(repo: Path, root: Path) -> list[tuple[Path, list[str], dict[str, str]]]:
-    """Copy locked manifests and return offline commands; never execute commands.
-
-    The caller runs these as measured preparation under its finite envelope.
-    PHP and Xdebug are system-managed: probe their versions and whether Xdebug
-    is already loaded separately before coverage; PHP may need
-    ``-d zend_extension=xdebug``. No Xdebug state is inferred here.
-    """
-    repo, root = repo.absolute(), root.absolute()
-    core, manifest, cache, php = _context(repo)
-    node = _tool(cache, manifest, "node")
-    dart = _tool(cache, manifest, "dart")
-    composer = _tool(cache, manifest, "composer")
+def _prepare_materialization(core: Path, root: Path) -> tuple[Path, Path, Path, Path]:
     node_dir, dart_dir, php_dir = (root / name for name in ("node", "dart", "php"))
     for directory in (node_dir, dart_dir, php_dir, root / "home"):
         directory.mkdir(parents=True, exist_ok=True)
@@ -132,11 +130,48 @@ def materialization(repo: Path, root: Path) -> list[tuple[Path, list[str], dict[
     (php_dir / "src").mkdir(exist_ok=True)
     (php_dir / "tests").mkdir(exist_ok=True)
     home = root / "home"
-    env = {"HOME": str(home), "PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"}
-    npm = _file(node.parent.parent / "lib/node_modules/npm/bin/npm-cli.js")
     npmrc, globalrc = home / "npmrc", home / "npmrc-global"
     npmrc.write_text("", encoding="utf-8")
     globalrc.write_text("", encoding="utf-8")
+    return node_dir, dart_dir, php_dir, home
+
+
+def _composer_command(
+    php_dir: Path, php: Path, composer: Path, cache: Path, home: Path, env: dict[str, str]
+) -> tuple[Path, list[str], dict[str, str]]:
+    return (
+        php_dir,
+        [str(php), "-d", "display_errors=stderr", str(composer), "install", "--no-progress",
+         "--no-scripts", "--no-plugins"],
+        {
+            **env,
+            "COMPOSER_HOME": str(home / "composer"),
+            "COMPOSER_CACHE_DIR": str(cache / "composer"),
+            "COMPOSER_NO_INTERACTION": "1",
+            "COMPOSER_NO_AUDIT": "1",
+            "COMPOSER_DISABLE_NETWORK": "1",
+            "XDEBUG_MODE": "off",
+        },
+    )
+
+
+def materialization(repo: Path, root: Path) -> list[tuple[Path, list[str], dict[str, str]]]:
+    """Copy locked manifests and return offline commands; never execute commands.
+
+    The caller runs these as measured preparation under its finite envelope.
+    PHP and Xdebug are system-managed: probe their versions and whether Xdebug
+    is already loaded separately before coverage; PHP may need
+    ``-d zend_extension=xdebug``. No Xdebug state is inferred here.
+    """
+    repo, root = repo.absolute(), root.absolute()
+    core, manifest, cache, php = _context(repo)
+    node = _tool(cache, manifest, "node")
+    dart = _tool(cache, manifest, "dart")
+    composer = _tool(cache, manifest, "composer")
+    node_dir, dart_dir, php_dir, home = _prepare_materialization(core, root)
+    env = {"HOME": str(home), "PATH": "/usr/local/bin:/usr/bin:/bin", "LANG": "C.UTF-8"}
+    npm = _file(node.parent.parent / "lib/node_modules/npm/bin/npm-cli.js")
+    npmrc, globalrc = home / "npmrc", home / "npmrc-global"
     return [
         (
             node_dir,
@@ -163,28 +198,7 @@ def materialization(repo: Path, root: Path) -> list[tuple[Path, list[str], dict[
             [str(dart), "--suppress-analytics", "pub", "get", "--offline", "--enforce-lockfile"],
             {**env, "PUB_CACHE": str(cache / "pub"), "DART_SUPPRESS_ANALYTICS": "true"},
         ),
-        (
-            php_dir,
-            [
-                str(php),
-                "-d",
-                "display_errors=stderr",
-                str(composer),
-                "install",
-                "--no-progress",
-                "--no-scripts",
-                "--no-plugins",
-            ],
-            {
-                **env,
-                "COMPOSER_HOME": str(home / "composer"),
-                "COMPOSER_CACHE_DIR": str(cache / "composer"),
-                "COMPOSER_NO_INTERACTION": "1",
-                "COMPOSER_NO_AUDIT": "1",
-                "COMPOSER_DISABLE_NETWORK": "1",
-                "XDEBUG_MODE": "off",
-            },
-        ),
+        _composer_command(php_dir, php, composer, cache, home, env),
     ]
 
 

@@ -6,6 +6,8 @@ import hashlib
 import json
 from typing import cast
 
+from tests.acceptance.rl00bc.rl00bc_errors import invalid
+
 MAX_BYTES = 65_536
 REQUIRED_CONTEXT = ("candidate", "base", "tested_tree", "policy", "runtime", "source")
 FULL_CHANGES = frozenset(
@@ -37,9 +39,9 @@ def _encoded(value: object) -> bytes:
             value, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
         ).encode("ascii")
     except (TypeError, ValueError) as error:
-        raise ValueError("scope inputs must be finite JSON") from error
+        invalid("scope inputs must be finite JSON", cause=error)
     if len(data) > MAX_BYTES:
-        raise ValueError("scope exceeds 64 KiB")
+        invalid("scope exceeds 64 KiB")
     return data
 
 
@@ -47,26 +49,55 @@ def _context(context: dict[str, object]) -> None:
     for key in REQUIRED_CONTEXT:
         value = context.get(key)
         if not isinstance(value, str) or not value.strip() or len(value) > 512:
-            raise ValueError(f"context requires nonempty bounded {key}")
+            invalid(f"context requires nonempty bounded {key}")
     _encoded(context)
 
 
 def _identities(discovered: list[dict[str, object]]) -> dict[str, dict[str, object]]:
     if not discovered:
-        raise ValueError("no discovered cases")
+        invalid("no discovered cases")
     found: dict[str, dict[str, object]] = {}
     for case in discovered:
         identity = case.get("id")
         variant = case.get("variant")
         if not isinstance(identity, str) or not identity or len(identity) > 1024:
-            raise ValueError("invalid case identity")
+            invalid("invalid case identity")
         if not isinstance(variant, str) or not variant or len(variant) > 512:
-            raise ValueError("each identity needs an explicit variant")
+            invalid("each identity needs an explicit variant")
         if identity in found:
-            raise ValueError("duplicate case identity")
+            invalid("duplicate case identity")
         found[identity] = case
     _encoded(discovered)
     return found
+
+
+def _unsafe_files(found: dict[str, dict[str, object]], changes: list[dict[str, str]]) -> str | None:
+    if any(not isinstance(case.get("file"), str) or not case["file"] for case in found.values()):
+        return "incomplete-native-file-mapping-full"
+    if any(
+        change.get("shared") != "false"
+        or change.get("dynamic") != "false"
+        or not change.get("path")
+        for change in changes
+    ):
+        return "shared-dynamic-or-unknown-test-full"
+    return None
+
+
+def _file_selection(
+    found: dict[str, dict[str, object]], changes: list[dict[str, str]]
+) -> tuple[list[str], str]:
+    all_ids = sorted(found)
+    reason = _unsafe_files(found, changes)
+    if reason is not None:
+        return all_ids, reason
+    paths = {change["path"] for change in changes}
+    known = {cast(str, case["file"]) for case in found.values()}
+    if not paths <= known:
+        return all_ids, "unmapped-test-full"
+    return sorted(
+        identity for identity, case in found.items() if case["file"] in paths
+    ), "complete-native-test-file-map"
 
 
 def _selection(
@@ -86,22 +117,31 @@ def _selection(
         return all_ids, "changed-or-unknown-influence-full"
     if context.get("native_file_mapping_complete") is not True:
         return all_ids, "incomplete-native-file-mapping-full"
-    if any(not isinstance(case.get("file"), str) or not case["file"] for case in found.values()):
-        return all_ids, "incomplete-native-file-mapping-full"
-    if any(
-        change.get("shared") != "false"
-        or change.get("dynamic") != "false"
-        or not change.get("path")
-        for change in changes
-    ):
-        return all_ids, "shared-dynamic-or-unknown-test-full"
-    paths = {change["path"] for change in changes}
-    known = {cast(str, case["file"]) for case in found.values()}
-    if not paths <= known:
-        return all_ids, "unmapped-test-full"
-    return sorted(
-        identity for identity, case in found.items() if case["file"] in paths
-    ), "complete-native-test-file-map"
+    return _file_selection(found, changes)
+
+
+def _validate_changes(changes: object) -> None:
+    if not isinstance(changes, list):
+        invalid("invalid changes")
+    entries = cast(list[object], changes)
+    for entry in entries:
+        if not isinstance(entry, dict):
+            invalid("invalid changes")
+        pairs = cast(dict[object, object], entry)
+        if any(not isinstance(k, str) or not isinstance(v, str) for k, v in pairs.items()):
+            invalid("invalid changes")
+
+
+def _validate_ids(value: object, *, message: str) -> list[str]:
+    if not isinstance(value, list):
+        invalid(message)
+    items = cast(list[object], value)
+    if any(not isinstance(item, str) for item in items):
+        invalid(message)
+    result = cast(list[str], items)
+    if len(result) != len(set(result)):
+        invalid(message)
+    return result
 
 
 def build(
@@ -116,24 +156,15 @@ def build(
     _context(context)
     found = _identities(discovered)
     if type(first_adoption) is not bool:
-        raise ValueError("first_adoption must be boolean")
-    if not isinstance(changes, list) or any(
-        not isinstance(change, dict)
-        or any(not isinstance(k, str) or not isinstance(v, str) for k, v in change.items())
-        for change in changes
-    ):
-        raise ValueError("invalid changes")
+        invalid("first_adoption must be boolean")
+    _validate_changes(changes)
     selected, reason = _selection(context, found, changes, first_adoption)
     diagnostic = explicit_ids is not None
     if diagnostic:
         assert explicit_ids is not None
-        if (
-            not explicit_ids
-            or any(not isinstance(item, str) for item in explicit_ids)
-            or len(set(explicit_ids)) != len(explicit_ids)
-            or not set(explicit_ids) <= found.keys()
-        ):
-            raise ValueError("explicit IDs must be unique discovered identities")
+        _validate_ids(explicit_ids, message="explicit IDs must be unique discovered identities")
+        if not explicit_ids or not set(explicit_ids) <= found.keys():
+            invalid("explicit IDs must be unique discovered identities")
         selected, reason = sorted(explicit_ids), "explicit-diagnostic-only"
     record: dict[str, object] = {
         "version": 1,
@@ -166,14 +197,12 @@ def verify(
     _identities(discovered)
     _encoded(scope)
     if scope.get("context") != context or scope.get("discovered") != discovered:
-        raise ValueError("stale context or discovered identities")
+        invalid("stale context or discovered identities")
     if not isinstance(scope.get("changes"), list) or type(scope.get("first_adoption")) is not bool:
-        raise ValueError("invalid scope inputs")
+        invalid("invalid scope inputs")
     explicit = scope.get("explicit_ids")
-    if explicit is not None and (
-        not isinstance(explicit, list) or any(not isinstance(item, str) for item in explicit)
-    ):
-        raise ValueError("invalid explicit identities")
+    if explicit is not None:
+        _validate_ids(explicit, message="invalid explicit identities")
     expected = build(
         context,
         discovered,
@@ -182,12 +211,7 @@ def verify(
         explicit_ids=cast(list[str] | None, explicit),
     )
     if scope != expected:
-        raise ValueError("scope integrity or selection mismatch")
-    if (
-        not isinstance(evidence_ids, list)
-        or any(not isinstance(item, str) for item in evidence_ids)
-        or len(evidence_ids) != len(set(evidence_ids))
-    ):
-        raise ValueError("invalid or duplicate strict evidence identities")
+        invalid("scope integrity or selection mismatch")
+    _validate_ids(evidence_ids, message="invalid or duplicate strict evidence identities")
     if set(evidence_ids) != set(cast(list[str], scope["selected"])):
-        raise ValueError("missing or unexpected strict evidence identities")
+        invalid("missing or unexpected strict evidence identities")

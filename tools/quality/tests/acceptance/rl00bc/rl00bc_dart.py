@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from urllib.parse import urljoin
 
+from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 DART_SOURCE = r"""import 'dart:async';
 import 'dart:convert';
@@ -32,7 +33,8 @@ void event(String name, String phase) {
   final dir = env['RL00_EVENT_DIR'];
   if (dir == null || !Directory(dir).isAbsolute) throw StateError('event directory');
   File('$dir/dart-$pid-${serial++}.json').writeAsStringSync(jsonEncode({
-    'case': name, 'variant': target, 'phase': phase, 'pid': pid, 'monotonic_us': clock.elapsedMicroseconds,
+    'case': name, 'variant': target, 'phase': phase, 'pid': pid,
+    'monotonic_us': clock.elapsedMicroseconds,
   }));
 }
 Uint8List allocate(int count) {
@@ -61,23 +63,40 @@ void main() {
   if (!['correctness', 'performance'].contains(mode) || !['small', 'large'].contains(size)) {
     throw StateError('invalid corpus mode');
   }
-  if (mib < 0 || mib > 1536 || sharedMib < 0 || sharedMib > 128 || slowSeconds < 1 || slowSeconds > 30) throw StateError('allocation or duration bound');
-  setUpAll(() { held.add(allocate(sharedMib)); if (active('retained')) { event('retained', 'retained-allocation-start'); held.add(allocate(mib)); event('retained', 'retained-allocation-end'); } });
+  if (mib < 0 || mib > 1536 || sharedMib < 0 || sharedMib > 128 ||
+      slowSeconds < 1 || slowSeconds > 30) throw StateError('allocation or duration bound');
+  setUpAll(() {
+    held.add(allocate(sharedMib));
+    if (active('retained')) {
+      event('retained', 'retained-allocation-start');
+      held.add(allocate(mib));
+      event('retained', 'retained-allocation-end');
+    }
+  });
   tearDownAll(held.clear);
   final cases = <String>['ordinary', 'fixture', 'child', 'parameter-heavy'];
   if (size == 'large') cases.addAll(['parameter-cheap', ...List.generate(11, (i) => 'cheap-$i')]);
   for (final name in cases) {
     group(name, () {
       Uint8List? setup;
-      setUp(() { event(name, 'setup'); if (name == 'fixture' && active('setup')) setup = allocate(mib); });
-      tearDown(() { event(name, 'teardown'); if (name == 'fixture' && active('teardown')) setup = allocate(mib); setup = null; });
+      setUp(() {
+        event(name, 'setup');
+        if (name == 'fixture' && active('setup')) setup = allocate(mib);
+      });
+      tearDown(() {
+        event(name, 'teardown');
+        if (name == 'fixture' && active('teardown')) setup = allocate(mib);
+        setup = null;
+      });
       test('case', () async {
         event(name, 'call');
         if ((name == 'ordinary' && (active('native') || active('justified'))) ||
             (name == 'parameter-heavy' && active('parameter-heavy'))) {
           setup = allocate(mib);
         }
-        if (name == 'ordinary' && active('slow')) await Future<void>.delayed(Duration(seconds: slowSeconds));
+        if (name == 'ordinary' && active('slow')) {
+          await Future<void>.delayed(Duration(seconds: slowSeconds));
+        }
         if (name == 'child' && active('child')) await child();
         expect(subjectValue(name.isNotEmpty), 1);
         expect(subjectValue(false), 0);
@@ -92,14 +111,14 @@ def _required(name: str) -> Path:
     value = os.environ.get(name, "")
     path = Path(value)
     if not value or not path.is_absolute() or not path.exists():
-        raise ValueError(f"{name} must name an existing absolute path")
+        invalid(f"{name} must name an existing absolute path")
     return path
 
 
 def prepare(root: Path, repo: Path, profile: str) -> None:
     """Write a VM test pointing to the already installed helper dependency tree."""
     if profile != "dart":
-        raise ValueError("expected dart profile")
+        invalid("expected dart profile")
     root.mkdir(parents=True, exist_ok=True)
     config = _required("RL00_DART_PACKAGE_CONFIG")
     (root / ".dart_tool").mkdir(exist_ok=True)
@@ -139,7 +158,7 @@ def command(
 ) -> list[str]:
     """Return a native command; caller must compare selected ID with the producer output."""
     if profile != "dart" or workers not in (1, 2):
-        raise ValueError("invalid profile or workers")
+        invalid("invalid profile or workers")
     output.mkdir(parents=True, exist_ok=True)
     argv = [
         str(_required("RL00_DART")),
@@ -159,10 +178,14 @@ def command(
     return [*argv, str(root / "test" / "resource_test.dart")]
 
 
+def _visible(case: dict[str, object]) -> bool:
+    return not (case.get("hidden") and case["outcome"] == "success")
+
+
 def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]]:
     """Read native JSON event IDs and outcome; absent/incomplete results raise."""
     if profile != "dart":
-        raise ValueError("expected dart profile")
+        invalid("expected dart profile")
     tests: dict[int, dict[str, object]] = {}
     for line in (output / "dart.json").read_text(encoding="utf-8").splitlines():
         event = json.loads(line)
@@ -179,7 +202,5 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
             tests[event["testID"]]["outcome"] = event["result"]
             tests[event["testID"]]["hidden"] = event.get("hidden") is True
     if not tests or any(case["outcome"] is None for case in tests.values()):
-        raise ValueError("missing or incomplete native Dart results")
-    return [
-        case for case in tests.values() if not (case.get("hidden") and case["outcome"] == "success")
-    ]
+        invalid("missing or incomplete native Dart results")
+    return [case for case in tests.values() if _visible(case)]

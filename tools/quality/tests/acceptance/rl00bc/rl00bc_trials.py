@@ -1,181 +1,191 @@
-"""One bounded native trial for the unrun RL00b/c research harness.
-
-Provider materialization is controller-side and timed separately; every native
-command, including the browser build, runs inside the same protected leaf.
-This module neither provisions a leaf nor caches a resource verdict.
-"""
+"""Run one bounded native trial and preserve its evidence."""
 
 from __future__ import annotations
 
 import hashlib
-import json
-import os
+import logging
 import sys
 import time
 import uuid
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group
-from tests.acceptance.rl00bc import (
-    rl00bc_dart,
-    rl00bc_kernel,
-    rl00bc_node,
-    rl00bc_php,
-    rl00bc_python,
+from tests.acceptance.rl00bc import rl00bc_kernel
+from tests.acceptance.rl00bc.rl00bc_errors import expired, invalid
+from tests.acceptance.rl00bc.rl00bc_trial_support import (
+    PROVIDERS,
+    RESERVE_NS,
+    STRICT,
+    _environment,
+    _provider_commands,
+    _save,
 )
+from tests.acceptance.rl00bc.rl00bc_trial_support import PATH_KEYS as PATH_KEYS
 
-LIMIT = 65536
-RESERVE_NS = 3_000_000_000
-PATH_KEYS = frozenset(
-    {
-        "RL00_PYTHON",
-        "RL00_CHILD_PYTHON",
-        "RL00_PHP",
-        "RL00_PHPUNIT",
-        "RL00_PHP_AUTOLOAD",
-        "RL00_XDEBUG_LOADED",
-        "RL00_NODE",
-        "RL00_NODE_MODULES",
-        "RL00_CHROMIUM",
-        "RL00_DART",
-        "RL00_DART_PACKAGE_CONFIG",
-        "RL00_SLOW_SECONDS",
-    }
-)
+@dataclass
+class _Trial:
+    work: Group
+    repo: Path
+    scratch: Path
+    output: Path
+    profile: str
+    environment: dict[str, str]
+    selected: str | None
+    size: str
+    mode: str
+    target: str
+    allocation_mib: int
+    shared_mib: int
+    workers: int
+    coverage: bool
+    instrument: bool
+    justification: str | None
+    ancestor_deadline_ns: int
+    start_ns: int
+    memory_mib: int = field(init=False)
+    tasks: int = field(init=False)
+    seconds: float = field(init=False)
+    budget_class: str = field(init=False)
+    deadline_ns: int = field(init=False)
+    root: Path = field(init=False)
+    env: dict[str, str] = field(init=False)
+    plan_path: Path = field(init=False)
+    plan_hash: str = field(init=False)
+    preparation_seconds: float = field(init=False)
 
-
-class Provider(Protocol):
-    def prepare(self, root: Path, repo: Path, profile: str) -> None: ...
-
-    def command(
-        self,
-        root: Path,
-        repo: Path,
-        output: Path,
-        selected: str | None,
-        *,
-        profile: str,
-        workers: int,
-        coverage: bool,
-    ) -> list[str]: ...
-
-    def results(self, root: Path, output: Path, *, profile: str) -> list[dict[str, object]]: ...
-
-
-PROVIDERS: dict[str, Provider] = {
-    "python": rl00bc_python,
-    "php": rl00bc_php,
-    "node": rl00bc_node,
-    "browser": rl00bc_node,
-    "dart": rl00bc_dart,
-}
-STRICT: dict[str, tuple[int, int, float]] = {
-    "python": (384, 128, 5.0),
-    "php": (384, 128, 5.0),
-    "node": (768, 128, 5.0),
-    "dart": (1024, 128, 5.0),
-    "browser": (1536, 256, 12.0),
-}
-
-
-def _save(path: Path, value: object) -> bytes:
-    data = (json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n").encode()
-    if len(data) > LIMIT:
-        raise ValueError(f"bounded experiment record exceeds {LIMIT} bytes")
-    path.write_bytes(data)
-    return data
-
-
-def _environment(
-    environment: dict[str, str],
-    root: Path,
-    output: Path,
-    *,
-    size: str,
-    mode: str,
-    target: str,
-    allocation_mib: int,
-    shared_mib: int,
-    instrument: bool,
-    coverage: bool,
-) -> dict[str, str]:
-    unknown = set(environment) - PATH_KEYS
-    if unknown:
-        raise ValueError(f"unsupported environment keys: {sorted(unknown)}")
-    if size not in {"small", "large"} or mode not in {"correctness", "performance"}:
-        raise ValueError("invalid corpus configuration")
-    if not 1 <= allocation_mib <= 1536 or not 0 <= shared_mib <= 128:
-        raise ValueError("invalid finite allocation")
-    if len(target) > 128 or any(
-        ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
-        for ch in target
-    ):
-        raise ValueError("invalid target label")
-    if any(not isinstance(v, str) or len(v) > 4096 or "\0" in v for v in environment.values()):
-        raise ValueError("invalid environment value")
-    home = root / "home"
-    temporary = root / "tmp"
-    events = output / "events"
-    for directory in (home, temporary, events):
-        directory.mkdir(parents=True, exist_ok=True)
-    tool_dirs: list[str] = []
-    for key in ("RL00_NODE", "RL00_PYTHON"):
-        if key in environment:
-            executable = Path(environment[key])
-            if not executable.is_absolute() or not executable.is_file():
-                raise ValueError(f"{key} must name an absolute executable file")
-            directory = str(executable.parent)
-            if directory not in tool_dirs:
-                tool_dirs.append(directory)
-    search_path = ":".join([*tool_dirs, "/usr/local/bin", "/usr/bin", "/bin"])
-    return {
-        "PATH": search_path,
-        "HOME": str(home),
-        "TMPDIR": str(temporary),
-        "XDG_CACHE_HOME": str(home / ".cache"),
-        "CI": "1",
-        "PYTHONDONTWRITEBYTECODE": "1",
-        "XDEBUG_MODE": "coverage" if coverage else "off",
-        **environment,
-        "RL00_MODE": mode,
-        "RL00_SIZE": size,
-        "RL00_TARGET": target,
-        "RL00_ALLOC_MIB": str(allocation_mib),
-        "RL00_SHARED_MIB": str(shared_mib),
-        "RL00_INSTRUMENT": "1" if instrument else "0",
-        "RL00_EVENT_DIR": str(events),
-    }
-
-
-def _provider_commands(
-    provider: Provider,
-    root: Path,
-    repo: Path,
-    output: Path,
-    profile: str,
-    selected: str | None,
-    workers: int,
-    coverage: bool,
-    env: dict[str, str],
-) -> list[str]:
-    # Providers read process environment; caller must serialize this preparation.
-    keys = {key for key in os.environ if key.startswith("RL00_")} | {
-        key for key in env if key.startswith("RL00_")
-    }
-    previous = {key: os.environ.get(key) for key in keys}
-    try:
-        for key in keys:
-            os.environ.pop(key, None)
-        os.environ.update({key: value for key, value in env.items() if key.startswith("RL00_")})
-        provider.prepare(root, repo, profile)
-        return provider.command(
-            root, repo, output, selected, profile=profile, workers=workers, coverage=coverage
+    def validate(self) -> None:
+        if self.profile not in PROVIDERS or self.workers not in (1, 2):
+            invalid("unsupported profile or workers")
+        if self.selected is not None and (
+            not self.selected or len(self.selected) > 256 or "\0" in self.selected
+        ):
+            invalid("invalid selected identity")
+        self.memory_mib, self.tasks, self.seconds = (
+            (3072, 256, 90.0) if self.selected is None else STRICT[self.profile]
         )
-    finally:
-        for key in keys:
-            os.environ.pop(key, None)
-        os.environ.update({key: value for key, value in previous.items() if value is not None})
+        self.budget_class = "canonical" if self.selected is None else "ordinary"
+        self.allow_justified()
+        self.deadline_ns = min(
+            self.start_ns + int(self.seconds * 1_000_000_000),
+            self.ancestor_deadline_ns - RESERVE_NS,
+        )
+
+    def allow_justified(self) -> None:
+        if self.justification is None:
+            return
+        if (
+            self.justification != "preregistered justified workload"
+            or self.selected is None
+            or self.mode != "correctness"
+            or self.target != "justified"
+            or self.memory_mib + 512 > 3072
+        ):
+            invalid("justified allowance is restricted to the preregistered selected workload")
+        self.memory_mib += 512
+        self.budget_class = "preregistered-justified"
+
+    def prepare(self) -> None:
+        self.repo, self.scratch, self.output = (
+            self.repo.absolute(), self.scratch.absolute(), self.output.absolute()
+        )
+        self.scratch.mkdir(parents=True, exist_ok=True)
+        self.output.mkdir(parents=True, exist_ok=False)
+        self.root = self.scratch / f"rl00bc-{uuid.uuid4().hex}"
+        self.env = _environment(
+            self.environment, self.root, self.output, size=self.size, mode=self.mode,
+            target=self.target, allocation_mib=self.allocation_mib, shared_mib=self.shared_mib,
+            instrument=self.instrument, coverage=self.coverage,
+        )
+        argv = _provider_commands(
+            PROVIDERS[self.profile], self.root, self.repo, self.output / "native", self.profile,
+            self.selected, self.workers, self.coverage, self.env,
+        )
+        self.write_plan(argv)
+
+    def write_plan(self, argv: list[str]) -> None:
+        commands = [argv]
+        if self.profile == "browser":
+            if self.coverage:
+                invalid("browser profile has no native unit coverage")
+            commands.insert(0, [self.env["RL00_NODE"],
+                str(Path(self.env["RL00_NODE_MODULES"]) / "vite/bin/vite.js"),
+                "build", str(self.root)])
+        if self.deadline_ns <= time.monotonic_ns():
+            expired("trial deadline exhausted during preparation")
+        plan = {"cwd": str(self.root), "commands": commands,
+                "events": str(self.output / "events"), "deadline_ns": self.deadline_ns}
+        self.plan_path = self.output / "native-plan.json"
+        self.plan_hash = hashlib.sha256(_save(self.plan_path, plan)).hexdigest()
+        self.preparation_seconds = (time.monotonic_ns() - self.start_ns) / 1_000_000_000
+
+    def execute(self) -> dict[str, object]:
+        wrapper = Path(__file__).with_name("rl00bc_native.py").absolute()
+        return rl00bc_kernel.execute(
+            self.work, [sys.executable, str(wrapper), str(self.plan_path)], self.root, self.env,
+            self.output / "kernel", memory_mib=self.memory_mib, tasks=self.tasks,
+            native_seconds=self.seconds, ancestor_deadline_ns=self.ancestor_deadline_ns,
+            payload_deadline_ns=self.deadline_ns,
+        )
+
+    def parse(self) -> tuple[list[dict[str, object]], str | None]:
+        try:
+            cases = PROVIDERS[self.profile].results(
+                self.root, self.output / "native", profile=self.profile
+            )
+            if self.selected is not None:
+                matches = [c for c in cases if self.selected in (c.get("id"), c.get("variant"))]
+                if len(cases) != 1 or len(matches) != 1:
+                    invalid("native selected identity missing or unexpected")
+        except Exception as error:
+            logging.exception("Native result parsing failed")
+            return [], f"{type(error).__name__}: {error}"[:1024]
+        return cases, None
+
+    def record(self, raw: dict[str, object]) -> dict[str, object]:
+        cases, parse_error = self.parse()
+        result: dict[str, object] = {
+            "profile": self.profile, "selected": self.selected,
+            "scope": "canonical-suite" if self.selected is None else "selected-case",
+            "measurement_kind": "kernel-charged-leaf",
+            "classification": _classification(raw, cases, parse_error),
+            "strict_verification": "not-applicable" if self.selected is None
+            else "experimental-evidence-only",
+            "native_cases": cases, "parse_error": parse_error, "kernel": raw,
+            "native_plan_sha256": self.plan_hash, "native_plan": str(self.plan_path),
+            "preparation_seconds": self.preparation_seconds,
+            "kernel_evidence": str(self.output / "kernel/result.json"),
+            "events": str(self.output / "events"), "memory_limit_mib": self.memory_mib,
+            "task_limit": self.tasks, "native_deadline_ns": self.deadline_ns,
+            "ancestor_deadline_ns": self.ancestor_deadline_ns, "size": self.size,
+            "mode": self.mode, "target": self.target, "workers": self.workers,
+            "allocation_mib": self.allocation_mib, "shared_mib": self.shared_mib,
+            "coverage": self.coverage, "budget_class": self.budget_class,
+            "justification": self.justification,
+        }
+        _save(self.output / "trial.json", result)
+        return result
+
+
+def _classification(
+    raw: dict[str, object], cases: list[dict[str, object]], parse_error: str | None
+) -> str:
+    violation = raw.get("resource_violation")
+    if violation in ("own-memory", "own-tasks"):
+        return "own-boundary-resource-violation"
+    if violation == "ancestor-resource":
+        return "ancestor-resource-violation-unknown-case"
+    if violation == "timeout":
+        return "deadline-exceeded"
+    if violation is not None:
+        return "unclassified-resource-nonpass"
+    if not raw.get("success") or not raw.get("cleanup_complete"):
+        return "native-or-environment-nonpass"
+    if parse_error is not None:
+        return "invalid-native-evidence"
+    if any(c.get("outcome") not in ("passed", "pass", "success", "expected") for c in cases):
+        return "native-nonpass"
+    return "observed-success"
 
 
 def one(
@@ -200,146 +210,9 @@ def one(
 ) -> dict[str, object]:
     """Run a fresh native subject under one leaf and persist separate evidence."""
     start_ns = time.monotonic_ns()
-    if profile not in PROVIDERS or workers not in (1, 2):
-        raise ValueError("unsupported profile or workers")
-    if selected is not None and (not selected or len(selected) > 256 or "\0" in selected):
-        raise ValueError("invalid selected identity")
-    memory_mib, tasks, seconds = (3072, 256, 90.0) if selected is None else STRICT[profile]
-    budget_class = "canonical" if selected is None else "ordinary"
-    if justification is not None:
-        if (
-            justification != "preregistered justified workload"
-            or selected is None
-            or mode != "correctness"
-            or target != "justified"
-            or memory_mib + 512 > 3072
-        ):
-            raise ValueError(
-                "justified allowance is restricted to the preregistered selected workload"
-            )
-        memory_mib += 512
-        budget_class = "preregistered-justified"
-    native_deadline_ns = min(
-        start_ns + int(seconds * 1_000_000_000), ancestor_deadline_ns - RESERVE_NS
-    )
-    repo, scratch, output = repo.absolute(), scratch.absolute(), output.absolute()
-    scratch.mkdir(parents=True, exist_ok=True)
-    output.mkdir(parents=True, exist_ok=False)
-    root = scratch / f"rl00bc-{uuid.uuid4().hex}"
-    env = _environment(
-        environment,
-        root,
-        output,
-        size=size,
-        mode=mode,
-        target=target,
-        allocation_mib=allocation_mib,
-        shared_mib=shared_mib,
-        instrument=instrument,
-        coverage=coverage,
-    )
-    native_output = output / "native"
-    provider = PROVIDERS[profile]
-    argv = _provider_commands(
-        provider, root, repo, native_output, profile, selected, workers, coverage, env
-    )
-    commands = [argv]
-    if profile == "browser":
-        if coverage:
-            raise ValueError("browser profile has no native unit coverage")
-        commands.insert(
-            0,
-            [
-                env["RL00_NODE"],
-                str(Path(env["RL00_NODE_MODULES"]) / "vite/bin/vite.js"),
-                "build",
-                str(root),
-            ],
-        )
-    if native_deadline_ns <= time.monotonic_ns():
-        raise ValueError("ancestor deadline exhausted during preparation")
-    plan = {
-        "cwd": str(root),
-        "commands": commands,
-        "events": str(output / "events"),
-        "deadline_ns": native_deadline_ns,
-    }
-    plan_path = output / "native-plan.json"
-    plan_hash = hashlib.sha256(_save(plan_path, plan)).hexdigest()
-    preparation_seconds = (time.monotonic_ns() - start_ns) / 1_000_000_000
-    wrapper = Path(__file__).with_name("rl00bc_native.py").absolute()
-    raw = rl00bc_kernel.execute(
-        work,
-        [sys.executable, str(wrapper), str(plan_path)],
-        root,
-        env,
-        output / "kernel",
-        memory_mib=memory_mib,
-        tasks=tasks,
-        native_seconds=seconds,
-        ancestor_deadline_ns=ancestor_deadline_ns,
-        payload_deadline_ns=native_deadline_ns,
-    )
-    cases: list[dict[str, object]] = []
-    parse_error: str | None = None
-    try:
-        cases = provider.results(root, native_output, profile=profile)
-        if selected is not None:
-            matches = [case for case in cases if selected in (case.get("id"), case.get("variant"))]
-            if len(cases) != 1 or len(matches) != 1:
-                raise ValueError("native selected identity missing or unexpected")
-    except Exception as error:
-        parse_error = f"{type(error).__name__}: {error}"[:1024]
-        cases = []
-    violation = raw.get("resource_violation")
-    if violation in ("own-memory", "own-tasks"):
-        classification = "own-boundary-resource-violation"
-    elif violation == "ancestor-resource":
-        classification = "ancestor-resource-violation-unknown-case"
-    elif violation == "timeout":
-        classification = "deadline-exceeded"
-    elif violation is not None:
-        classification = "unclassified-resource-nonpass"
-    elif not raw.get("success") or not raw.get("cleanup_complete"):
-        classification = "native-or-environment-nonpass"
-    elif parse_error is not None:
-        classification = "invalid-native-evidence"
-    elif any(
-        case.get("outcome") not in ("passed", "pass", "success", "expected") for case in cases
-    ):
-        classification = "native-nonpass"
-    else:
-        classification = "observed-success"
-    result: dict[str, object] = {
-        "profile": profile,
-        "selected": selected,
-        "scope": "canonical-suite" if selected is None else "selected-case",
-        "measurement_kind": "kernel-charged-leaf",
-        "classification": classification,
-        "strict_verification": "not-applicable"
-        if selected is None
-        else "experimental-evidence-only",
-        "native_cases": cases,
-        "parse_error": parse_error,
-        "kernel": raw,
-        "native_plan_sha256": plan_hash,
-        "native_plan": str(plan_path),
-        "preparation_seconds": preparation_seconds,
-        "kernel_evidence": str(output / "kernel/result.json"),
-        "events": str(output / "events"),
-        "memory_limit_mib": memory_mib,
-        "task_limit": tasks,
-        "native_deadline_ns": native_deadline_ns,
-        "ancestor_deadline_ns": ancestor_deadline_ns,
-        "size": size,
-        "mode": mode,
-        "target": target,
-        "workers": workers,
-        "allocation_mib": allocation_mib,
-        "shared_mib": shared_mib,
-        "coverage": coverage,
-        "budget_class": budget_class,
-        "justification": justification,
-    }
-    _save(output / "trial.json", result)
-    return result
+    trial = _Trial(work, repo, scratch, output, profile, environment, selected, size, mode, target,
+                   allocation_mib, shared_mib, workers, coverage, instrument, justification,
+                   ancestor_deadline_ns, start_ns)
+    trial.validate()
+    trial.prepare()
+    return trial.record(trial.execute())
