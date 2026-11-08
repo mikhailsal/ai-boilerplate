@@ -43,9 +43,12 @@ class Scope:
         inherited = int(os.environ["RL00_LIFECYCLE_FD"])
         closing = Path(os.environ["RL00_LIFECYCLE_CLOSING"])
         info = os.fstat(inherited)
-        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
-                or info.st_ino != int(os.environ["RL00_LIFECYCLE_INODE"])
-                or not closing.is_absolute()):
+        if (
+            not stat.S_ISREG(info.st_mode)
+            or info.st_uid != os.getuid()
+            or info.st_ino != int(os.environ["RL00_LIFECYCLE_INODE"])
+            or not closing.is_absolute()
+        ):
             invalid("invalid nested proof lifecycle authority")
         fd = os.open(f"/proc/self/fd/{inherited}", os.O_RDWR | os.O_CLOEXEC)
         try:
@@ -104,29 +107,39 @@ class Scope:
 
     def _validate_work_limits(self) -> None:
         limits = self._limits()
-        if (int(limits[0]) < 2 * DOMAIN_MEMORY * MIB
-                or int(limits[1]) < 2 * DOMAIN_TASKS or limits[2] != "0"):
+        if (
+            int(limits[0]) < 2 * DOMAIN_MEMORY * MIB
+            or int(limits[1]) < 2 * DOMAIN_TASKS
+            or limits[2] != "0"
+        ):
             invalid("insufficient enclosing capacity for both nested domains")
         if self.work_limits is not None and limits != self.work_limits:
             invalid("nested proof enclosing limits changed")
 
     def _limits(self) -> tuple[str, str, str]:
-        return (self.work.read("memory.max"), self.work.read("pids.max"),
-                self.work.read("memory.swap.max"))
+        return (
+            self.work.read("memory.max"),
+            self.work.read("pids.max"),
+            self.work.read("memory.swap.max"),
+        )
 
     @staticmethod
     def _identity(group: Group) -> None:
         descriptor = os.fstat(group.fd)
         path = group.path.stat()
-        if ((descriptor.st_dev, descriptor.st_ino) != (path.st_dev, path.st_ino)
-                or descriptor.st_ino != group.inode):
+        if (descriptor.st_dev, descriptor.st_ino) != (
+            path.st_dev,
+            path.st_ino,
+        ) or descriptor.st_ino != group.inode:
             invalid("nested proof group identity changed")
 
     @staticmethod
     def _group_limits(group: Group, memory: int, tasks: int) -> None:
-        if (group.read("memory.max") != str(memory * MIB)
-                or group.read("pids.max") != str(tasks)
-                or group.read("memory.swap.max") != "0"):
+        if (
+            group.read("memory.max") != str(memory * MIB)
+            or group.read("pids.max") != str(tasks)
+            or group.read("memory.swap.max") != "0"
+        ):
             invalid("nested proof group limits changed")
 
     def validate(self) -> None:

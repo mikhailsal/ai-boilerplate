@@ -61,44 +61,81 @@ def wait_until(predicate: Callable[[], bool], deadline: int) -> None:
 
 
 def launch(
-    group: Group, repo: Path, output: Path, environment: dict[str, str], argv: list[str], *,
-    memory: int, tasks: int, deadline: int, payload_deadline: int,
+    group: Group,
+    repo: Path,
+    output: Path,
+    environment: dict[str, str],
+    argv: list[str],
+    *,
+    memory: int,
+    tasks: int,
+    deadline: int,
+    payload_deadline: int,
 ) -> Worker:
     output.mkdir(parents=True, exist_ok=False)
     lifecycle = int(os.environ["RL00_LIFECYCLE_FD"])
     command = [
-        sys.executable, "-m", "tests.acceptance.rl00bc.rl00bc_nested_worker",
-        "--group-fd", str(group.fd), "--repo", str(repo), "--output", str(output / "kernel"),
-        "--result", str(output / "result.json"), "--memory-mib", str(memory),
-        "--tasks", str(tasks), "--deadline", str(deadline),
-        "--payload-deadline", str(payload_deadline), "--", *argv,
+        sys.executable,
+        "-m",
+        "tests.acceptance.rl00bc.rl00bc_nested_worker",
+        "--group-fd",
+        str(group.fd),
+        "--repo",
+        str(repo),
+        "--output",
+        str(output / "kernel"),
+        "--result",
+        str(output / "result.json"),
+        "--memory-mib",
+        str(memory),
+        "--tasks",
+        str(tasks),
+        "--deadline",
+        str(deadline),
+        "--payload-deadline",
+        str(payload_deadline),
+        "--",
+        *argv,
     ]
     env = {**os.environ, **environment, "PYTHONPATH": str(repo / "tools/quality")}
     for key in ("RL00_LIFECYCLE_FD", "RL00_LIFECYCLE_INODE", "RL00_LIFECYCLE_CLOSING"):
         env[key] = os.environ[key]
     with (output / "worker.log").open("wb") as log:
         process = subprocess.Popen(
-            command, cwd=repo, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-            stderr=log, pass_fds=(group.fd, lifecycle),
+            command,
+            cwd=repo,
+            env=env,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=log,
+            pass_fds=(group.fd, lifecycle),
         )
     return Worker(process, output)
 
 
-def native(path: Path, parent: Group, name: str) -> tuple[dict[str, object], int]:
-    data = load(path)
-    pid, cgroup = data.get("pid"), data.get("cgroup")
-    if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
-        invalid("nested native identity has invalid pid")
+def _validate_native_scope(data: dict[str, object], parent: Group, name: str) -> None:
+    cgroup = data.get("cgroup")
     if not isinstance(cgroup, str) or data.get("name") != name:
         invalid("nested native identity is invalid")
     prefix = "/" + str(parent.path.relative_to(CGROUP)) + "/"
-    if not cgroup.startswith(prefix) or re.fullmatch(r"[a-f0-9]{32}", cgroup[len(prefix):]) is None:
+    if (
+        not cgroup.startswith(prefix)
+        or re.fullmatch(r"[a-f0-9]{32}", cgroup[len(prefix) :]) is None
+    ):
         invalid("nested native identity is outside its assigned parent")
     if (
         data.get("lifecycle_fd_absent") is not True
         or data.get("lifecycle_environment_absent") is not True
     ):
         invalid("native payload inherited lifecycle authority")
+
+
+def native(path: Path, parent: Group, name: str) -> tuple[dict[str, object], int]:
+    data = load(path)
+    pid = data.get("pid")
+    if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
+        invalid("nested native identity has invalid pid")
+    _validate_native_scope(data, parent, name)
     fd = os.pidfd_open(pid)
     try:
         live(data, fd)

@@ -1,6 +1,6 @@
 """Bounded owned child: rendezvous before allocation and hold until released."""
 
-CHILD = '''import sys
+CHILD = """import sys
 mib = int(sys.argv[1])
 if not 1 <= mib <= 1536:
     raise ValueError("invalid child allocation")
@@ -12,4 +12,4 @@ held[::4096] = bytes([1]) * len(held[::4096])
 print("allocated", flush=True)
 if sys.stdin.buffer.read(1) != b"x":
     raise ValueError("missing cleanup release")
-'''
+"""

@@ -151,6 +151,21 @@ def _browser_config(root: Path, repo: Path, output: Path, workers: int) -> Path:
     return config_path
 
 
+def _browser_filter(selected: str) -> list[str]:
+    name, separator, project = selected.rpartition("[")
+    if not separator or not project.endswith("]") or project[:-1] not in ("desktop", "mobile"):
+        invalid("browser identity must be name[viewport]")
+    if not re.fullmatch(
+        r"parameter:(?:ordinary|fixture|child|parameter-heavy|parameter-cheap|"
+        r"cheap-(?:[0-9]|10))",
+        name,
+    ):
+        invalid("unknown browser case identity")
+    # Playwright greps project, file and title together; the caller verifies
+    # the complete emitted project and identity after execution.
+    return ["--project", project[:-1], "--grep", f"(?:^| ){re.escape(name)}$"]
+
+
 def command(
     root: Path,
     repo: Path,
@@ -181,19 +196,7 @@ def command(
         str(config_path),
     ]
     if selected is not None:
-        name, separator, project = selected.rpartition("[")
-        if not separator or not project.endswith("]") or project[:-1] not in ("desktop", "mobile"):
-            invalid("browser identity must be name[viewport]")
-        if not re.fullmatch(
-            r"parameter:(?:ordinary|fixture|child|parameter-heavy|parameter-cheap|"
-            r"cheap-(?:[0-9]|10))",
-            name,
-        ):
-            invalid("unknown browser case identity")
-        # Playwright greps project, file and title together; these fixtures have
-        # no tags, so the title is a unique suffix. The caller still verifies
-        # the complete emitted project and identity after execution.
-        argv.extend(["--project", project[:-1], "--grep", f"(?:^| ){re.escape(name)}$"])
+        argv.extend(_browser_filter(selected))
     return argv
 
 

@@ -135,8 +135,15 @@ def _command(request: Request, name: str, deadline: int) -> list[str]:
     ]
     race = RACES.get(request.phase)
     if race is not None:
-        coordinator = [sys.executable, "-m", f"{MODULE}.rl00bc_guardian_race_controller",
-                       "--race", race, "--output", str(request.output)]
+        coordinator = [
+            sys.executable,
+            "-m",
+            f"{MODULE}.rl00bc_guardian_race_controller",
+            "--race",
+            race,
+            "--output",
+            str(request.output),
+        ]
     provider = [
         sys.executable,
         "-m",
@@ -225,8 +232,9 @@ def _save_observation(path: Path, result: dict[str, object]) -> str | None:
     return None
 
 
-def _provider_result(request: Request, guardian: dict[str, object], status: int, *,
-                     alive: bool) -> dict[str, object] | None:
+def _provider_result(
+    request: Request, guardian: dict[str, object], status: int, *, alive: bool
+) -> dict[str, object] | None:
     race = RACES.get(request.phase)
     if race is not None:
         observation = validate_race(race, guardian, request.output)

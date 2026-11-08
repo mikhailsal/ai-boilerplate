@@ -22,6 +22,11 @@ def selection(output: Path, profile: str, size: str, selected: str | None) -> No
     )
 
 
+def _saved_expected(value: object, expected: set[str]) -> None:
+    if not isinstance(value, list) or cast(list[object], value) != sorted(expected):
+        invalid("Vitest selection binding differs from the preregistered corpus")
+
+
 def _binding(output: Path) -> tuple[str | None, set[str]]:
     raw: object = json.loads((output / "selection.json").read_text(encoding="utf-8"))
     if not isinstance(raw, dict):
@@ -34,9 +39,7 @@ def _binding(output: Path) -> tuple[str | None, set[str]]:
     if selected is not None and not isinstance(selected, str):
         invalid("invalid Vitest selected identity")
     expected = {case.identity for case in rl00bc_corpus.expected("node", size)}
-    saved = data.get("expected")
-    if not isinstance(saved, list) or cast(list[object], saved) != sorted(expected):
-        invalid("Vitest selection binding differs from the preregistered corpus")
+    _saved_expected(data.get("expected"), expected)
     if selected is not None and selected not in expected:
         invalid("Vitest selected identity is not preregistered")
     return selected, expected
@@ -74,11 +77,15 @@ def reconcile(output: Path, cases: list[dict[str, object]]) -> list[dict[str, ob
             invalid(f"unselected Vitest case was not explicitly unexecuted: {identity}")
         if row.get("failure_messages") not in (None, []):
             invalid(f"unselected Vitest case has failure evidence: {identity}")
-        filtered.append({
-            "id": identity, "source": row.get("source"), "outcome": "skipped",
-            "duration_ms": row.get("duration_ms"),
-            "failure_messages": row.get("failure_messages"),
-        })
+        filtered.append(
+            {
+                "id": identity,
+                "source": row.get("source"),
+                "outcome": "skipped",
+                "duration_ms": row.get("duration_ms"),
+                "failure_messages": row.get("failure_messages"),
+            }
+        )
     selected_row = dict(rows[selected])
     selected_row["filtered_out"] = filtered
     selected_row["selection_binding"] = str(output / "selection.json")

@@ -20,10 +20,14 @@ def _gate(output: Path) -> None:
 
     def handshake(process: subprocess.Popen[bytes], fd: int, deadline: int) -> None:
         try:
-            save(output / "race-handshake-held.json", {
-                "held_ns": time.monotonic_ns(), "pid": process.pid,
-                "lifecycle_inode": int(os.environ["RL00_LIFECYCLE_INODE"]),
-            })
+            save(
+                output / "race-handshake-held.json",
+                {
+                    "held_ns": time.monotonic_ns(),
+                    "pid": process.pid,
+                    "lifecycle_inode": int(os.environ["RL00_LIFECYCLE_INODE"]),
+                },
+            )
             wait_file(output / "race-release.json", deadline)
         except BaseException:
             os.close(fd)
@@ -35,27 +39,50 @@ def _gate(output: Path) -> None:
 
 def _execute(work: Group, args: argparse.Namespace) -> dict[str, object]:
     repo = Path(__file__).resolve().parents[5]
-    argv = [sys.executable, "-m", "tests.acceptance.rl00bc.rl00bc_lifecycle_child", "payload",
-            "--marker", str(args.output / "race-marker.json"), "--release",
-            str(args.output / "race-payload-release.json"), "--deadline", str(args.deadline_ns)]
+    argv = [
+        sys.executable,
+        "-m",
+        "tests.acceptance.rl00bc.rl00bc_lifecycle_child",
+        "payload",
+        "--marker",
+        str(args.output / "race-marker.json"),
+        "--release",
+        str(args.output / "race-payload-release.json"),
+        "--deadline",
+        str(args.deadline_ns),
+    ]
     return rl00bc_kernel.execute(
-        work, argv, repo, {**os.environ, "PYTHONPATH": str(repo / "tools/quality")},
-        args.output / "race-kernel", memory_mib=128, tasks=8, native_seconds=60,
+        work,
+        argv,
+        repo,
+        {**os.environ, "PYTHONPATH": str(repo / "tools/quality")},
+        args.output / "race-kernel",
+        memory_mib=128,
+        tasks=8,
+        native_seconds=60,
         ancestor_deadline_ns=args.deadline_ns,
     )
 
 
 def _closing_first(work: Group, args: argparse.Namespace) -> None:
     before = children(work)
-    save(args.output / "race-controller-ready.json", {"ready_ns": time.monotonic_ns(),
-                                                      "work_inode": work.inode})
+    save(
+        args.output / "race-controller-ready.json",
+        {"ready_ns": time.monotonic_ns(), "work_inode": work.inode},
+    )
     wait_file(args.output / "race-release.json", args.deadline_ns - 3_000_000_000)
     result = _execute(work, args)
-    save(args.output / "race-controller-done.json", {
-        "observed_ns": time.monotonic_ns(), "work_inode": work.inode,
-        "children_before": before, "children_after": children(work),
-        "native_marker_exists": (args.output / "race-marker.json").exists(), "result": result,
-    })
+    save(
+        args.output / "race-controller-done.json",
+        {
+            "observed_ns": time.monotonic_ns(),
+            "work_inode": work.inode,
+            "children_before": before,
+            "children_after": children(work),
+            "native_marker_exists": (args.output / "race-marker.json").exists(),
+            "result": result,
+        },
+    )
 
 
 def main() -> int:

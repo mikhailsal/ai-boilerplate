@@ -38,8 +38,12 @@ def locks(output: Path) -> tuple[int, int, int]:
         os.close(guardian)
         raise
     info = os.fstat(guardian)
-    if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
-        or stat.S_IMODE(info.st_mode) != 0o600 or os.fstat(controller).st_ino != info.st_ino):
+    if (
+        not stat.S_ISREG(info.st_mode)
+        or info.st_uid != os.getuid()
+        or stat.S_IMODE(info.st_mode) != 0o600
+        or os.fstat(controller).st_ino != info.st_ino
+    ):
         os.close(guardian)
         os.close(controller)
         invalid("invalid lifecycle lock")
@@ -72,7 +76,7 @@ def _marker(guardian: Guardian) -> dict[str, object]:
     prefix = "/" + str(guardian.work.path.relative_to(CGROUP)) + "/"
     if not isinstance(group, str) or not group.startswith(prefix):
         invalid("race native marker is outside the owned work branch")
-    name = group[len(prefix):]
+    name = group[len(prefix) :]
     if len(name) != 32 or any(char not in "0123456789abcdef" for char in name):
         invalid("race native marker has an invalid leaf name")
     leaf = guardian.work.adopt(name)

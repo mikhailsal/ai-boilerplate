@@ -15,7 +15,10 @@ from typing import NoReturn
 
 PREFIX = "tests.acceptance."
 ROOTS = (
-    "rl00bc_driver", "rl00bc_service", "rl00bc_exec", "rl00bc_native",
+    "rl00bc_driver",
+    "rl00bc_service",
+    "rl00bc_exec",
+    "rl00bc_native",
     "rl00bc_guardian_race_controller",
 )
 
@@ -37,8 +40,10 @@ def _imports(repo: Path, body: list[ast.stmt]) -> list[Path]:
         if isinstance(statement, ast.Import):
             names = [item.name for item in statement.names]
         elif isinstance(statement, ast.ImportFrom) and statement.module is not None:
-            names = [statement.module, *(statement.module + "." + item.name
-                                        for item in statement.names)]
+            names = [
+                statement.module,
+                *(statement.module + "." + item.name for item in statement.names),
+            ]
         else:
             continue
         found.extend(path for name in names if (path := _module(repo, name)) is not None)
@@ -52,8 +57,12 @@ def _parse(repo: Path, path: Path) -> tuple[list[Path], dict[str, object]]:
     try:
         tree = ast.parse(path.read_bytes(), filename=relative)
     except SyntaxError as error:
-        return [], {"path": relative, "status": "syntax-error", "line": error.lineno,
-                    "message": error.msg}
+        return [], {
+            "path": relative,
+            "status": "syntax-error",
+            "line": error.lineno,
+            "message": error.msg,
+        }
     return _imports(repo, tree.body), {"path": relative, "status": "parsed"}
 
 
@@ -74,9 +83,11 @@ def check(repo: Path) -> dict[str, object]:
         records.append(record)
         pending.extend(imports)
     return {
-        "interpreter": sys.executable, "version": sys.version,
+        "interpreter": sys.executable,
+        "version": sys.version,
         "scope": "syntax and top-level imports only; no payload or runtime capability proof",
-        "files": records, "success": all(item["status"] == "parsed" for item in records),
+        "files": records,
+        "success": all(item["status"] == "parsed" for item in records),
     }
 
 

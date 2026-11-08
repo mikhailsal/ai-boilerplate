@@ -127,7 +127,8 @@ def main():
                    digest(repo / "tools/quality/src/quality/gitio/repo.py") +
                    digest(repo / "tools/quality/tests/acceptance/rl00bc/rl00bc_selection.py") +
                    digest(repo / "tools/quality/tests/acceptance/rl00bc/rl00bc_errors.py") +
-                   digest(repo / "tools/quality/tests/acceptance/rl00bc/rl00bc_candidate_changes.py") +
+                   digest(repo / "tools/quality/tests/acceptance/rl00bc" /
+                          "rl00bc_candidate_changes.py") +
                    digest(out / "candidate-child.py")).encode()).hexdigest(),
                "native_file_mapping_complete": True, "comparison_trusted": True}
     all_ids = sorted(case["id"] for case in cases)

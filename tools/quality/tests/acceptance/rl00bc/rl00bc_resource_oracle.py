@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
 from pathlib import Path
 from typing import cast
 
@@ -52,9 +53,15 @@ def leaf(event: dict[str, object], run: dict[str, object], profile: str) -> dict
     inode_match = event_inode is not None and event_inode == before_inode
     missing_dart_inode = profile == "dart" and obs.get("cgroup_inode") is None
     bound = stable and membership_match and (inode_match or missing_dart_inode)
-    return {"bound": bound, "membership": membership, "expected_membership": expected,
-            "supervisor_inode_before": before_inode, "supervisor_inode_after": after_inode,
-            "native_inode": event_inode, "native_inode_unavailable": missing_dart_inode}
+    return {
+        "bound": bound,
+        "membership": membership,
+        "expected_membership": expected,
+        "supervisor_inode_before": before_inode,
+        "supervisor_inode_after": after_inode,
+        "native_inode": event_inode,
+        "native_inode_unavailable": missing_dart_inode,
+    }
 
 
 def _counter(value: object, key: str) -> int | None:
@@ -111,9 +118,11 @@ def _same_clock(selected: list[dict[str, object]]) -> bool:
         return False
     if any(event.get("worker") != selected[0].get("worker") for event in selected):
         return False
-    if any(("monotonic_ns" in event) != ("monotonic_ns" in selected[0]) for event in selected):
-        return False
-    return True
+    return not any(("monotonic_ns" in event) != ("monotonic_ns" in selected[0]) for event in selected)
+
+
+def _increasing(times: list[int | None]) -> bool:
+    return all(a is not None and b is not None and a <= b for a, b in pairwise(times))
 
 
 def _ordered(events: list[dict[str, object]], names: tuple[str, ...]) -> bool:
@@ -126,9 +135,7 @@ def _ordered(events: list[dict[str, object]], names: tuple[str, ...]) -> bool:
     if not selected or not _same_clock(selected):
         return False
     times = [_clock(event) for event in selected]
-    return all(
-        a is not None and b is not None and a <= b for a, b in zip(times, times[1:], strict=False)
-    )
+    return _increasing(times)
 
 
 def ordered(events: list[dict[str, object]], names: tuple[str, ...]) -> bool:
@@ -140,8 +147,11 @@ def child(
     events: list[dict[str, object]], run: dict[str, object], profile: str
 ) -> dict[str, object]:
     """Check observed child PID, membership, and allocation boundaries."""
-    relevant = [event for event in events if event.get("phase") in
-                ("child-ready", "child-allocation-start", "child-allocation-end")]
+    relevant = [
+        event
+        for event in events
+        if event.get("phase") in ("child-ready", "child-allocation-start", "child-allocation-end")
+    ]
     pids, valid_pids = _child_pids(relevant)
     positive = valid_pids and len(pids) == 1
     phases = {str(event.get("phase")) for event in relevant}
@@ -149,18 +159,22 @@ def child(
     kernel = _mapping(run.get("kernel"))
     before = _mapping(kernel.get("before"))
     expected = _expected_path(before.get("path"))
-    same_group = len(ready) == 1 and expected is not None and (
-        _membership(ready[0].get("child_cgroup")) == expected
+    same_group = (
+        len(ready) == 1
+        and expected is not None
+        and (_membership(ready[0].get("child_cgroup")) == expected)
     )
     parent_leaf = leaf(ready[0], run, profile) if len(ready) == 1 else {"bound": False}
-    return {"single_positive_pid": positive, "child_pids": sorted(pids),
-            "child_membership_matches": same_group, "parent_leaf": parent_leaf,
-            "phases": sorted(phases),
-            "allocation_started": "child-allocation-start" in phases,
-            "allocation_completed": "child-allocation-end" in phases,
-            "ready_before_allocation": _ordered(
-                relevant, ("child-ready", "child-allocation-start")
-            ),
-            "allocation_completed_in_order": _ordered(
-                relevant, ("child-ready", "child-allocation-start", "child-allocation-end")
-            )}
+    return {
+        "single_positive_pid": positive,
+        "child_pids": sorted(pids),
+        "child_membership_matches": same_group,
+        "parent_leaf": parent_leaf,
+        "phases": sorted(phases),
+        "allocation_started": "child-allocation-start" in phases,
+        "allocation_completed": "child-allocation-end" in phases,
+        "ready_before_allocation": _ordered(relevant, ("child-ready", "child-allocation-start")),
+        "allocation_completed_in_order": _ordered(
+            relevant, ("child-ready", "child-allocation-start", "child-allocation-end")
+        ),
+    }

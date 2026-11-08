@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import hashlib
-import logging
 import sys
 import time
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group
-from tests.acceptance.rl00bc import rl00bc_dart, rl00bc_kernel
+from tests.acceptance.rl00bc import rl00bc_kernel, rl00bc_native_results
 from tests.acceptance.rl00bc.rl00bc_errors import expired, invalid
 from tests.acceptance.rl00bc.rl00bc_trial_support import PATH_KEYS as PATH_KEYS
 from tests.acceptance.rl00bc.rl00bc_trial_support import (
@@ -23,15 +21,6 @@ from tests.acceptance.rl00bc.rl00bc_trial_support import (
     provider_commands,
     save_record,
 )
-
-
-def _native_rows(value: object) -> list[dict[str, object]]:
-    if not isinstance(value, list):
-        invalid("partial native evidence has no case list")
-    items = cast(list[object], value)
-    if not all(isinstance(item, dict) for item in items):
-        invalid("partial native evidence contains an invalid case")
-    return cast(list[dict[str, object]], items)
 
 
 @dataclass
@@ -54,8 +43,6 @@ class _Trial:
     justification: str | None
     ancestor_deadline_ns: int
     start_ns: int
-    partial_native: dict[str, object] | None = None
-    selection_error: str | None = None
     memory_mib: int = field(init=False)
     tasks: int = field(init=False)
     seconds: float = field(init=False)
@@ -173,55 +160,19 @@ class _Trial:
             payload_deadline_ns=self.deadline_ns,
         )
 
-    def native_results(self, raw: dict[str, object]) -> list[dict[str, object]]:
-        if self.profile == "dart" and raw.get("success") is False and raw.get(
-            "resource_violation"
-        ) in ("own-memory", "own-tasks", "ancestor-resource", "timeout"):
-            self.partial_native = rl00bc_dart.partial_results(
-                self.root, self.output / "native", profile=self.profile, kernel=raw,
-            )
-            return _native_rows(self.partial_native.get("native_cases"))
-        return PROVIDERS[self.profile].results(
-            self.root, self.output / "native", profile=self.profile
-        )
-
-    def parse(self, raw: dict[str, object]) -> tuple[list[dict[str, object]], str | None]:
-        try:
-            cases = self.native_results(raw)
-        except Exception as error:
-            logging.exception("Native result parsing failed")
-            return [], f"{type(error).__name__}: {error}"[:1024]
-        self.selection_error = self.selection_problem(cases)
-        return cases, self.selection_error
-
-    def selection_problem(self, cases: list[dict[str, object]]) -> str | None:
-        if self.selected is None:
-            return None
-        if self.partial_native is not None and (
-            self.partial_native.get("focused") is True
-            or self.partial_native.get("truncated_tail") is True
-        ):
-            return "partial native stream leaves selection trust or exclusivity unproved"
-        matches = [case for case in cases if self.selected in (case.get("id"), case.get("variant"))]
-        if len(cases) != 1 or len(matches) != 1:
-            return "native selected identity missing, unexpected or visibility-ambiguous"
-        return None
-
     def record(self, raw: dict[str, object]) -> dict[str, object]:
-        cases, parse_error = self.parse(raw)
+        native = rl00bc_native_results.read(
+            self.profile, self.root, self.output / "native", self.selected, raw
+        )
         result: dict[str, object] = {
             "profile": self.profile,
             "selected": self.selected,
             "scope": "canonical-suite" if self.selected is None else "selected-case",
             "measurement_kind": "kernel-charged-leaf",
-            "classification": _classification(raw, cases, parse_error),
+            **native,
             "strict_verification": "not-applicable"
             if self.selected is None
             else "experimental-evidence-only",
-            "native_cases": cases,
-            "partial_native_evidence": self.partial_native,
-            "parse_error": parse_error,
-            "selection_error": self.selection_error,
             "kernel": raw,
             "native_plan_sha256": self.plan_hash,
             "native_plan": str(self.plan_path),
@@ -245,27 +196,6 @@ class _Trial:
         }
         save_record(self.output / "trial.json", result)
         return result
-
-
-def _classification(
-    raw: dict[str, object], cases: list[dict[str, object]], parse_error: str | None
-) -> str:
-    violation = raw.get("resource_violation")
-    if violation in ("own-memory", "own-tasks"):
-        return "own-boundary-resource-violation"
-    if violation == "ancestor-resource":
-        return "ancestor-resource-violation-unknown-case"
-    if violation == "timeout":
-        return "deadline-exceeded"
-    if violation is not None:
-        return "unclassified-resource-nonpass"
-    if not raw.get("success") or not raw.get("cleanup_complete"):
-        return "native-or-environment-nonpass"
-    if parse_error is not None:
-        return "invalid-native-evidence"
-    if any(c.get("outcome") not in ("passed", "pass", "success", "expected") for c in cases):
-        return "native-nonpass"
-    return "observed-success"
 
 
 def one(

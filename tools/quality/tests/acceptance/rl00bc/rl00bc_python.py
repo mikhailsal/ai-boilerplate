@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 
 from defusedxml import ElementTree
-
 from tests.acceptance.rl00bc.rl00bc_child_fixture import CHILD
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
@@ -207,6 +206,15 @@ def prepare(root: Path, repo: Path, profile: str) -> None:
         invalid("RL00_PYTHON must name the bootstrapped absolute interpreter")
 
 
+def _validate_command(profile: str, workers: int, selected: str | None) -> None:
+    if profile != "python" or workers not in (1, 2):
+        invalid("unsupported profile or worker count")
+    if selected is not None and (
+        not selected or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in selected)
+    ):
+        invalid("invalid opaque parameter identity")
+
+
 def command(
     root: Path,
     repo: Path,
@@ -218,12 +226,7 @@ def command(
     coverage: bool,
 ) -> list[str]:
     """Construct pytest execution; selection is one discovered parameter ID."""
-    if profile != "python" or workers not in (1, 2):
-        invalid("unsupported profile or worker count")
-    if selected is not None and (
-        not selected or any(c not in "abcdefghijklmnopqrstuvwxyz0123456789-" for c in selected)
-    ):
-        invalid("invalid opaque parameter identity")
+    _validate_command(profile, workers, selected)
     output.mkdir(parents=True, exist_ok=True)
     if workers == 2 and selected is None and os.environ.get("RL00_INSTRUMENT") == "1":
         (root / "worker-sync.json").write_text("{}\n", encoding="utf-8")

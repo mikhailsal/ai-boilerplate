@@ -131,19 +131,22 @@ def _lcov(root: Path, report: Path, expected: str) -> _Lcov:
     return result
 
 
-def _fixture(root: Path, profile: str) -> tuple[str, int]:
-    path, subject, test_path, assertions = SUBJECTS[profile]
-    source = (root / path).read_text(encoding="utf-8")
+def _subject_line(source: str, subject: str, profile: str) -> int:
     if profile == "node":
         lines = source.splitlines()
         positions = [index for index, line in enumerate(lines, 1) if line == subject]
         if len(positions) != 1:
             invalid("Node subject declaration differs from the registered fixture")
-        subject_line = positions[0]
-    else:
-        if source != subject:
-            invalid(f"{profile} subject differs from the registered fixture")
-        subject_line = 2 if profile == "php" else 1
+        return positions[0]
+    if source != subject:
+        invalid(f"{profile} subject differs from the registered fixture")
+    return 2 if profile == "php" else 1
+
+
+def _fixture(root: Path, profile: str) -> tuple[str, int]:
+    path, subject, test_path, assertions = SUBJECTS[profile]
+    source = (root / path).read_text(encoding="utf-8")
+    subject_line = _subject_line(source, subject, profile)
     test_paths = [test_path]
     if profile == "node":
         test_paths.append("resource-b.test.mjs")

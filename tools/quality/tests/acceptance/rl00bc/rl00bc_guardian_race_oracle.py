@@ -30,8 +30,12 @@ def _launch(guardian: dict[str, object], closing: dict[str, object], output: Pat
         invalid("guardian did not block behind the native launcher")
     if held.get("lifecycle_inode") != guardian.get("lifecycle_inode"):
         invalid("race lifecycle identity differs")
-    if not (_timestamp(held.get("held_ns")) <= _timestamp(attempt.get("observed_ns"))
-            <= _timestamp(release.get("released_ns")) <= _timestamp(closing.get("closing_ns"))):
+    if not (
+        _timestamp(held.get("held_ns"))
+        <= _timestamp(attempt.get("observed_ns"))
+        <= _timestamp(release.get("released_ns"))
+        <= _timestamp(closing.get("closing_ns"))
+    ):
         invalid("launch-first observations are out of order")
     if not isinstance(marker.get("leaf_inode"), int) or not marker.get("leaf_path"):
         invalid("native marker lacks owned leaf identity")
@@ -42,8 +46,12 @@ def _closing(guardian: dict[str, object], closing: dict[str, object], output: Pa
     release = load(output / "race-release.json")
     result = _object(guardian.get("race_controller_result"))
     native = _object(result.get("result"))
-    if not (_timestamp(ready.get("ready_ns")) <= _timestamp(closing.get("closing_ns"))
-            <= _timestamp(release.get("released_ns")) <= _timestamp(result.get("observed_ns"))):
+    if not (
+        _timestamp(ready.get("ready_ns"))
+        <= _timestamp(closing.get("closing_ns"))
+        <= _timestamp(release.get("released_ns"))
+        <= _timestamp(result.get("observed_ns"))
+    ):
         invalid("closing-first observations are out of order")
     if result.get("work_inode") != ready.get("work_inode"):
         invalid("closing-first work identity changed")
@@ -68,9 +76,10 @@ def _guardian(guardian: dict[str, object], closing: dict[str, object]) -> None:
     if type(status) is not int or status == 0:
         invalid("controller non-success exit was not reaped")
     deadline = _timestamp(guardian.get("cleanup_deadline_ns"))
-    if any(_timestamp(guardian.get(key)) > deadline for key in (
-        "work_absent_observed_ns", "control_absent_observed_ns", "finished_ns"
-    )):
+    if any(
+        _timestamp(guardian.get(key)) > deadline
+        for key in ("work_absent_observed_ns", "control_absent_observed_ns", "finished_ns")
+    ):
         invalid("guardian cleanup exceeded its fixed deadline")
 
 
@@ -84,6 +93,10 @@ def validate(race: str, guardian: dict[str, object], output: Path) -> dict[str, 
         _closing(guardian, closing, output)
     else:
         invalid("unknown guardian race")
-    return {"race": race, "oracle": "observed", "guardian_success": guardian.get("success"),
-            "controller_native_status": guardian.get("controller_native_status"),
-            "pending": ["abrupt guardian death recovery", "abrupt controller death recovery"]}
+    return {
+        "race": race,
+        "oracle": "observed",
+        "guardian_success": guardian.get("success"),
+        "controller_native_status": guardian.get("controller_native_status"),
+        "pending": ["abrupt guardian death recovery", "abrupt controller death recovery"],
+    }

@@ -156,6 +156,19 @@ def _target_options(profile: str, target: str) -> TrialOptions:
     }
 
 
+def _justified(run: TrialRunner, profile: str, row: dict[str, object],
+               canonical: dict[str, object], options: TrialOptions,
+               mismatches: list[str], oracles: dict[str, object]) -> None:
+    justified_opts: TrialOptions = {**options, "justification": "preregistered justified workload"}
+    justified = run("justified-allowance", **justified_opts)
+    oracles["justified-allowance"] = rl00bc_phase_oracle.evaluate(
+        profile, "justified", cast(str, row["id"]), cast(str, row.get("variant", "default")),
+        canonical, justified,
+    )
+    if justified.get("classification") != "observed-success":
+        mismatches.append("justified allowance nonpass")
+
+
 def _target(
     run: TrialRunner,
     profile: str,
@@ -190,30 +203,21 @@ def _target(
     expected = "deadline-exceeded" if target == "slow" else "own-boundary-resource-violation"
     if strict.get("classification") != expected:
         mismatches.append(f"{target} strict expected {expected}")
-    if not rl00bc_comparison_oracle.matches(oracle, memory=target != "slow", shared=target == "retained"):
+    if not rl00bc_comparison_oracle.matches(
+        oracle, memory=target != "slow", shared=target == "retained"
+    ):
         mismatches.append(f"{target} selected identity or phase scope unproved")
     if target == "retained":
         _check_retained(profile, canonical, strict, mismatches)
     if target == "justified":
-        justified_opts: TrialOptions = {
-            **strict_opts,
-            "justification": "preregistered justified workload",
-        }
-        justified = run("justified-allowance", **justified_opts)
-        oracles["justified-allowance"] = rl00bc_phase_oracle.evaluate(
-            profile,
-            target,
-            cast(str, selected_row["id"]),
-            cast(str, selected_row.get("variant", "default")),
-            canonical,
-            justified,
-        )
-        if justified.get("classification") != "observed-success":
-            mismatches.append("justified allowance nonpass")
+        _justified(run, profile, selected_row, canonical, strict_opts, mismatches, oracles)
 
 
 def _parallel(
-    run: TrialRunner, profile: str, discovered: list[dict[str, object]], coverage: bool,
+    run: TrialRunner,
+    profile: str,
+    discovered: list[dict[str, object]],
+    coverage: bool,
     mismatches: list[str],
 ) -> dict[str, object]:
     parallel = run(
@@ -231,7 +235,7 @@ def _parallel(
         expected_ids = {(case["id"], case["variant"]) for case in discovered}
         if parallel.get("classification") != "observed-success" or parallel_ids != expected_ids:
             mismatches.append("two-worker identity parity unavailable")
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         mismatches.append("two-worker native identity unavailable")
     oracle = rl00bc_worker_oracle.evaluate(profile, parallel)
     if oracle.get("status") != "observed-overlap":

@@ -97,8 +97,9 @@ def _files(directory: Path, prefix: str) -> list[Path]:
             if count > MAX_FILES:
                 invalid("worker event directory exceeds its file bound")
             if entry.name.startswith((f"{prefix}-ready-", f"{prefix}-seen-")):
-                expected = {f"{prefix}-{kind}-{part}" for kind in ("ready", "seen")
-                            for part in (0, 1)}
+                expected = {
+                    f"{prefix}-{kind}-{part}" for kind in ("ready", "seen") for part in (0, 1)
+                }
                 if entry.name not in expected:
                     invalid("unexpected worker rendezvous marker")
             if entry.name.endswith(".json"):
@@ -152,7 +153,9 @@ def _timestamp(event: dict[str, object], profile: str) -> int:
 
 
 def _check_part(
-    profile: str, part: int, identities: list[str],
+    profile: str,
+    part: int,
+    identities: list[str],
     events: dict[tuple[int, str], tuple[Path, dict[str, object]]],
 ) -> list[str]:
     timestamps: list[int] = []
@@ -161,8 +164,10 @@ def _check_part(
         path, event = events[(part, phase)]
         if _event_identity(event, profile, part) != identities[part]:
             invalid("worker event identity disagrees with rendezvous marker")
-        expected_variant = f"gw{part}" if profile == "python" else (
-            f"worker-{part}" if profile == "dart" else str(part)
+        expected_variant = (
+            f"gw{part}"
+            if profile == "python"
+            else (f"worker-{part}" if profile == "dart" else str(part))
         )
         if event.get("variant") != expected_variant:
             invalid("worker event variant disagrees with its rendezvous part")
@@ -180,8 +185,10 @@ def _check_part(
 def evaluate(profile: str, trial: dict[str, object]) -> dict[str, object]:
     """Report observed worker overlap; this does not attribute cost to any case."""
     result: dict[str, object] = {
-        "status": "unproved", "claim_limit": "worker overlap only; no case-memory attribution",
-        "event_directory": trial.get("events"), "kernel_evidence": trial.get("kernel_evidence"),
+        "status": "unproved",
+        "claim_limit": "worker overlap only; no case-memory attribution",
+        "event_directory": trial.get("events"),
+        "kernel_evidence": trial.get("kernel_evidence"),
     }
     try:
         if profile not in ("python", "dart", "node", "browser"):
@@ -191,16 +198,23 @@ def evaluate(profile: str, trial: dict[str, object]) -> dict[str, object]:
         labels = ("gw0", "gw1") if profile == "python" else ("worker-0", "worker-1")
         result["marker_paths"] = {
             f"{prefix}-{kind}-{part}": str(directory / f"{prefix}-{kind}-{part}")
-            for part in (0, 1) for kind in ("ready", "seen")
+            for part in (0, 1)
+            for kind in ("ready", "seen")
         }
         identities, markers = _markers(directory, prefix, dart=profile == "dart")
         result["worker_ids"] = identities
         events = _events(directory, labels, prefix)
         result["event_paths"] = [str(path) for path, _ in events.values()]
         paths = [_check_part(profile, part, identities, events) for part in (0, 1)]
-        result.update({"status": "observed-overlap", "worker_ids": identities,
-                       "marker_paths": markers, "event_paths": paths,
-                       "basis": "reciprocal two-way ready/seen handshake"})
+        result.update(
+            {
+                "status": "observed-overlap",
+                "worker_ids": identities,
+                "marker_paths": markers,
+                "event_paths": paths,
+                "basis": "reciprocal two-way ready/seen handshake",
+            }
+        )
     except (OSError, ValueError, TypeError, KeyError) as error:
         result["error"] = f"{type(error).__name__}: {error}"[:1024]
     return result

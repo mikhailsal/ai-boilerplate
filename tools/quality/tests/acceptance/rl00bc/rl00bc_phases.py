@@ -81,8 +81,12 @@ class _Phases:
 
     def nested(self) -> dict[str, object]:
         return rl00bc_nested.check(
-            self.work, self.repo, self.args.scratch / "nested", self.args.output / "nested",
-            self.environment, ancestor_deadline_ns=self.args.deadline_ns,
+            self.work,
+            self.repo,
+            self.args.scratch / "nested",
+            self.args.output / "nested",
+            self.environment,
+            ancestor_deadline_ns=self.args.deadline_ns,
         )
 
     def candidates(self) -> dict[str, object]:

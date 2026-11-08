@@ -33,7 +33,11 @@ class _Case:
             "source": self.source,
             "suite_id": self.suite_id,
             "outcome": outcome,
-            "visibility": "unknown" if self.hidden is None else "hidden" if self.hidden else "visible",
+            "visibility": "unknown"
+            if self.hidden is None
+            else "hidden"
+            if self.hidden
+            else "visible",
             "test_done": self.outcome is not None,
             "errored": self.errored,
             "native_report": str(output / "dart.json"),
@@ -134,18 +138,7 @@ def results(root: Path, output: Path, *, profile: str) -> list[dict[str, object]
     return cases
 
 
-def partial(
-    root: Path, output: Path, *, profile: str, kernel: dict[str, object]
-) -> dict[str, object]:
-    """Read surviving starts after a separately proven kernel resource stop."""
-    if profile != "dart":
-        invalid("expected dart profile")
-    violation = kernel.get("resource_violation")
-    if violation not in ("own-memory", "own-tasks", "ancestor-resource", "timeout"):
-        invalid("partial Dart evidence requires a proven kernel resource stop")
-    if kernel.get("success") is not False:
-        invalid("partial Dart evidence cannot represent a successful kernel run")
-    path = output / "dart.json"
+def _partial_stream(path: Path) -> tuple[_Stream, bool]:
     with path.open("rb") as source:
         data = source.read(1_048_577)
     if len(data) > 1_048_576:
@@ -164,6 +157,22 @@ def partial(
             truncated = True
             break
         stream.read(value, partial=True)
+    return stream, truncated
+
+
+def partial(
+    root: Path, output: Path, *, profile: str, kernel: dict[str, object]
+) -> dict[str, object]:
+    """Read surviving starts after a separately proven kernel resource stop."""
+    if profile != "dart":
+        invalid("expected dart profile")
+    violation = kernel.get("resource_violation")
+    if violation not in ("own-memory", "own-tasks", "ancestor-resource", "timeout"):
+        invalid("partial Dart evidence requires a proven kernel resource stop")
+    if kernel.get("success") is not False:
+        invalid("partial Dart evidence cannot represent a successful kernel run")
+    path = output / "dart.json"
+    stream, truncated = _partial_stream(path)
     cases = [
         case
         for identifier, value in stream.cases.items()
@@ -174,9 +183,13 @@ def partial(
         for identifier, value in stream.cases.items()
     ]
     return {
-        "native_report": str(path), "native_cases": cases, "done": stream.done,
+        "native_report": str(path),
+        "native_cases": cases,
+        "done": stream.done,
         "all_observed_starts": starts,
-        "done_success": stream.done_success, "focused": stream.focused,
-        "truncated_tail": truncated, "resource_violation": violation,
+        "done_success": stream.done_success,
+        "focused": stream.focused,
+        "truncated_tail": truncated,
+        "resource_violation": violation,
         "interpretation": "resource-stopped partial evidence",
     }

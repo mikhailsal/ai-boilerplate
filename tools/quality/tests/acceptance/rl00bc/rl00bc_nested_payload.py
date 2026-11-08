@@ -41,8 +41,11 @@ def _identity(name: str, lock_dev: int, lock_ino: int) -> dict[str, object]:
         leaked = leaked or (info.st_dev, info.st_ino) == (lock_dev, lock_ino)
     authority_names = ("RL00_LIFECYCLE_FD", "RL00_LIFECYCLE_INODE", "RL00_LIFECYCLE_CLOSING")
     return {
-        "name": name, "pid": os.getpid(), "cgroup": cgroup,
-        "monotonic_ns": time.monotonic_ns(), "lifecycle_fd_absent": not leaked,
+        "name": name,
+        "pid": os.getpid(),
+        "cgroup": cgroup,
+        "monotonic_ns": time.monotonic_ns(),
+        "lifecycle_fd_absent": not leaked,
         "lifecycle_environment_absent": not any(key in os.environ for key in authority_names),
     }
 
@@ -65,11 +68,18 @@ def _parent(args: argparse.Namespace) -> int:
         requested_deadline = args.deadline
         if kind == "deadline":
             requested_deadline += 60_000_000_000
-        _save(args.mailbox / f"request-{index}.json", {
-            "parent": args.name, "pid": os.getpid(), "kind": kind,
-            "memory_mib": memory, "tasks": tasks, "requested_ns": time.monotonic_ns(),
-            "requested_deadline_ns": requested_deadline,
-        })
+        _save(
+            args.mailbox / f"request-{index}.json",
+            {
+                "parent": args.name,
+                "pid": os.getpid(),
+                "kind": kind,
+                "memory_mib": memory,
+                "tasks": tasks,
+                "requested_ns": time.monotonic_ns(),
+                "requested_deadline_ns": requested_deadline,
+            },
+        )
         response = args.mailbox / f"response-{index}.json"
         _wait(response, args.deadline)
         value: object = json.loads(response.read_text())

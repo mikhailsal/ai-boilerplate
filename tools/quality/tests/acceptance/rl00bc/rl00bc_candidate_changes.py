@@ -12,9 +12,10 @@ import sys
 from pathlib import Path, PurePosixPath
 from typing import cast
 
+from tests.acceptance.rl00bc.rl00bc_errors import invalid
+
 from quality.gitio import Candidate, FileChange, Repository, materialize, tree_changes
 from quality.process import Command, run, sanitized
-from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 COLLECT = r"""import json,os,sys,unittest
 from pathlib import Path
@@ -48,12 +49,16 @@ def collect(repo: Repository, candidate: Candidate, output: Path) -> list[dict[s
     candidate.verify_unchanged()
     output.mkdir(parents=True, exist_ok=False)
     with materialize(repo, candidate.tree) as snapshot:
-        result = run(Command(
-            (sys.executable, "-c", COLLECT, str(snapshot.root)),
-            cwd=snapshot.root, timeout=20,
-            env=sanitized(extra={"PYTHONDONTWRITEBYTECODE": "1"}),
-            output_limit=65_536, reap=True,
-        ))
+        result = run(
+            Command(
+                (sys.executable, "-c", COLLECT, str(snapshot.root)),
+                cwd=snapshot.root,
+                timeout=20,
+                env=sanitized(extra={"PYTHONDONTWRITEBYTECODE": "1"}),
+                output_limit=65_536,
+                reap=True,
+            )
+        )
     (output / "stdout.json").write_bytes(result.stdout)
     (output / "stderr.log").write_bytes(result.stderr)
     if not result.ok or result.stdout_truncated or result.stderr_truncated:
@@ -65,10 +70,12 @@ def collect(repo: Repository, candidate: Candidate, output: Path) -> list[dict[s
     rows = [_object(value) for value in cast(list[object], cases)]
     candidate.verify_unchanged()
     receipt = {
-        "candidate_tree": candidate.tree, "base_tree": candidate.base_tree,
+        "candidate_tree": candidate.tree,
+        "base_tree": candidate.base_tree,
         "producer": "unittest discovery in a fresh candidate snapshot",
         "source_sha256": hashlib.sha256(COLLECT.encode()).hexdigest(),
-        "duration_seconds": result.duration, "native": data,
+        "duration_seconds": result.duration,
+        "native": data,
     }
     (output / "receipt.json").write_text(json.dumps(receipt, sort_keys=True) + "\n")
     return rows
@@ -91,19 +98,35 @@ def _change(change: FileChange, independent: set[str]) -> list[dict[str, str]]:
     narrow = change.status == "M" and change.old_is_file and change.new_is_file
     narrow = narrow and change.path in independent
     flag = "false" if narrow else "true"
-    records = [{
-        "kind": "test" if narrow else "unknown", "path": change.path,
-        "shared": flag, "dynamic": flag, "status": change.status,
-        "old_oid": change.old_oid, "new_oid": change.new_oid,
-    }]
+    records = [
+        {
+            "kind": "test" if narrow else "unknown",
+            "path": change.path,
+            "shared": flag,
+            "dynamic": flag,
+            "status": change.status,
+            "old_oid": change.old_oid,
+            "new_oid": change.new_oid,
+        }
+    ]
     if change.old_path is not None:
-        records.append({"kind": "unknown", "path": change.old_path,
-                        "shared": "true", "dynamic": "true", "status": change.status})
+        records.append(
+            {
+                "kind": "unknown",
+                "path": change.old_path,
+                "shared": "true",
+                "dynamic": "true",
+                "status": change.status,
+            }
+        )
     return records
 
 
 def read(
-    repo: Repository, candidate: Candidate, cases: list[dict[str, object]], *,
+    repo: Repository,
+    candidate: Candidate,
+    cases: list[dict[str, object]],
+    *,
     comparison_trusted: bool,
     independent_fixture_files: frozenset[str] = frozenset(),
 ) -> dict[str, object]:
@@ -119,10 +142,12 @@ def read(
         records = [{"kind": "unknown", "path": "untrusted-comparison"}]
     candidate.verify_unchanged()
     return {
-        "candidate_tree": candidate.tree, "base_tree": candidate.base_tree,
+        "candidate_tree": candidate.tree,
+        "base_tree": candidate.base_tree,
         "comparison_trusted": trusted,
         "native_file_mapping_complete": bool(files),
-        "independent_fixture_files": sorted(independent), "changes": records,
+        "independent_fixture_files": sorted(independent),
+        "changes": records,
         "actual_git_changes": raw_changes,
         "claim_limit": "explicit independent fixture files only; no general influence proof",
     }

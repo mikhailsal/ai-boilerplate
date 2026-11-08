@@ -316,8 +316,9 @@ class _Guardian:
         return 1
 
 
-def provider(mode: str, output: Path, deadline: int, unit: str, argv: list[str],
-             race: str = "") -> int:
+def provider(
+    mode: str, output: Path, deadline: int, unit: str, argv: list[str], race: str = ""
+) -> int:
     """Own only the current verified unit, and reap its work and control leaves."""
     if (
         os.getuid() == 0

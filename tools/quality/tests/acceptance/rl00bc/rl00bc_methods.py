@@ -12,7 +12,11 @@ from typing import cast
 
 from tests.acceptance.rl00a.rl00a_cgroup import Group
 from tests.acceptance.rl00bc import (
-    rl00bc_comparison_oracle, rl00bc_corpus, rl00bc_phase_oracle, rl00bc_selection, rl00bc_trials,
+    rl00bc_comparison_oracle,
+    rl00bc_corpus,
+    rl00bc_phase_oracle,
+    rl00bc_selection,
+    rl00bc_trials,
 )
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
@@ -124,8 +128,9 @@ class _Experiment:
             invalid("canonical native comparison did not succeed")
         return record
 
-    def strict(self, label: str, arm: str, cases: list[rl00bc_corpus.Case],
-               canonical: dict[str, object]) -> None:
+    def strict(
+        self, label: str, arm: str, cases: list[rl00bc_corpus.Case], canonical: dict[str, object]
+    ) -> None:
         for case in cases:
             record = self.trial(label, arm, case)
             native = record.get("native_cases")
@@ -137,17 +142,24 @@ class _Experiment:
                 else "observed-success"
             )
             oracle = rl00bc_phase_oracle.evaluate(
-                self.profile, _target(self.profile, label), case.identity, case.variant,
-                canonical, record,
+                self.profile,
+                _target(self.profile, label),
+                case.identity,
+                case.variant,
+                canonical,
+                record,
             )
             identity = rl00bc_comparison_oracle.matches(
-                oracle, memory=expected == "own-boundary-resource-violation",
+                oracle,
+                memory=expected == "own-boundary-resource-violation",
             )
             self.attempts[-1]["expected_classification"] = expected
             self.attempts[-1]["native_identity_observed"] = bool(native)
             self.attempts[-1]["phase_oracle"] = oracle
             self.attempts[-1]["case_scope_proved"] = identity
-            self.attempts[-1]["matches_expected"] = record.get("classification") == expected and identity
+            self.attempts[-1]["matches_expected"] = (
+                record.get("classification") == expected and identity
+            )
             self.persist()
 
     def compare(self, label: str, cases: list[rl00bc_corpus.Case]) -> None:
@@ -177,7 +189,9 @@ class _Experiment:
         scopes = cast(dict[str, object], self.summary["scopes"])
         scopes[label] = scope
         self.persist()
-        self.strict(label, "selected-strict", [case for case in cases if case.identity in selected], native)
+        self.strict(
+            label, "selected-strict", [case for case in cases if case.identity in selected], native
+        )
         matrix[label]["selected"] = "observed"
         self.persist()
 

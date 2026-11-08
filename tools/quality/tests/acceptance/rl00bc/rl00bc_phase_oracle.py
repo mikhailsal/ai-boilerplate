@@ -7,7 +7,10 @@ from pathlib import Path
 from typing import cast
 
 from tests.acceptance.rl00bc import (
-    rl00bc_dart_binding, rl00bc_event_binding, rl00bc_resource_oracle, rl00bc_shared_oracle,
+    rl00bc_dart_binding,
+    rl00bc_event_binding,
+    rl00bc_resource_oracle,
+    rl00bc_shared_oracle,
 )
 
 _PHASE = {"setup": "setup", "teardown": "teardown", "retained": "retained"}
@@ -122,13 +125,21 @@ def _canonical_order(profile: str, target: str, events: list[dict[str, object]])
     if target == "retained":
         rows = [event for event in events if event.get("label", event.get("case")) == "retained"]
         return rl00bc_resource_oracle.ordered(rows, _RETAINED[profile])
-    names = tuple(f"{part}-{boundary}" for part in ("setup", "call", "teardown")
-                  for boundary in ("start", "end"))
+    names = tuple(
+        f"{part}-{boundary}"
+        for part in ("setup", "call", "teardown")
+        for boundary in ("start", "end")
+    )
     return rl00bc_resource_oracle.ordered(events, names)
 
 
-def _resource(profile: str, target: str, events: list[dict[str, object]],
-              strict: dict[str, object], gaps: list[str]) -> dict[str, object]:
+def _resource(
+    profile: str,
+    target: str,
+    events: list[dict[str, object]],
+    strict: dict[str, object],
+    gaps: list[str],
+) -> dict[str, object]:
     event = _entry(profile, target, events)
     if event is None:
         gaps.append("phase-entry event is absent or ambiguous")
@@ -145,13 +156,23 @@ def _resource(profile: str, target: str, events: list[dict[str, object]],
     proved = own_memory and leaf["bound"] is True and memory["oom_growth_after_entry"] is True
     if own_memory and not proved:
         gaps.append("local OOM counter growth after phase entry is not established")
-    return {"entry_available": True, "leaf": leaf, "memory": memory,
-            "own_memory_after_entry": proved, "phase_entry": event}
+    return {
+        "entry_available": True,
+        "leaf": leaf,
+        "memory": memory,
+        "own_memory_after_entry": proved,
+        "phase_entry": event,
+    }
 
 
-def _child(profile: str, canonical: list[dict[str, object]], strict: list[dict[str, object]],
-           canonical_run: dict[str, object], strict_run: dict[str, object],
-           gaps: list[str]) -> dict[str, object]:
+def _child(
+    profile: str,
+    canonical: list[dict[str, object]],
+    strict: list[dict[str, object]],
+    canonical_run: dict[str, object],
+    strict_run: dict[str, object],
+    gaps: list[str],
+) -> dict[str, object]:
     native = rl00bc_resource_oracle.child(canonical, canonical_run, profile)
     protected = rl00bc_resource_oracle.child(strict, strict_run, profile)
     required = ("single_positive_pid", "child_membership_matches", "ready_before_allocation")
@@ -163,20 +184,25 @@ def _child(profile: str, canonical: list[dict[str, object]], strict: list[dict[s
         gaps.append("strict child membership before allocation is not established")
     for label, item in (("canonical", native), ("strict", protected)):
         parent_leaf = item.get("parent_leaf")
-        if not isinstance(parent_leaf, dict) or cast(dict[str, object], parent_leaf).get(
-            "bound"
-        ) is not True:
+        if (
+            not isinstance(parent_leaf, dict)
+            or cast(dict[str, object], parent_leaf).get("bound") is not True
+        ):
             gaps.append(f"{label} child parent leaf binding is unavailable")
     return {"canonical": native, "strict": protected}
 
 
-def _attribution(target: str, evidence: dict[str, object], *, canonical_bound: bool,
-                 strict_bound: bool) -> str:
+def _attribution(
+    target: str, evidence: dict[str, object], *, canonical_bound: bool, strict_bound: bool
+) -> str:
     resource = evidence.get("resource")
     if target == "retained" or not canonical_bound or not strict_bound:
         return "unproved"
-    if (evidence.get("canonical_complete") is not True
-        or evidence.get("strict_phase_entered") is not True or not isinstance(resource, dict)):
+    if (
+        evidence.get("canonical_complete") is not True
+        or evidence.get("strict_phase_entered") is not True
+        or not isinstance(resource, dict)
+    ):
         return "unproved"
     if cast(dict[str, object], resource).get("own_memory_after_entry") is not True:
         return "unproved"
@@ -185,46 +211,77 @@ def _attribution(target: str, evidence: dict[str, object], *, canonical_bound: b
     return "own-memory-after-entry-in-finite-fixture"
 
 
-def _result(identity: str, variant: str, target: str, strict: dict[str, object],
-            binding: dict[str, object], evidence: dict[str, object],
-            gaps: list[str]) -> dict[str, object]:
+def _result(
+    identity: str,
+    variant: str,
+    target: str,
+    strict: dict[str, object],
+    binding: dict[str, object],
+    evidence: dict[str, object],
+    gaps: list[str],
+) -> dict[str, object]:
     raw_kernel = strict.get("kernel")
     kernel = cast(dict[str, object], raw_kernel) if isinstance(raw_kernel, dict) else {}
     canonical_bound = binding["canonical_report_identity"] is True
     strict_bound = binding["strict_identity_bound"] is True
     return {
-        "identity": identity, "variant": variant, "canonical_identity_bound": canonical_bound,
-        "strict_identity_bound": strict_bound, "identity_binding": binding,
+        "identity": identity,
+        "variant": variant,
+        "canonical_identity_bound": canonical_bound,
+        "strict_identity_bound": strict_bound,
+        "identity_binding": binding,
         "resource_classification": strict.get("classification"),
-        "kernel_cause": kernel.get("cause"), "native_status": kernel.get("native_status"),
-        "evidence": evidence, "gaps": gaps,
+        "kernel_cause": kernel.get("cause"),
+        "native_status": kernel.get("native_status"),
+        "evidence": evidence,
+        "gaps": gaps,
         "case_attribution": _attribution(
             target, evidence, canonical_bound=canonical_bound, strict_bound=strict_bound
         ),
     }
 
 
-def _retained_details(canonical_rows: list[dict[str, object]],
-                      strict_events: list[dict[str, object]],
-                      profile: str, identity: str, variant: str, evidence: dict[str, object],
-                      gaps: list[str]) -> list[dict[str, object]]:
+def _retained_details(
+    canonical_rows: list[dict[str, object]],
+    strict_events: list[dict[str, object]],
+    profile: str,
+    identity: str,
+    variant: str,
+    evidence: dict[str, object],
+    gaps: list[str],
+) -> list[dict[str, object]]:
     case_phases = _phases(canonical_rows, profile, identity, variant, retained=False)
     evidence["canonical_case"] = _retained_case_phases(case_phases, gaps)
-    return [event for event in strict_events
-            if event.get("label", event.get("case")) == "retained"]
+    return [event for event in strict_events if event.get("label", event.get("case")) == "retained"]
 
 
-def _binding(profile: str, identity: str, variant: str, canonical: dict[str, object],
-             strict: dict[str, object], events: tuple[list[dict[str, object]], list[dict[str, object]]],
-             gaps: list[str]) -> tuple[list[dict[str, object]], list[dict[str, object]], dict[str, object]]:
+def _binding(
+    profile: str,
+    identity: str,
+    variant: str,
+    canonical: dict[str, object],
+    strict: dict[str, object],
+    events: tuple[list[dict[str, object]], list[dict[str, object]]],
+    gaps: list[str],
+) -> tuple[list[dict[str, object]], list[dict[str, object]], dict[str, object]]:
     canonical_events, strict_events = events
     canonical_bound = rl00bc_event_binding.report_has(canonical, identity, variant, single=False)
     strict_report = rl00bc_event_binding.report_has(strict, identity, variant, single=True)
-    dart_binding = rl00bc_dart_binding.compare(canonical, strict, identity, variant) if profile == "dart" else None
+    dart_binding = (
+        rl00bc_dart_binding.compare(canonical, strict, identity, variant)
+        if profile == "dart"
+        else None
+    )
     if dart_binding is not None:
         strict_report = strict_report and dart_binding["bound"] is True
     canonical_rows, strict_rows, binding = rl00bc_event_binding.select(
-        profile, identity, variant, canonical_events, strict_events, canonical_bound, strict_report,
+        profile,
+        identity,
+        variant,
+        canonical_events,
+        strict_events,
+        canonical_bound,
+        strict_report,
         strict_scope_valid=strict.get("selection_error") is None,
     )
     binding["dart_report_binding"] = dart_binding
@@ -247,10 +304,18 @@ def evaluate(
     """Return event and native-ID evidence independently of the kernel classification."""
     canonical_events, canonical_gaps = _events(canonical)
     strict_events, strict_gaps = _events(strict)
-    gaps = [*(f"canonical: {gap}" for gap in canonical_gaps),
-            *(f"strict: {gap}" for gap in strict_gaps)]
+    gaps = [
+        *(f"canonical: {gap}" for gap in canonical_gaps),
+        *(f"strict: {gap}" for gap in strict_gaps),
+    ]
     canonical_rows, strict_rows, binding = _binding(
-        profile, identity, variant, canonical, strict, (canonical_events, strict_events), gaps,
+        profile,
+        identity,
+        variant,
+        canonical,
+        strict,
+        (canonical_events, strict_events),
+        gaps,
     )
     retained = target == "retained"
     phase_canonical = canonical_events if retained else canonical_rows
@@ -258,7 +323,12 @@ def evaluate(
     shared: dict[str, object] | None = None
     if retained:
         phase_canonical, phase_strict, shared = rl00bc_shared_oracle.select(
-            profile, canonical, strict, canonical_events, strict_events, canonical_rows,
+            profile,
+            canonical,
+            strict,
+            canonical_events,
+            strict_events,
+            canonical_rows,
         )
     canonical_phases = _phases(phase_canonical, profile, identity, variant, retained=retained)
     strict_phases = _phases(phase_strict, profile, identity, variant, retained=retained)

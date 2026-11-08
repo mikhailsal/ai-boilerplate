@@ -18,13 +18,22 @@ from tests.acceptance.rl00bc.rl00bc_nested_process import (
 )
 from tests.acceptance.rl00bc.rl00bc_nested_protocol import Parent, Protocol
 from tests.acceptance.rl00bc.rl00bc_nested_scope import (
-    DOMAIN_MEMORY, DOMAIN_TASKS, MIB, PARENT_MEMORY, PARENT_TASKS, POOL_MEMORY, POOL_TASKS,
+    DOMAIN_MEMORY,
+    DOMAIN_TASKS,
+    MIB,
+    PARENT_MEMORY,
+    PARENT_TASKS,
+    POOL_MEMORY,
+    POOL_TASKS,
 )
 
 
 def _check_limits(group: Group, memory: int, tasks: int) -> None:
-    if (group.read("memory.max") != str(memory * MIB) or group.read("pids.max") != str(tasks)
-            or group.read("memory.swap.max") != "0"):
+    if (
+        group.read("memory.max") != str(memory * MIB)
+        or group.read("pids.max") != str(tasks)
+        or group.read("memory.swap.max") != "0"
+    ):
         invalid("nested group limits differ from the preassigned budget")
 
 
@@ -43,12 +52,16 @@ def _snapshot(parent: Parent, child: dict[str, object]) -> dict[str, object]:
             _check_limits(parent_leaf, PARENT_MEMORY, PARENT_TASKS)
             _check_limits(pool, POOL_MEMORY, POOL_TASKS)
             _check_limits(child_leaf, 64, 8)
-            if (PARENT_MEMORY + POOL_MEMORY > DOMAIN_MEMORY
-                    or PARENT_TASKS + POOL_TASKS > DOMAIN_TASKS):
+            if (
+                PARENT_MEMORY + POOL_MEMORY > DOMAIN_MEMORY
+                or PARENT_TASKS + POOL_TASKS > DOMAIN_TASKS
+            ):
                 invalid("nested parent and pool shares exceed their enclosing domain")
             return {
-                "domain": domain.snapshot(), "parent_leaf": parent_leaf.snapshot(),
-                "pool": pool.snapshot(), "child_leaf": child_leaf.snapshot(),
+                "domain": domain.snapshot(),
+                "parent_leaf": parent_leaf.snapshot(),
+                "pool": pool.snapshot(),
+                "child_leaf": child_leaf.snapshot(),
             }
         finally:
             os.close(child_leaf.fd)
@@ -69,11 +82,15 @@ def match_result(identity: dict[str, object], result: dict[str, object]) -> None
 
 
 def _children(
-    protocol: Protocol, index: int, deadline: int, claims: dict[str, dict[str, int]],
+    protocol: Protocol,
+    index: int,
+    deadline: int,
+    claims: dict[str, dict[str, int]],
 ) -> tuple[list[Worker], list[dict[str, object]], list[int]]:
     workers = [
-        protocol.child(parent, index, 64, 8, deadline,
-                       claims[parent.domain.name]["requested_deadline_ns"])
+        protocol.child(
+            parent, index, 64, 8, deadline, claims[parent.domain.name]["requested_deadline_ns"]
+        )
         for parent in protocol.parents
     ]
     identities: list[dict[str, object]] = []
@@ -98,8 +115,10 @@ def _children(
 def _snapshots(protocol: Protocol, identities: list[dict[str, object]]) -> list[dict[str, object]]:
     if protocol.parents[0].pool().inode == protocol.parents[1].pool().inode:
         invalid("nested parents share a child pool")
-    return [_snapshot(parent, identity)
-            for parent, identity in zip(protocol.parents, identities, strict=True)]
+    return [
+        _snapshot(parent, identity)
+        for parent, identity in zip(protocol.parents, identities, strict=True)
+    ]
 
 
 def _require_empty_pool(parent: Parent) -> None:
@@ -125,8 +144,12 @@ def ordinary(protocol: Protocol, index: int, kind: str) -> dict[str, object]:
             match_result(identity, result)
         protocol.assert_parents_live()
         protocol.respond(index, kind)
-        return {"children": identities, "deadline_claims": claims,
-                "concurrent_snapshots": snapshots, "results": results}
+        return {
+            "children": identities,
+            "deadline_claims": claims,
+            "concurrent_snapshots": snapshots,
+            "results": results,
+        }
     finally:
         for pidfd in pidfds:
             os.close(pidfd)
@@ -137,9 +160,14 @@ def reject(protocol: Protocol, index: int, kind: str, memory: int, tasks: int) -
     claims = protocol.requests(index, kind, memory, tasks)
     started = time.monotonic_ns()
     workers = [
-        protocol.child(parent, index, memory, tasks,
-                       claims[parent.domain.name]["clamped_deadline_ns"],
-                       claims[parent.domain.name]["requested_deadline_ns"])
+        protocol.child(
+            parent,
+            index,
+            memory,
+            tasks,
+            claims[parent.domain.name]["clamped_deadline_ns"],
+            claims[parent.domain.name]["requested_deadline_ns"],
+        )
         for parent in protocol.parents
     ]
     deadline = min(protocol.until(), started + 3_000_000_000)
@@ -157,8 +185,12 @@ def reject(protocol: Protocol, index: int, kind: str, memory: int, tasks: int) -
         _require_empty_pool(parent)
     protocol.assert_parents_live()
     protocol.respond(index, kind)
-    return {"requested_ns": started, "rejected_observed_ns": finished,
-            "deadline_claims": claims, "results": results}
+    return {
+        "requested_ns": started,
+        "rejected_observed_ns": finished,
+        "deadline_claims": claims,
+        "results": results,
+    }
 
 
 def cancel(protocol: Protocol) -> dict[str, object]:
@@ -173,16 +205,40 @@ def cancel(protocol: Protocol) -> dict[str, object]:
             worker.cancel()
         results = [worker.wait(protocol.until()) for worker in workers]
         for result in results:
-            if (result.get("success") is not False or result.get("cleanup_complete") is not True
-                    or "KeyboardInterrupt" not in str(result.get("observation_error"))):
+            if (
+                result.get("success") is not False
+                or result.get("cleanup_complete") is not True
+                or "KeyboardInterrupt" not in str(result.get("observation_error"))
+            ):
                 invalid("nested cancellation did not preserve failure and clean up")
         protocol.assert_parents_live()
         protocol.respond(index, kind)
-        return {"children": identities, "deadline_claims": claims,
-                "concurrent_snapshots": snapshots, "results": results}
+        return {
+            "children": identities,
+            "deadline_claims": claims,
+            "concurrent_snapshots": snapshots,
+            "results": results,
+        }
     finally:
         for pidfd in pidfds:
             os.close(pidfd)
+
+
+def _validate_deadline_result(
+    identity: dict[str, object],
+    result: dict[str, object],
+    bound: int,
+) -> None:
+    removed = result.get("removal_observed_ns")
+    if (
+        result.get("cause") != "timeout"
+        or result.get("cleanup_complete") is not True
+        or not isinstance(removed, int)
+        or isinstance(removed, bool)
+        or removed > bound
+    ):
+        invalid("nested child exceeded or reset its inherited deadline")
+    match_result(identity, result)
 
 
 def deadline(protocol: Protocol) -> dict[str, object]:
@@ -199,25 +255,19 @@ def deadline(protocol: Protocol) -> dict[str, object]:
         results = [worker.wait(bound) for worker in workers]
         completed = time.monotonic_ns()
         for identity, result in zip(identities, results, strict=True):
-            removed = result.get("removal_observed_ns")
-            if (
-                result.get("cause") != "timeout"
-                or result.get("cleanup_complete") is not True
-                or not isinstance(removed, int)
-                or isinstance(removed, bool)
-                or removed > bound
-            ):
-                invalid("nested child exceeded or reset its inherited deadline")
-            match_result(identity, result)
+            _validate_deadline_result(identity, result, bound)
         if completed > bound:
             invalid("nested child cleanup was observed after its fixed deadline")
         protocol.assert_parents_live()
         protocol.respond(index, kind)
         return {
-            "parent_stop_ns": protocol.parent_stop, "child_deadline_ns": bound,
+            "parent_stop_ns": protocol.parent_stop,
+            "child_deadline_ns": bound,
             "deadline_claims": claims,
-            "completed_observed_ns": completed, "children": identities,
-            "concurrent_snapshots": snapshots, "results": results,
+            "completed_observed_ns": completed,
+            "children": identities,
+            "concurrent_snapshots": snapshots,
+            "results": results,
         }
     finally:
         for pidfd in pidfds:

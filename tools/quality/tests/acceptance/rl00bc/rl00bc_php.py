@@ -9,7 +9,6 @@ from pathlib import Path
 from xml.sax.saxutils import escape, quoteattr
 
 from defusedxml import ElementTree
-
 from tests.acceptance.rl00bc.rl00bc_child_fixture import CHILD
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 

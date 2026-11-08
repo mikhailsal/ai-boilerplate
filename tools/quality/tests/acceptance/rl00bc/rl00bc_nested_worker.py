@@ -22,8 +22,12 @@ def _execute(args: argparse.Namespace, group: Group) -> dict[str, object]:
         result = rl00bc_kernel.execute(
             group,
             [sys.executable, str(Path(__file__).with_name("rl00bc_nested_payload.py")), *argv],
-            args.repo, native_environment, args.output,
-            memory_mib=args.memory_mib, tasks=args.tasks, native_seconds=120,
+            args.repo,
+            native_environment,
+            args.output,
+            memory_mib=args.memory_mib,
+            tasks=args.tasks,
+            native_seconds=120,
             ancestor_deadline_ns=args.deadline,
             payload_deadline_ns=args.payload_deadline,
         )

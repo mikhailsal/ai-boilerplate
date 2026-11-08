@@ -13,7 +13,13 @@ from tests.acceptance.rl00bc.rl00bc_errors import invalid
 from tests.acceptance.rl00bc.rl00bc_nested_process import require_success, wait_until
 from tests.acceptance.rl00bc.rl00bc_nested_protocol import Protocol
 from tests.acceptance.rl00bc.rl00bc_nested_scope import (
-    DOMAIN_MEMORY, DOMAIN_TASKS, PARENT_MEMORY, PARENT_TASKS, POOL_MEMORY, POOL_TASKS, Scope,
+    DOMAIN_MEMORY,
+    DOMAIN_TASKS,
+    PARENT_MEMORY,
+    PARENT_TASKS,
+    POOL_MEMORY,
+    POOL_TASKS,
+    Scope,
 )
 
 PENDING = (
@@ -33,10 +39,18 @@ def _write(output: Path, record: dict[str, object]) -> None:
 def _expected_requests() -> list[dict[str, object]]:
     return [
         {"kind": "concurrent", "memory_mib": 64, "tasks": 8, "expected": "success"},
-        {"kind": "over-memory", "memory_mib": POOL_MEMORY + 1, "tasks": 8,
-         "expected": "rejected-before-native"},
-        {"kind": "over-tasks", "memory_mib": 64, "tasks": POOL_TASKS + 1,
-         "expected": "rejected-before-native"},
+        {
+            "kind": "over-memory",
+            "memory_mib": POOL_MEMORY + 1,
+            "tasks": 8,
+            "expected": "rejected-before-native",
+        },
+        {
+            "kind": "over-tasks",
+            "memory_mib": 64,
+            "tasks": POOL_TASKS + 1,
+            "expected": "rejected-before-native",
+        },
         {"kind": "cancel", "memory_mib": 64, "tasks": 8, "expected": "interrupt-and-cleanup"},
         {"kind": "recovery", "memory_mib": 64, "tasks": 8, "expected": "success"},
         {"kind": "deadline", "memory_mib": 64, "tasks": 8, "expected": "timeout-and-cleanup"},
@@ -44,8 +58,10 @@ def _expected_requests() -> list[dict[str, object]]:
 
 
 def _setup(scope: Scope, protocol: Protocol, record: dict[str, object]) -> None:
-    if (POOL_MEMORY + 1 > DOMAIN_MEMORY - PARENT_MEMORY
-            or POOL_TASKS + 1 > DOMAIN_TASKS - PARENT_TASKS):
+    if (
+        POOL_MEMORY + 1 > DOMAIN_MEMORY - PARENT_MEMORY
+        or POOL_TASKS + 1 > DOMAIN_TASKS - PARENT_TASKS
+    ):
         invalid("oversized pool probes must still fit in the enclosing parent remainder")
     scope.allocate()
     if len(scope.domains) != 2 or scope.domains[0].group.inode == scope.domains[1].group.inode:
@@ -125,7 +141,12 @@ def _finish(scope: Scope, protocol: Protocol, record: dict[str, object]) -> None
 
 
 def check(
-    work: Group, repo: Path, scratch: Path, output: Path, environment: dict[str, str], *,
+    work: Group,
+    repo: Path,
+    scratch: Path,
+    output: Path,
+    environment: dict[str, str],
+    *,
     ancestor_deadline_ns: int,
 ) -> dict[str, object]:
     """Exercise only fixed sibling shares under an inherited absolute deadline."""
@@ -135,11 +156,20 @@ def check(
     scope = Scope(work, deadline)
     protocol = Protocol(scope, repo, output, environment, deadline, parent_stop, 0, 0)
     record: dict[str, object] = {
-        "status": "in-progress", "success": False, "original_deadline_ns": ancestor_deadline_ns,
-        "proof_deadline_ns": deadline, "parent_stop_ns": parent_stop, "scratch": str(scratch),
-        "shares": {"domain_mib": DOMAIN_MEMORY, "domain_tasks": DOMAIN_TASKS,
-                   "parent_mib": PARENT_MEMORY, "parent_tasks": PARENT_TASKS,
-                   "pool_mib": POOL_MEMORY, "pool_tasks": POOL_TASKS},
+        "status": "in-progress",
+        "success": False,
+        "original_deadline_ns": ancestor_deadline_ns,
+        "proof_deadline_ns": deadline,
+        "parent_stop_ns": parent_stop,
+        "scratch": str(scratch),
+        "shares": {
+            "domain_mib": DOMAIN_MEMORY,
+            "domain_tasks": DOMAIN_TASKS,
+            "parent_mib": PARENT_MEMORY,
+            "parent_tasks": PARENT_TASKS,
+            "pool_mib": POOL_MEMORY,
+            "pool_tasks": POOL_TASKS,
+        },
         "expected_requests_per_parent": _expected_requests(),
         "rejection_bound_ns": 3_000_000_000,
         "required_proofs_pending": list(PENDING),
@@ -154,8 +184,15 @@ def check(
         _run_cases(protocol, record)
         _finish_parents(protocol, record)
         record["status"] = "observed-partial"
-    except (OSError, ValueError, TypeError, RuntimeError, KeyError, AssertionError,
-            subprocess.SubprocessError) as error:
+    except (
+        OSError,
+        ValueError,
+        TypeError,
+        RuntimeError,
+        KeyError,
+        AssertionError,
+        subprocess.SubprocessError,
+    ) as error:
         record["status"] = "nonpass"
         record["error"] = f"{type(error).__name__}: {error}"
     finally:
