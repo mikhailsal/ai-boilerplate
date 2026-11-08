@@ -150,7 +150,11 @@ class TimingNativeParityTests(unittest.TestCase):
 
     def test_missing_or_malformed_canonical_evidence_is_rejected(self) -> None:
         malformed_values: tuple[object, ...] = (
-            None, {}, [], "not-evidence", {"rows": [], "native_status": 0}
+            None,
+            {},
+            [],
+            "not-evidence",
+            {"rows": [], "native_status": 0},
         )
         for malformed in malformed_values:
             with self.subTest(malformed=malformed), self.assertRaises(ValueError):

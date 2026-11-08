@@ -152,9 +152,7 @@ def _case_sources(starts: list[dict[str, object]], target: str) -> None:
             invalid("native case source differs from the discovered fixture file")
 
 
-def _validate_target(
-    starts: list[dict[str, object]], target: str, digest: str, mib: int
-) -> None:
+def _validate_target(starts: list[dict[str, object]], target: str, digest: str, mib: int) -> None:
     target_rows = [event for event in starts if event.get("id") == target]
     if (
         len(target_rows) != 1

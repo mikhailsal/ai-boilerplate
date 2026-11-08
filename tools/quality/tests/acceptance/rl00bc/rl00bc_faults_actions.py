@@ -34,7 +34,7 @@ def _before_deadline(subject: Subject) -> None:
 
 
 @contextmanager
-def exclusive(subject: Subject) -> Generator[None, None, None]:
+def exclusive(subject: Subject) -> Generator[None]:
     """Use an independent description of the actual guardian lifecycle lock."""
     inherited = int(os.environ["RL00_LIFECYCLE_FD"])
     closing = Path(os.environ["RL00_LIFECYCLE_CLOSING"])
