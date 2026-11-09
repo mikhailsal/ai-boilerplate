@@ -68,5 +68,9 @@
   and the [frontend traceability matrix](plan/frontend/traceability.md).
 - [Frontend handoff](plan/frontend/handoff.md): status, contracts,
   versions, startup, verification, hosting, and limitations.
+- [Bounded test execution](plan/bounded-test-execution.md): the open problem
+  after the RL00 no-go ([decision 0019](decisions/0019-per-test-resource-limits.md)),
+  [why no solution has been found](plan/bounded-test-execution-causes.md), and
+  [directions for a solution](plan/bounded-test-execution-options.md).
 
 <!-- maintainer-only:end -->
