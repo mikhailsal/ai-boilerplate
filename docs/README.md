@@ -96,6 +96,8 @@
   frozen-commit CI results, receipts, timing against criterion A and adoption chains.
 - [RL00b/c recommendation](plan/test-resource-limits/rl00bc-recommendation.md):
   no-go reason, requirement status, classified outcomes and the next owner decision.
+- [RL00b/c outside review](plan/test-resource-limits/rl00bc-review.md):
+  read-only source and documentation audit with a disposition for every finding.
 - [Resource developer experience](plan/test-resource-limits/developer-experience.md):
   setup, diagnostics, migration, CLI proposals and adoption trials.
 

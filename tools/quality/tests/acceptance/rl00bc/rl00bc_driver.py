@@ -15,8 +15,9 @@ from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[4]
-# Mirrors rl00bc_adoption.FINAL_PHASE; test_rl00bc_driver.py pins the two together.
+# Mirror rl00bc_adoption.FINAL_PHASE and UNRUN_PROOF; test_rl00bc_driver.py pins them together.
 ADOPTION_FINAL_PHASE = "rollback-diff"
+ADOPTION_UNRUN_PROOF = "missing_delegation"
 PHASES = (
     "prepare",
     "correctness",
@@ -54,14 +55,21 @@ def _successful(value: object) -> bool:
 def _adoption_passed(result: dict[str, object]) -> bool:
     """Accept only a finished export, onboarding, update and rollback chain.
 
-    Phases are recorded by name; a deliberately unrun proof never counts as a failure,
-    but a chain that stopped before its final phase never passes.
+    The producer runs its phases in sequence and stops at the first failure, so a
+    successful final phase implies the earlier ones. Every recorded phase must still
+    have succeeded; only the deliberately unrun delegation proof may be unrun, and a
+    chain whose final phase is missing, unrun or failed never passes.
     """
     phases = result.get("phases")
-    if not isinstance(phases, dict) or ADOPTION_FINAL_PHASE not in phases:
+    if not isinstance(phases, dict):
         return False
     recorded = cast(dict[str, object], phases)
-    return all(_successful(item) for item in recorded.values() if not _unrun(item))
+    if not _successful(recorded.get(ADOPTION_FINAL_PHASE)):
+        return False
+    return all(
+        _successful(item) or (name == ADOPTION_UNRUN_PROOF and _unrun(item))
+        for name, item in recorded.items()
+    )
 
 
 def comparison_passed(phase: str, result: dict[str, object]) -> bool:

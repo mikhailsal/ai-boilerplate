@@ -5,6 +5,27 @@
   "artifact_count": 53,
   "method": "SHA-256 of each downloaded artifact ZIP, compared with the digest the GitHub API reports; each artifact's identity.json names the frozen commit",
   "retention": "GitHub artifacts expire after one day; these hashes and identifiers remain",
+  "lost_artifacts": {
+    "cause": "actions/upload-artifact refused each whole upload because a Dart event file name contains a colon",
+    "evidence": "the job log of each listed job holds the generic collector failure and the line: The path for one of the files in artifact is not valid: <rejected_path>. Contains the following character: Colon :",
+    "jobs": [
+      {"phase": "correctness", "run": 42554757095, "job": 128957884542, "rejected_path": "/correctness/baseline-large/events/dart-10983:2123409173-0-0.json"},
+      {"phase": "correctness", "run": 42554757095, "job": 128957884601, "rejected_path": "/correctness/baseline-large/events/dart-10981:-1312302854-0-0.json"},
+      {"phase": "correctness", "run": 42554757095, "job": 128959076446, "rejected_path": "/correctness/baseline-large/events/dart-11068:1475709130-0-0.json"},
+      {"phase": "correctness", "run": 42554757095, "job": 128959141572, "rejected_path": "/correctness/baseline-large/events/dart-11040:-1501849131-1-0.json"},
+      {"phase": "compatibility", "run": 42554758633, "job": 128957890415, "rejected_path": "/compatibility/canonical/events/dart-10901:-422794700-0-0.json"},
+      {"phase": "compatibility", "run": 42554758633, "job": 128957890350, "rejected_path": "/compatibility/canonical/events/dart-11179:-355171908-0-0.json"},
+      {"phase": "compatibility", "run": 42554758633, "job": 128958375764, "rejected_path": "/compatibility/canonical/events/dart-10977:1017293660-0-0.json"},
+      {"phase": "compatibility", "run": 42554758633, "job": 128958470999, "rejected_path": "/compatibility/canonical/events/dart-11067:-1155629264-0-0.json"},
+      {"phase": "methods", "run": 42554757751, "job": 128957887192, "rejected_path": "/methods/trial-0000/events/dart-10910:-1423156583-1-0.json"},
+      {"phase": "methods", "run": 42554757751, "job": 128958419348, "rejected_path": "/methods/trial-0000/events/dart-11059:-1268095062-1-0.json"},
+      {"phase": "methods", "run": 42554757751, "job": 128960386677, "rejected_path": "/methods/trial-0000/events/dart-11320:-975744873-0-0.json"},
+      {"phase": "measure", "run": 42558123675, "job": 128968311646, "rejected_path": "/measurement/small/sample-000/protected/trial-000/events/dart-10919:-562038892-0-0.json"},
+      {"phase": "measure", "run": 42558123675, "job": 128968311757, "rejected_path": "/measurement/small/sample-000/protected/trial-000/events/dart-11114:1690680791-0-0.json"},
+      {"phase": "measure", "run": 42558123675, "job": 128968861432, "rejected_path": "/measurement/small/sample-000/protected/trial-000/events/dart-11173:-1414283211-1-0.json"},
+      {"phase": "measure", "run": 42558123675, "job": 128969413581, "rejected_path": "/measurement/small/sample-000/protected/trial-000/events/dart-11094:-1937963840-0-0.json"}
+    ]
+  },
   "runs": [
     {
       "phase": "prepare",

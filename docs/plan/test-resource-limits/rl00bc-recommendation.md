@@ -6,8 +6,9 @@ unauthorized, and nothing here approves a merge or deployment. The decisive
 reason is measured: the protected arm exceeded the owner-approved overhead
 criterion A in every environment of the only complete required timing cell.
 Gaps in attribution, cleanup and unperformed required work add to it. The
-[evidence page](rl00bc-evidence.md) holds the results, and the
-[receipts record](rl00bc-receipts.json) binds them to CI artifacts.
+[evidence page](rl00bc-evidence.md) holds the results, the
+[receipts record](rl00bc-receipts.json) binds them to CI artifacts and the
+[review](rl00bc-review.md) records the outside audit.
 
 ## Reason
 
@@ -31,11 +32,11 @@ shared-worker attribution is recorded as unsupported.
 | Requirement | Evidence | Status |
 | --- | --- | --- |
 | Raw-source and artifact binding | 53 artifacts with verified SHA-256 and the frozen commit | Met, except 15 lost Dart artifacts |
-| Method and support matrix | Browser: three arms observed in four environments | Browser only; Dart lost, others unrun |
+| Method and support matrix | Browser: three arms observed in four environments | Browser only; 15 Dart artifacts lost and one Dart setup failure; other profiles unrun |
 | Verdicts and canonical parity | Browser compatibility passed; `child` correctness unproved; coverage and scenario reconciliation pending | Unproved |
 | Parity and selection proofs | Finite Python fixture: 19 candidate steps and selection pressure | Observed for that fixture only |
 | Measurements and distributions | Browser small corpus, twenty pairs per cell | Criterion A failed; other sizes and profiles unrun |
-| Lifecycle, races and faults | Admission, both races and drift observed; no cleanup after requester SIGKILL | Partial; pending proofs remain |
+| Lifecycle, races and faults | Admission, both races and drift observed; no automatic cleanup observed after requester SIGKILL | Partial; pending proofs remain |
 | Adoption | Python overlay chains: three complete, one `update-check` failure | Partial; no real hook or export enforcement |
 | Limitations | Listed in the evidence page | Recorded |
 
@@ -46,9 +47,10 @@ four browser cells, no observed automatic cleanup after requester SIGKILL in all
 four Python cells, and one adoption `update-check` failure without a resource
 violation, whose cause is unattributed.
 
-Unsupported or unproved attribution covers the browser `child` identity and
-phase scope in all four cells, with `slow`, `retained` and `justified-allowance`
-also unproved, shared-worker attribution, and every Dart verdict.
+Unsupported or unproved attribution covers the resource-phase attribution of
+the browser `child` target in all four cells (its identity binding is recorded),
+with `slow`, `retained` and `justified-allowance` also unproved, shared-worker
+attribution, and every Dart verdict.
 
 Setup failures are the upload rejection that lost 15 Dart artifacts, the
 verdict-mapping defect that turned complete lifecycle, nested and adoption
@@ -56,11 +58,12 @@ records red, and one Dart bootstrap failure with an unattributed cause. The
 first two are fixed in commit `796a12c` but have not run live.
 
 Unperformed work is 48 Node, PHP and Python correctness, compatibility, methods
-and measure cells; the `large` size; selection-cost, startup, guardian and total
-invocation measurements; shared-worker instrumentation; adoption beyond the
-Python overlay, including human understanding, administrator wait and missing
-delegation; abrupt guardian and controller death recovery; and the other
-pending proofs listed per phase.
+and measure cells; the `large` size; timing of narrow selection and of
+shared-worker instrumentation; selection cost, separate startup and collection
+costs, guardian and provider CPU and total invocation memory; labeled verdict
+usefulness; adoption beyond the Python overlay, including human understanding,
+administrator wait and missing delegation; abrupt guardian and controller death
+recovery; and the other pending proofs listed per phase.
 
 ## Next decision for the owner
 
@@ -68,12 +71,13 @@ The evidence supports closing RL00 as a no-go for the measured design. Any
 continuation needs a new frozen commit, a new gate and a new explicit approval
 before a live run; this one does not authorize reruns.
 
-1. Close RL00 here. This is recommended: completing the matrix cannot change the
-   measured browser result, and the cost of the remaining runs buys documentation,
-   not a different decision.
-2. Complete the matrix with the fixed harness. It would fill the Dart and
-   other-profile gaps and rerun the red phases, at the price of a new approval
-   and about thirteen more runs.
+1. Close RL00 here. This is recommended: completing the matrix cannot turn the
+   measured browser failure into a pass, and the cost of the remaining runs buys
+   documentation, not a different decision.
+2. Complete the matrix. The collection fixes alone do not do it: the phase gate
+   would again skip every Node, PHP and Python cell after the known browser
+   failures, so this needs a separately approved schedule, and the number of
+   runs is undetermined.
 3. Evaluate a different protected design under a separately identified
    protocol, for example per-case limits inside the canonical run or an
    explicitly approved narrower scope of invocation containment only. Changing
@@ -81,4 +85,5 @@ before a live run; this one does not authorize reruns.
    relabel it, and the plan forbids a silent suite-only fallback.
 
 Before any further live run, attribute the requester-SIGKILL cleanup gap, the
-`child` oracle result and the adoption `update-check` failure.
+`child` oracle result and the adoption `update-check` failure, and close the
+harness items that the [review](rl00bc-review.md) leaves open.

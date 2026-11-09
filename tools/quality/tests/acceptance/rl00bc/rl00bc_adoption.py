@@ -20,6 +20,8 @@ from tests.acceptance.rl00bc.rl00bc_errors import expired, unavailable
 
 # The last native phase; reaching it proves every earlier required phase succeeded.
 FINAL_PHASE = "rollback-diff"
+# The only proof recorded as deliberately unrun; test_rl00bc_driver.py pins the driver's copy.
+UNRUN_PROOF = "missing_delegation"
 
 
 def _component_files(root: Path, version: str, versions: dict[str, str]) -> None:
@@ -327,7 +329,7 @@ def adopt(
     gaps: list[str] = []
 
     project = root / "project"
-    phases["missing_delegation"] = {
+    phases[UNRUN_PROOF] = {
         "status": "unrun",
         "reason": (
             "An actual undelegated branch was not provided; simulated preflight is not proof."

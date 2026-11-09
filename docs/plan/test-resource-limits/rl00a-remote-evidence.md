@@ -3,7 +3,8 @@
 Status on 2026-11-08: RL00a is technically complete within the environment and
 observation limits below. The final remote matrix proves directory removal within
 the existing deadline. Earlier failed observations and the original driver gap
-remain part of the record. RL00b and RL00c are unperformed.
+remain part of the record. RL00b and RL00c were unperformed on that date; the
+[campaign evidence](rl00bc-evidence.md) records what ran on 2026-11-09.
 
 ## Observed remote matrix
 

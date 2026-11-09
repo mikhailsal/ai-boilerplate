@@ -32,7 +32,7 @@ def _native(*, success: bool = True, cleanup: bool = True) -> dict[str, object]:
 def _chain(*names: str) -> dict[str, object]:
     # adopt() always records the missing-delegation proof as deliberately unrun.
     phases: dict[str, object] = {
-        "missing_delegation": {"status": "unrun", "reason": "no undelegated branch"}
+        rl00bc_adoption.UNRUN_PROOF: {"status": "unrun", "reason": "no undelegated branch"}
     }
     phases.update({name: _native() for name in names})
     return {"phases": phases, "required_gaps": ["human usability is unmeasured"]}
@@ -100,14 +100,31 @@ class PartialCollectionTests(unittest.TestCase):
 
 
 class AdoptionVerdictTests(unittest.TestCase):
-    def test_final_phase_matches_the_producer(self) -> None:
+    def test_phase_names_match_the_producer(self) -> None:
         self.assertEqual(rl00bc_driver.ADOPTION_FINAL_PHASE, _FINAL)
+        self.assertEqual(rl00bc_driver.ADOPTION_UNRUN_PROOF, rl00bc_adoption.UNRUN_PROOF)
 
     def test_finished_chain_passes_despite_the_unrun_proof(self) -> None:
         self.assertTrue(_passed("adoption", _chain("clone-template", "export-old", _FINAL)))
 
     def test_chain_that_stopped_before_its_final_phase_fails(self) -> None:
         self.assertFalse(_passed("adoption", _chain("clone-template", "export-old")))
+
+    def test_unrun_or_failed_final_phase_fails(self) -> None:
+        unrun = {"status": "unrun"}
+        for final in (unrun, _native(success=False), _native(cleanup=False)):
+            result = _chain("clone-template", _FINAL)
+            _phases(result)[_FINAL] = final
+            self.assertFalse(_passed("adoption", result), final)
+        only_unrun: dict[str, object] = {
+            "phases": {_FINAL: unrun, rl00bc_adoption.UNRUN_PROOF: unrun}
+        }
+        self.assertFalse(_passed("adoption", only_unrun))
+
+    def test_only_the_delegation_proof_may_be_unrun(self) -> None:
+        result = _chain("clone-template", _FINAL)
+        _phases(result)["clone-template"] = {"status": "unrun"}
+        self.assertFalse(_passed("adoption", result))
 
     def test_failed_phase_fails_the_chain(self) -> None:
         result = _chain("clone-template", _FINAL)

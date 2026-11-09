@@ -34,9 +34,10 @@ The reviewed contract is split into linked pages:
   calibration, proof matrix and implementation dependencies.
 - [RL00b/c protocol](test-resource-limits/rl00bc-protocol.md): preregistered native
   comparisons, selection proofs, cost criteria and adoption experiments.
-- [RL00b/c evidence](test-resource-limits/rl00bc-evidence.md) and
-  [recommendation](test-resource-limits/rl00bc-recommendation.md): live results,
-  receipts, classified outcomes and the no-go recommendation.
+- [RL00b/c evidence](test-resource-limits/rl00bc-evidence.md),
+  [recommendation](test-resource-limits/rl00bc-recommendation.md) and
+  [outside review](test-resource-limits/rl00bc-review.md): live results,
+  receipts, classified outcomes, the no-go recommendation and the audit.
 - [Developer experience](test-resource-limits/developer-experience.md): setup,
   diagnostics, migration, proposed CLI and fresh-export trials.
 - [Scope and review](test-resource-limits/ceo-scope.md): decisions,
