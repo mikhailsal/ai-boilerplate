@@ -3,7 +3,8 @@
 Status: preparation only. The owner requested completion of RL00a, RL00b and
 RL00c and an evidence-based integration recommendation on 2026-11-08. This
 page records a proposed experiment before measurement. It does not claim an
-executed comparison, accepted numerical criteria or production protection.
+executed comparison, accepted bounds or stop rule, or production protection.
+The owner accepted only the RL00c overhead criterion, recorded below.
 The [verification contract](verification.md) and [per-test contract](per-test-budgets.md)
 remain binding. All heavy execution is remote in CI; the developer's machine
 must not run the native workloads, bootstrap, quality suites or stress cases.
@@ -66,7 +67,7 @@ defines native execution models, expected verdicts, proposed finite
 bounds and actual-candidate selection. Freeze both pages and retain
 their source hashes with each experiment.
 
-## RL00c measurement and proposed release criterion
+## RL00c measurement and overhead criterion
 
 Separate correctness pressure from the ordinary performance corpus. Interleave
 native and protected runs of each identical small/large corpus and supported
@@ -92,22 +93,29 @@ Measure narrow changes, broad source/dependency changes, full fallback and
 first adoption. Record residual charges, churn/dying groups and temporary-file
 and tmpfs cleanup. Reuse compatible package caches, never resource verdicts.
 
-Proposed criterion A for owner review: all labeled verdicts and required
-identity/scope/cleanup checks are correct, with no false compliant result;
-for every required ordinary comparison, protected p95 wall time is at most
-twice native p95 plus two seconds, including fallback/adoption, and all work
-fits its finite envelope. Unsupported required attribution is no-go. This
-criterion is a proposal, not an accepted threshold or measured result.
+Criterion A, accepted by the owner before any measurement (decision D1
+below): all labeled verdicts and required identity/scope/cleanup checks are
+correct, with no false compliant result; for every required ordinary
+comparison, protected p95 wall time is at most twice native p95 plus two
+seconds, including fallback/adoption, and all work fits its finite envelope.
+Unsupported required attribution is no-go. The p95 is the nearest-rank value,
+which is the second largest of twenty samples. Acceptance fixes this
+threshold only; it is not a measured result and replaces no other condition.
 
-An alternative stricter criterion is 1.5 times native p95 plus one second.
-The measurement CLI requires an explicit criterion-approval reference before
-starting its provider. The reference is a caller assertion retained with the
-samples; the final audit must independently match it to the owner's actual
-decision. A successful timing cell cannot certify unmeasured required work.
-Changing the criterion after looking at results requires a recorded amendment
-and a separately identified evaluation; it cannot relabel the original result.
-Only an owner-reviewed stop rule can terminate a later matrix after a decisive
-required failure. Unrun cells remain explicitly unrun.
+Decision D1 record: on 2026-11-09 the owner answered `A` to an interactive
+question that stated both formulas, the twenty-pair nearest-rank p95, the
+retention of every attempt and the rule against changing the criterion after
+seeing results. The stricter alternative, 1.5 times native p95 plus one second,
+was offered and not chosen. The measurement CLI requires an explicit
+criterion-approval reference before starting its provider; the workflow passes
+one that begins `owner-D1-A-2026-11-09` and names this page. The reference is a
+caller assertion retained with the samples; the final audit must independently
+match it to this record and the owner's actual decision. A successful timing
+cell cannot certify unmeasured required work. Changing the criterion after
+looking at results requires a recorded amendment and a separately identified
+evaluation; it cannot relabel the original result. Only an owner-reviewed stop
+rule can terminate a later matrix after a decisive required failure. Unrun
+cells remain explicitly unrun.
 
 ## Adoption and environments
 

@@ -208,8 +208,10 @@ side channel. Do not claim a cheap or reproducible gate without this proof.
 ## Disposition
 
 The required goal is early detection of resource-hungry individual tests.
-The architecture, exact measurement/selection protocol, numbers and release
-overhead threshold remain open for RL00 and owner review; the provisional method above is not proven. The plan-refinement request did not authorize product implementation, machine
+The architecture, exact measurement/selection protocol and numbers remain open
+for RL00 and owner review; the provisional method above is not proven. The owner
+accepted the RL00c release overhead criterion A on 2026-11-09
+([record](rl00bc-protocol.md)); it is not a measured result. The plan-refinement request did not authorize product implementation, machine
 reconfiguration, CI push or budget relaxation; later owner instructions
 authorized the recorded RL00a executions. Product integration remains unauthorized. The earlier initial-design verdict
 does not cover this amendment; final approval covers the reviewed plan only.

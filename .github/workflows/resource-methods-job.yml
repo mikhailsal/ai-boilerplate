@@ -72,6 +72,8 @@ jobs:
           PHASE: ${{ steps.phase.outputs.name }}
           PROFILE: ${{ inputs.profile }}
           MODE: ${{ inputs.mode }}
+          # Owner decision D1 is recorded in docs/plan/test-resource-limits/rl00bc-protocol.md.
+          CRITERION_APPROVAL: "owner-D1-A-2026-11-09: rl00bc-protocol.md, protected p95 <= 2 x native p95 + 2 s"
         # sudo is limited by the collector to UUID-named finite transient units.
         # The owner reviews this workflow and protocol before a trigger ref push.
         run: |
@@ -79,7 +81,7 @@ jobs:
             env PYTHONPATH="$PWD/tools/quality" python3 -m tests.acceptance.rl00bc.rl00bc_driver \
             --phase "$PHASE" --profile "$PROFILE" --mode "$MODE" \
             --output "$PWD/reports/rl00bc" --scratch "$PWD/.gstack/tmp/rl00bc" \
-            --samples 20 --criterion A
+            --samples 20 --criterion A --criterion-approval "$CRITERION_APPROVAL"
       - name: Preserve source, producer and kernel records
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
