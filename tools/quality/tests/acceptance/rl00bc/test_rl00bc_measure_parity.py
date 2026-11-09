@@ -68,15 +68,14 @@ class TimingNativeParityTests(unittest.TestCase):
 
     def test_same_variant_with_wrong_native_id_is_rejected(self) -> None:
         for profile in ("python", "php"):
-            with self.subTest(profile=profile):
-                baseline = _record(profile, self.baseline_root)
-                case = rl00bc_corpus.expected(profile, "small")[0]
-                strict = _strict(case, self.strict_root)
-                rows = cast(list[dict[str, object]], strict["native_cases"])
-                rows[0]["id"] = "different native case"
-                self.assertEqual(rows[0]["variant"], case.variant)
-                with self.assertRaises(ValueError):
-                    rl00bc_measure_parity.selected(case, baseline, strict)
+            baseline = _record(profile, self.baseline_root)
+            case = rl00bc_corpus.expected(profile, "small")[0]
+            strict = _strict(case, self.strict_root)
+            rows = cast(list[dict[str, object]], strict["native_cases"])
+            rows[0]["id"] = "different native case"
+            self.assertEqual(rows[0]["variant"], case.variant, msg=profile)
+            with self.assertRaises(ValueError, msg=profile):
+                rl00bc_measure_parity.selected(case, baseline, strict)
 
     def test_changed_native_outcome_is_rejected(self) -> None:
         baseline = _record("python", self.baseline_root)
@@ -101,19 +100,18 @@ class TimingNativeParityTests(unittest.TestCase):
             {"native_status": 1, "cleanup_complete": True},
             {"native_status": 0, "cleanup_complete": False},
         ):
-            with self.subTest(kernel=kernel):
-                baseline = _record("python", self.baseline_root)
-                baseline["kernel"] = kernel
-                with self.assertRaises(ValueError):
-                    rl00bc_measure_parity.canonical("python", "small", baseline)
-                case = rl00bc_corpus.expected("python", "small")[0]
-                strict = _strict(case, self.strict_root)
-                with self.assertRaises(ValueError):
-                    rl00bc_measure_parity.selected(case, baseline, strict)
-                baseline["kernel"] = {"native_status": 0, "cleanup_complete": True}
-                strict["kernel"] = kernel
-                with self.assertRaises(ValueError):
-                    rl00bc_measure_parity.selected(case, baseline, strict)
+            baseline = _record("python", self.baseline_root)
+            baseline["kernel"] = kernel
+            with self.assertRaises(ValueError, msg=repr(kernel)):
+                rl00bc_measure_parity.canonical("python", "small", baseline)
+            case = rl00bc_corpus.expected("python", "small")[0]
+            strict = _strict(case, self.strict_root)
+            with self.assertRaises(ValueError, msg=repr(kernel)):
+                rl00bc_measure_parity.selected(case, baseline, strict)
+            baseline["kernel"] = {"native_status": 0, "cleanup_complete": True}
+            strict["kernel"] = kernel
+            with self.assertRaises(ValueError, msg=repr(kernel)):
+                rl00bc_measure_parity.selected(case, baseline, strict)
 
     def test_corresponding_canonical_evidence_matches_across_roots(self) -> None:
         first = rl00bc_measure_parity.canonical(
@@ -134,13 +132,12 @@ class TimingNativeParityTests(unittest.TestCase):
             ("outcome", "skipped"),
             ("source", "test/other_test"),
         ):
-            with self.subTest(field=field):
-                other = copy.deepcopy(original)
-                cast(list[dict[str, object]], other["rows"])[0][field] = changed
-                with self.assertRaises(ValueError):
-                    rl00bc_measure_parity.paired(
-                        {"canonical_evidence": original}, {"canonical_evidence": other}
-                    )
+            other = copy.deepcopy(original)
+            cast(list[dict[str, object]], other["rows"])[0][field] = changed
+            with self.assertRaises(ValueError, msg=field):
+                rl00bc_measure_parity.paired(
+                    {"canonical_evidence": original}, {"canonical_evidence": other}
+                )
         other = copy.deepcopy(original)
         other["native_status"] = 1
         with self.assertRaises(ValueError):
@@ -157,7 +154,7 @@ class TimingNativeParityTests(unittest.TestCase):
             {"rows": [], "native_status": 0},
         )
         for malformed in malformed_values:
-            with self.subTest(malformed=malformed), self.assertRaises(ValueError):
+            with self.assertRaises(ValueError, msg=repr(malformed)):
                 rl00bc_measure_parity.paired(
                     {"canonical_evidence": malformed}, {"canonical_evidence": malformed}
                 )

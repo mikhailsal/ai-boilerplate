@@ -36,9 +36,9 @@ class SampledResourceTests(unittest.TestCase):
                     "resource_sample_count": count,
                 }
             }
-            with self.subTest(count=count), self.assertRaises(ValueError):
+            with self.assertRaises(ValueError, msg=f"memory, count {count!r}"):
                 rl00bc_measure_metrics.memory(record)
-            with self.subTest(count=count), self.assertRaises(ValueError):
+            with self.assertRaises(ValueError, msg=f"tasks, count {count!r}"):
                 rl00bc_measure_metrics.tasks(record)
 
     def test_sample_count_cannot_make_missing_values_available(self) -> None:

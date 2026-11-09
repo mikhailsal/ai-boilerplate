@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import os
-import signal
 import time
 from pathlib import Path
 
-from tests.acceptance.rl00a.rl00a_cgroup import Group, load, save
+from tests.acceptance.rl00a.rl00a_cgroup import Group, save
 from tests.acceptance.rl00bc.rl00bc_errors import invalid
 from tests.acceptance.rl00bc.rl00bc_faults_actions import (
     create_target,
@@ -19,15 +18,21 @@ from tests.acceptance.rl00bc.rl00bc_faults_actions import (
 )
 from tests.acceptance.rl00bc.rl00bc_faults_subject import (
     Subject,
-    alive,
     controller_identity,
     identity,
     open_subject,
     work_entry,
 )
+from tests.acceptance.rl00bc.rl00bc_faults_window import (
+    WINDOW_NS,
+    expected_outcome,
+    kernel_record,
+    observe_window,
+    pause_until,
+    worker_record,
+)
 from tests.acceptance.rl00bc.rl00bc_lifecycle_support import Worker, start
 
-WINDOW_NS = 3_000_000_000
 PENDING = (
     "outer-original-root-removal-and-independent-sentinel",
     "guardian-death-and-controller-death-full-matrix",
@@ -51,85 +56,6 @@ def _fault(subject: Subject, kind: str) -> int:
         return move_native(subject)
     message = "unknown bounded fault case"
     raise ValueError(message)
-
-
-def _sample(subject: Subject, observation: dict[str, object]) -> None:
-    if observation.get("requester_stopped_ns") is None and not alive(subject.worker_fd):
-        observation["requester_stopped_ns"] = time.monotonic_ns()
-        observation["requester_native_status"] = subject.worker.process.poll()
-    if observation.get("native_stopped_ns") is None and not alive(subject.native_fd):
-        observation["native_stopped_ns"] = time.monotonic_ns()
-    if observation.get("leaf_absent_ns") is None and not subject.leaf_present():
-        observation["leaf_absent_ns"] = time.monotonic_ns()
-
-
-def _observe(subject: Subject, fired: int) -> dict[str, object]:
-    deadline = min(fired + WINDOW_NS, subject.deadline - WINDOW_NS)
-    observation: dict[str, object] = {
-        "fault_attempted_ns": fired,
-        "window_deadline_ns": deadline,
-        "requester_stopped_ns": None,
-        "requester_native_status": None,
-        "native_stopped_ns": None,
-        "leaf_absent_ns": None,
-        "cleanup_scope": "requester, native child and original leaf; fixture target excluded",
-    }
-    try:
-        if deadline <= fired:
-            invalid("original deadline leaves no unassisted observation window")
-        while time.monotonic_ns() < deadline:
-            _sample(subject, observation)
-            if all(
-                observation[key] is not None
-                for key in ("requester_stopped_ns", "native_stopped_ns", "leaf_absent_ns")
-            ):
-                break
-            time.sleep(0.01)
-    except (OSError, ValueError, RuntimeError, AssertionError) as error:
-        observation["observation_error"] = f"{type(error).__name__}: {error}"
-        _pause_until(deadline)
-    observation["verdict_observed_ns"] = time.monotonic_ns()
-    observation["automatic_cleanup_observed"] = "observation_error" not in observation and all(
-        _in_window(observation.get(key), deadline)
-        for key in ("requester_stopped_ns", "native_stopped_ns", "leaf_absent_ns")
-    )
-    return observation
-
-
-def _in_window(value: object, deadline: int) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int) and value <= deadline
-
-
-def _kernel_record(worker: Worker) -> dict[str, object] | None:
-    path = worker.root / "kernel" / "result.json"
-    return load(path) if path.is_file() else None
-
-
-def _worker_record(worker: Worker) -> dict[str, object] | None:
-    path = worker.path("result")
-    return load(path) if path.is_file() else None
-
-
-def _expected(kind: str, observation: dict[str, object], raw: dict[str, object] | None) -> bool:
-    if observation.get("automatic_cleanup_observed") is not True:
-        return False
-    status = observation.get("requester_native_status")
-    if kind == "requester-sigkill":
-        return status == -signal.SIGKILL
-    if status != 0 or raw is None:
-        return False
-    message = "limits changed" if kind == "limit-drift" else "left its admitted cgroup"
-    return (
-        raw.get("success") is False
-        and raw.get("cleanup_complete") is True
-        and message in str(raw.get("observation_error"))
-    )
-
-
-def _pause_until(deadline: int) -> None:
-    while time.monotonic_ns() < deadline:
-        remaining = max(0.0, (deadline - time.monotonic_ns()) / 1_000_000_000)
-        time.sleep(min(0.01, remaining))
 
 
 def _initial(work: Group) -> tuple[tuple[int, int], tuple[int, int]]:
@@ -235,22 +161,22 @@ class _Case:
             self.case["unassisted"] = {"status": "fault-not-applied"}
             self.case["status"] = "nonpass"
             return
-        observation = _observe(subject, subject.fault_started_ns)
+        observation = observe_window(subject, subject.fault_started_ns)
         self.case["unassisted"] = observation
         try:
-            raw = _kernel_record(subject.worker)
+            raw = kernel_record(subject.worker)
         except (OSError, ValueError, AssertionError) as error:
             self.case["raw_observation_error"] = f"{type(error).__name__}: {error}"
             raw = None
         self.case["raw_kernel_before_manual"] = raw
         try:
-            self.case["raw_worker_before_manual"] = _worker_record(subject.worker)
+            self.case["raw_worker_before_manual"] = worker_record(subject.worker)
         except (OSError, ValueError, AssertionError) as error:
             self.case["raw_worker_observation_error"] = f"{type(error).__name__}: {error}"
         expected = (
             self.case.get("fault_applied") is True
             and "raw_worker_observation_error" not in self.case
-            and _expected(self.kind, observation, raw)
+            and expected_outcome(self.kind, observation, raw)
         )
         self.case["observed_expected_behavior"] = expected
         self.case["status"] = "observed-expected" if expected else "nonpass"
@@ -261,7 +187,7 @@ class _Case:
             and self.subject.fault_started_ns is not None
             and "unassisted" not in self.case
         ):
-            _pause_until(
+            pause_until(
                 min(self.subject.fault_started_ns + WINDOW_NS, self.subject.deadline - WINDOW_NS)
             )
         verdict_ns = time.monotonic_ns()
@@ -306,8 +232,8 @@ class _Case:
             self.case["status"] = "nonpass"
         if self.worker is not None:
             try:
-                self.case["raw_kernel_after_manual"] = _kernel_record(self.worker)
-                self.case["raw_worker_after_manual"] = _worker_record(self.worker)
+                self.case["raw_kernel_after_manual"] = kernel_record(self.worker)
+                self.case["raw_worker_after_manual"] = worker_record(self.worker)
             except (OSError, ValueError, AssertionError) as error:
                 self.case["post_cleanup_record_error"] = f"{type(error).__name__}: {error}"
                 self.case["status"] = "nonpass"
