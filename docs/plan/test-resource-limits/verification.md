@@ -3,8 +3,9 @@
 Status: owner D4 research amendment accepted on 2026-11-04; affected
 engineering re-review and final owner plan approval completed on 2026-11-06.
 RL00a is technically complete within the limits of the [final remote evidence](rl00a-remote-evidence.md);
-earlier failed CI observations remain recorded. RL00b and RL00c are unperformed,
-and the complete RL00 go/no-go remains pending. The owner selected D5=A on
+earlier failed CI observations remain recorded. RL00b and RL00c ran in part on
+2026-11-09; the [recommendation](rl00bc-recommendation.md) is no integration,
+and the owner's next decision remains pending. The owner selected D5=A on
 2026-11-06. Plan approval did not itself authorize execution; subsequent owner
 instructions authorized the recorded experiments and require future heavy checks
 in CI. Current-task commit and push hook skips were explicitly permitted without

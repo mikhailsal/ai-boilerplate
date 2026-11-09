@@ -4,8 +4,8 @@ Autoplan: 2026-11-01, SELECTIVE EXPANSION. CEO, DX and engineering primary
 reviews completed with concerns; design review skipped because there is no UI.
 The owner D4 amendment received affected engineering re-review on 2026-11-06;
 the owner approved the final plan on 2026-11-06. [RL00a](rl00a-remote-evidence.md)
-is technically complete within its recorded limits; RL00b and RL00c remain
-unperformed.
+is technically complete within its recorded limits; RL00b and RL00c ran in part
+on 2026-11-09 and ended in a [no-go recommendation](rl00bc-recommendation.md).
 Source: [amended design](../test-resource-limits.md).
 
 ## Retained scope and complexity

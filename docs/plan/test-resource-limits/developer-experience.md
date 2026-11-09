@@ -1,6 +1,6 @@
 # Developer experience for bounded test execution
 
-Status: owner-approved plan, 2026-11-06. Live feasibility proofs remain pending. This document does not authorize implementation, privileged setup,
+Status: owner-approved plan, 2026-11-06. Live feasibility proofs ran in part on 2026-11-09 ([evidence](rl00bc-evidence.md)). This document does not authorize implementation, privileged setup,
 publication, or a CI run. It records the accepted developer experience for the
 [resource limits plan](../test-resource-limits.md); proposed interfaces and
 unmeasured outcomes are identified below.
@@ -23,7 +23,10 @@ in the environment. Inventory and prepare supported contributor and CI
 environments before mandatory rollout.
 
 The provisional time-to-hello-world target is **under five minutes**, but it
-has not been measured. Start at a fresh supported checkout or export and stop
+was only partly measured: an experimental Python overlay needed 94 to 138 seconds
+of active commands to reach the first protected own test, while reading time,
+administrator waiting and human understanding stay unmeasured
+([adoption evidence](rl00bc-evidence.md)). Start at a fresh supported checkout or export and stop
 at the first understood protected result for the user's own test. Include
 reading, bootstrap, download/cache state, delegation preparation, active work,
 and administrator waiting. Record total, active, and waiting time separately,

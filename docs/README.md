@@ -92,6 +92,10 @@
   proposed native method comparison, selection proof, cost criteria and adoption trials.
 - [RL00b/c proof contract](plan/test-resource-limits/rl00bc-proofs.md):
   subjects, corpus, expected verdicts, proposed finite bounds and candidate selection.
+- [RL00b/c live campaign evidence](plan/test-resource-limits/rl00bc-evidence.md):
+  frozen-commit CI results, receipts, timing against criterion A and adoption chains.
+- [RL00b/c recommendation](plan/test-resource-limits/rl00bc-recommendation.md):
+  no-go reason, requirement status, classified outcomes and the next owner decision.
 - [Resource developer experience](plan/test-resource-limits/developer-experience.md):
   setup, diagnostics, migration, CLI proposals and adoption trials.
 

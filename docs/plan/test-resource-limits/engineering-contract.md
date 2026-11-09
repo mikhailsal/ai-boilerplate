@@ -4,7 +4,8 @@ Status: prior reviewed proposal; the owner selected revised D4 research on
 2026-11-04. Affected engineering re-review completed on 2026-11-06 with
 explicit RL00 proof gates. Owner approved the plan on 2026-11-06.
 [RL00a](rl00a-remote-evidence.md) is technically complete within its recorded
-limits; RL00b and RL00c remain unperformed. The owner selected D5=A on
+limits; RL00b and RL00c ran in part on 2026-11-09 and ended in a
+[no-go recommendation](rl00bc-recommendation.md). The owner selected D5=A on
 2026-11-06. The reviewed plan itself did not authorize execution; later owner
 instructions authorized the recorded experiments. Merge and product integration
 are not authorized. Historical office-hours approval applied only to the initial

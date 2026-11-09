@@ -1,10 +1,12 @@
 # RL00b/c: subjects, corpus and bounded proof contract
 
-Status: preparation only; no native B/C experiment has run. The
-[experiment protocol](rl00bc-protocol.md) owns execution approvals,
-measurement criteria and adoption. This linked contract preserves the
-subjects, native corpus, proposed bounds and selection proof that must
-be frozen with the protocol before an approved live run.
+Status: executed in part on 2026-11-09. Apart from this paragraph the page is
+unchanged since the commit frozen for the live campaign, so its text still
+speaks of proposals. The [experiment protocol](rl00bc-protocol.md) owns
+execution approvals, measurement criteria and adoption, and the
+[campaign evidence](rl00bc-evidence.md) records the results. This linked
+contract preserves the subjects, native corpus, bounds and selection proof
+that were frozen with the protocol before the approved live run.
 
 ## Subjects and memory quantity
 

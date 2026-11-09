@@ -1,10 +1,14 @@
 # RL00b/c: preregistered method and adoption experiments
 
-Status: preparation only. The owner requested completion of RL00a, RL00b and
-RL00c and an evidence-based integration recommendation on 2026-11-08. This
-page records a proposed experiment before measurement. It does not claim an
-executed comparison, accepted bounds or stop rule, or production protection.
-The owner accepted only the RL00c overhead criterion, recorded below.
+Status: executed in part on 2026-11-09. Apart from this paragraph the page is
+unchanged since the commit frozen for the live campaign, so its text still
+speaks of proposals. The [campaign evidence](rl00bc-evidence.md) records the
+owner's approval of the bounds, order and stop rule and the results, and the
+[recommendation](rl00bc-recommendation.md) draws the conclusion. The owner
+requested completion of RL00a, RL00b and RL00c and an evidence-based
+integration recommendation on 2026-11-08. This page claims no production
+protection. The owner accepted the RL00c overhead criterion before any
+measurement, as recorded below.
 The [verification contract](verification.md) and [per-test contract](per-test-budgets.md)
 remain binding. All heavy execution is remote in CI; the developer's machine
 must not run the native workloads, bootstrap, quality suites or stress cases.

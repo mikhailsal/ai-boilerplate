@@ -6,8 +6,10 @@ Status: CEO, DX and affected engineering reviews completed with concerns and
 explicit RL00 proof gates. The owner approved the plan on 2026-11-06. RL00a
 is technically complete within the recorded environment and observation limits;
 [final remote evidence](test-resource-limits/rl00a-remote-evidence.md) preserves
-earlier nonpasses. RL00b and RL00c are unperformed. Product implementation
-has not started.
+earlier nonpasses. RL00b and RL00c ran in part on 2026-11-09 and ended in a
+[no-go recommendation](test-resource-limits/rl00bc-recommendation.md) based on
+the [campaign evidence](test-resource-limits/rl00bc-evidence.md). Product
+implementation has not started.
 
 ## Problem and intended outcome
 
@@ -30,8 +32,11 @@ The reviewed contract is split into linked pages:
   hierarchy, supervision, worker capacity, evidence and policy proposal.
 - [Verification](test-resource-limits/verification.md): staged feasibility,
   calibration, proof matrix and implementation dependencies.
-- [RL00b/c protocol](test-resource-limits/rl00bc-protocol.md): proposed native
+- [RL00b/c protocol](test-resource-limits/rl00bc-protocol.md): preregistered native
   comparisons, selection proofs, cost criteria and adoption experiments.
+- [RL00b/c evidence](test-resource-limits/rl00bc-evidence.md) and
+  [recommendation](test-resource-limits/rl00bc-recommendation.md): live results,
+  receipts, classified outcomes and the no-go recommendation.
 - [Developer experience](test-resource-limits/developer-experience.md): setup,
   diagnostics, migration, proposed CLI and fresh-export trials.
 - [Scope and review](test-resource-limits/ceo-scope.md): decisions,
@@ -165,7 +170,10 @@ Document prerequisites and migration cost before release.
 The owner approved the gated plan on 2026-11-06 and subsequently authorized
 specific RL00a executions. The [bounded protocol](test-resource-limits/rl00a-protocol.md)
 and prior failed observations remain unchanged. The final remote evidence closes
-RL00a within its stated limits; RL00b/c and an evidence-based integration
-recommendation remain to be completed. All future heavy checks are CI-only by
-owner instruction. The owner permitted current-task commit and push hook skips;
-installed hooks remain unchanged. Merge and product integration are not authorized.
+RL00a within its stated limits. The RL00b/c campaign stopped under the owner's
+stop rule after the protected arm exceeded criterion A; the evidence-based
+recommendation is no integration, and the owner's next decision is listed in the
+[recommendation](test-resource-limits/rl00bc-recommendation.md). All future heavy
+checks are CI-only by owner instruction. The owner permitted current-task commit
+and push hook skips; installed hooks remain unchanged. Merge and product
+integration are not authorized.

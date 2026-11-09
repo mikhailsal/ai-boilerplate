@@ -3,7 +3,8 @@
 Status: REQUIRED outcome. Owner approved selective-first D4 research on
 2026-11-04. Affected engineering re-review and final owner plan approval
 completed on 2026-11-06. RL00a is technically complete within its
-[recorded limits](rl00a-remote-evidence.md); RL00b and RL00c are unperformed.
+[recorded limits](rl00a-remote-evidence.md). RL00b and RL00c ran in part on
+2026-11-09 and ended in a [no-go recommendation](rl00bc-recommendation.md).
 Source: [amended design](../test-resource-limits.md) and the owner's question
 about expensive individual tests passing while the suite is still small.
 The owner requested skill-based plan refinement after this gap was identified.
@@ -211,7 +212,8 @@ The required goal is early detection of resource-hungry individual tests.
 The architecture, exact measurement/selection protocol and numbers remain open
 for RL00 and owner review; the provisional method above is not proven. The owner
 accepted the RL00c release overhead criterion A on 2026-11-09
-([record](rl00bc-protocol.md)); it is not a measured result. The plan-refinement request did not authorize product implementation, machine
+([record](rl00bc-protocol.md)) before any measurement; the measured full
+fallback arm [failed it](rl00bc-evidence.md). The plan-refinement request did not authorize product implementation, machine
 reconfiguration, CI push or budget relaxation; later owner instructions
 authorized the recorded RL00a executions. Product integration remains unauthorized. The earlier initial-design verdict
 does not cover this amendment; final approval covers the reviewed plan only.

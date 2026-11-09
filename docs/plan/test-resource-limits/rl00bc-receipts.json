@@ -1,0 +1,208 @@
+{
+  "schema": "rl00bc-receipts/1",
+  "frozen_sha": "9acec68e0a8196276cadbf1200b1e5d56928115d",
+  "recorded": "2026-11-09",
+  "artifact_count": 53,
+  "method": "SHA-256 of each downloaded artifact ZIP, compared with the digest the GitHub API reports; each artifact's identity.json names the frozen commit",
+  "retention": "GitHub artifacts expire after one day; these hashes and identifiers remain",
+  "runs": [
+    {
+      "phase": "prepare",
+      "run": 42554150955,
+      "ref": "spike/rl00bc-prepare",
+      "created_at": "2026-11-09T03:02:23Z",
+      "jobs": [
+        {"job": 128956054751, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128956018711, "name": "remaining-models (ubuntu-24.04, host, python) / collect", "conclusion": "success", "artifact": {"id": 13647095674, "name": "rl00bc-prepare-python-host-ubuntu-24.04", "bytes": 705102, "sha256": "961990efe9295e9a423743cafdbbd7a67a53d0d358feb1fe486fad8bcc6a8fd9"}},
+        {"job": 128956018800, "name": "remaining-models (ubuntu-24.04, prepared, python) / collect", "conclusion": "success", "artifact": {"id": 13646752091, "name": "rl00bc-prepare-python-prepared-ubuntu-24.04", "bytes": 704730, "sha256": "d0a28cedb94cf9d5c16cdba08b477dc517fd5fc3e2848eee4e5744edc90962ef"}},
+        {"job": 128956018572, "name": "remaining-models (ubuntu-24.04-arm, host, python) / collect", "conclusion": "success", "artifact": {"id": 13647030935, "name": "rl00bc-prepare-python-host-ubuntu-24.04-arm", "bytes": 705383, "sha256": "36fd645145c696873c30c51b25cc3105065e86c5ae3ace264de9022b6ec8b227"}},
+        {"job": 128956018807, "name": "remaining-models (ubuntu-24.04-arm, prepared, python) / collect", "conclusion": "success", "artifact": {"id": 13646766877, "name": "rl00bc-prepare-python-prepared-ubuntu-24.04-arm", "bytes": 704927, "sha256": "bab90d611eba95631c7c83ab31ef26a8876b254093c99f872a281d911e4b9ec9"}},
+        {"job": 128956019466, "name": "risk-models", "conclusion": "skipped"}
+      ]
+    },
+    {
+      "phase": "correctness",
+      "run": 42554757095,
+      "ref": "spike/rl00bc-correctness",
+      "created_at": "2026-11-09T03:08:57Z",
+      "jobs": [
+        {"job": 128957885808, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128960522090, "name": "remaining-models", "conclusion": "skipped"},
+        {"job": 128957884517, "name": "risk-models (ubuntu-24.04, host, browser) / collect", "conclusion": "failure", "artifact": {"id": 13646853192, "name": "rl00bc-correctness-browser-host-ubuntu-24.04", "bytes": 5277205, "sha256": "865ecdbef4e8553430288f3c547ab10fe406c69fa004503f96cdea45f9b3bb04"}},
+        {"job": 128957884542, "name": "risk-models (ubuntu-24.04, host, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128957884322, "name": "risk-models (ubuntu-24.04, prepared, browser) / collect", "conclusion": "failure", "artifact": {"id": 13646798311, "name": "rl00bc-correctness-browser-prepared-ubuntu-24.04", "bytes": 5094001, "sha256": "c532baabc063317f7a391b8bb2411714cdf48fef6643c69b2db77c8207b30d91"}},
+        {"job": 128957884601, "name": "risk-models (ubuntu-24.04, prepared, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128959097401, "name": "risk-models (ubuntu-24.04-arm, host, browser) / collect", "conclusion": "failure", "artifact": {"id": 13646903715, "name": "rl00bc-correctness-browser-host-ubuntu-24.04-arm", "bytes": 5563177, "sha256": "daf73b3964f157f44189cb1afbc321e62ab17e500a3ef9a59587f2d071dca704"}},
+        {"job": 128959076446, "name": "risk-models (ubuntu-24.04-arm, host, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128959266539, "name": "risk-models (ubuntu-24.04-arm, prepared, browser) / collect", "conclusion": "failure", "artifact": {"id": 13647560428, "name": "rl00bc-correctness-browser-prepared-ubuntu-24.04-arm", "bytes": 5416918, "sha256": "da59c91ab9a8f1de9a35e7f071956bfaeca31c790e5c6f323e2fa128d54a4e1c"}},
+        {"job": 128959141572, "name": "risk-models (ubuntu-24.04-arm, prepared, dart) / collect", "conclusion": "failure", "artifact": null}
+      ]
+    },
+    {
+      "phase": "compatibility",
+      "run": 42554758633,
+      "ref": "spike/rl00bc-compatibility",
+      "created_at": "2026-11-09T03:08:58Z",
+      "jobs": [
+        {"job": 128957891203, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128959253623, "name": "remaining-models", "conclusion": "skipped"},
+        {"job": 128957890446, "name": "risk-models (ubuntu-24.04, host, browser) / collect", "conclusion": "success", "artifact": {"id": 13646713316, "name": "rl00bc-compatibility-browser-host-ubuntu-24.04", "bytes": 822510, "sha256": "b5125b64e558bb0179e8f8bab5cc5bc322ff650874ce1fb1cbba6569ada78277"}},
+        {"job": 128957890415, "name": "risk-models (ubuntu-24.04, host, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128957890184, "name": "risk-models (ubuntu-24.04, prepared, browser) / collect", "conclusion": "success", "artifact": {"id": 13647007109, "name": "rl00bc-compatibility-browser-prepared-ubuntu-24.04", "bytes": 825316, "sha256": "0d02176a3f297b9a1e6405006d82a79991adc5d41488640474903cdc56001d8b"}},
+        {"job": 128957890350, "name": "risk-models (ubuntu-24.04, prepared, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128958423514, "name": "risk-models (ubuntu-24.04-arm, host, browser) / collect", "conclusion": "success", "artifact": {"id": 13647281149, "name": "rl00bc-compatibility-browser-host-ubuntu-24.04-arm", "bytes": 823032, "sha256": "c8c2832d7ccafe927e3c2c77d64196c7fecebfddb8f74e57abfe5f4ffaa41dd9"}},
+        {"job": 128958375764, "name": "risk-models (ubuntu-24.04-arm, host, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128958519397, "name": "risk-models (ubuntu-24.04-arm, prepared, browser) / collect", "conclusion": "success", "artifact": {"id": 13646298953, "name": "rl00bc-compatibility-browser-prepared-ubuntu-24.04-arm", "bytes": 835468, "sha256": "23463c060d6a1bbe40a54424515c06fe6e3a7378cbdc2e444824fc7adb049505"}},
+        {"job": 128958470999, "name": "risk-models (ubuntu-24.04-arm, prepared, dart) / collect", "conclusion": "failure", "artifact": null}
+      ]
+    },
+    {
+      "phase": "methods",
+      "run": 42554757751,
+      "ref": "spike/rl00bc-methods",
+      "created_at": "2026-11-09T03:08:57Z",
+      "jobs": [
+        {"job": 128957887971, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128963570107, "name": "remaining-models", "conclusion": "skipped"},
+        {"job": 128957886967, "name": "risk-models (ubuntu-24.04, host, browser) / collect", "conclusion": "success", "artifact": {"id": 13647355948, "name": "rl00bc-methods-browser-host-ubuntu-24.04", "bytes": 7396800, "sha256": "cef87647eb572648d6ab87df1b8afbdfc2207e2eec0e400d19f146142def47a2"}},
+        {"job": 128957887139, "name": "risk-models (ubuntu-24.04, host, dart) / collect", "conclusion": "failure", "artifact": {"id": 13646673726, "name": "rl00bc-methods-dart-host-ubuntu-24.04", "bytes": 301147, "sha256": "dd3b6ca6d855980565d795769812ed5d150838146f66769a279bff982248ce27"}},
+        {"job": 128957887195, "name": "risk-models (ubuntu-24.04, prepared, browser) / collect", "conclusion": "success", "artifact": {"id": 13646669591, "name": "rl00bc-methods-browser-prepared-ubuntu-24.04", "bytes": 7397344, "sha256": "3546d209849af15af51d0a84ec04462f7159487e26e051bacc2a8f4e2268e0dd"}},
+        {"job": 128957887192, "name": "risk-models (ubuntu-24.04, prepared, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128960056219, "name": "risk-models (ubuntu-24.04-arm, host, browser) / collect", "conclusion": "success", "artifact": {"id": 13647122920, "name": "rl00bc-methods-browser-host-ubuntu-24.04-arm", "bytes": 7765544, "sha256": "0a8a46bb7c54fb0698dc85b9271a7d6fe977226a058c5121fad8b5874146d0cd"}},
+        {"job": 128958419348, "name": "risk-models (ubuntu-24.04-arm, host, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128960982818, "name": "risk-models (ubuntu-24.04-arm, prepared, browser) / collect", "conclusion": "success", "artifact": {"id": 13647945864, "name": "rl00bc-methods-browser-prepared-ubuntu-24.04-arm", "bytes": 7747433, "sha256": "8ba8d7f081fe5db0178a1c15f3174e85ef1ceccab40009990ea2768dec3dcacf"}},
+        {"job": 128960386677, "name": "risk-models (ubuntu-24.04-arm, prepared, dart) / collect", "conclusion": "failure", "artifact": null}
+      ]
+    },
+    {
+      "phase": "lifecycle",
+      "run": 42556021184,
+      "ref": "spike/rl00bc-lifecycle",
+      "created_at": "2026-11-09T03:22:11Z",
+      "jobs": [
+        {"job": 128961777842, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128961777039, "name": "remaining-models (ubuntu-24.04, host, python) / collect", "conclusion": "failure", "artifact": {"id": 13646968137, "name": "rl00bc-lifecycle-python-host-ubuntu-24.04", "bytes": 743590, "sha256": "a8d60e825584918105e499720c48f2e5ee1e98a6f43f7511fc77f7f5e8692e01"}},
+        {"job": 128961776789, "name": "remaining-models (ubuntu-24.04, prepared, python) / collect", "conclusion": "failure", "artifact": {"id": 13647402500, "name": "rl00bc-lifecycle-python-prepared-ubuntu-24.04", "bytes": 743030, "sha256": "e2c724d8781f054e438d9622661dac47226a45b07a741090463f66000989a2c0"}},
+        {"job": 128961777096, "name": "remaining-models (ubuntu-24.04-arm, host, python) / collect", "conclusion": "failure", "artifact": {"id": 13646514470, "name": "rl00bc-lifecycle-python-host-ubuntu-24.04-arm", "bytes": 743837, "sha256": "3a9e244ccb4581e9b31d790767f2614cd81d995e3df133a3c23e8e50fd14dc2d"}},
+        {"job": 128961777000, "name": "remaining-models (ubuntu-24.04-arm, prepared, python) / collect", "conclusion": "failure", "artifact": {"id": 13647775712, "name": "rl00bc-lifecycle-python-prepared-ubuntu-24.04-arm", "bytes": 743472, "sha256": "292e203c15b982d42ec8c12e70771120ee482adabae58aff709209ca282eed9e"}},
+        {"job": 128961813279, "name": "risk-models", "conclusion": "skipped"}
+      ]
+    },
+    {
+      "phase": "nested",
+      "run": 42556022163,
+      "ref": "spike/rl00bc-nested",
+      "created_at": "2026-11-09T03:22:12Z",
+      "jobs": [
+        {"job": 128961780255, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128961779384, "name": "remaining-models (ubuntu-24.04, host, python) / collect", "conclusion": "failure", "artifact": {"id": 13646858304, "name": "rl00bc-nested-python-host-ubuntu-24.04", "bytes": 758827, "sha256": "0adbb7a71134b8bd12a04a1f5f1d26116b7efcec570c499cf56f617f654dbde3"}},
+        {"job": 128961779470, "name": "remaining-models (ubuntu-24.04, prepared, python) / collect", "conclusion": "failure", "artifact": {"id": 13647860392, "name": "rl00bc-nested-python-prepared-ubuntu-24.04", "bytes": 758427, "sha256": "0168eef9d5de00e3328eeac193b85f5b8b4623d617040caa0775579dfae80090"}},
+        {"job": 128961779389, "name": "remaining-models (ubuntu-24.04-arm, host, python) / collect", "conclusion": "failure", "artifact": {"id": 13647745927, "name": "rl00bc-nested-python-host-ubuntu-24.04-arm", "bytes": 759224, "sha256": "543a9818b054d45ec366b577ec6110427900186472df019969c30405b887e3b2"}},
+        {"job": 128961779451, "name": "remaining-models (ubuntu-24.04-arm, prepared, python) / collect", "conclusion": "failure", "artifact": {"id": 13647447199, "name": "rl00bc-nested-python-prepared-ubuntu-24.04-arm", "bytes": 758816, "sha256": "4a5c8d64c24825c860e3c88022aa5e8d41b0ebae5c3f2d1f19db8e69150ea620"}},
+        {"job": 128961780603, "name": "risk-models", "conclusion": "skipped"}
+      ]
+    },
+    {
+      "phase": "faults",
+      "run": 42556023230,
+      "ref": "spike/rl00bc-faults",
+      "created_at": "2026-11-09T03:22:12Z",
+      "jobs": [
+        {"job": 128961784061, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128961782899, "name": "remaining-models (ubuntu-24.04, host, python) / collect", "conclusion": "failure", "artifact": {"id": 13647940214, "name": "rl00bc-faults-python-host-ubuntu-24.04", "bytes": 714617, "sha256": "fe7ba7d4a50d65c120c3660c1dfb30aa31a2656b549c90f88c0b25392e665a5f"}},
+        {"job": 128961783270, "name": "remaining-models (ubuntu-24.04, prepared, python) / collect", "conclusion": "failure", "artifact": {"id": 13646514441, "name": "rl00bc-faults-python-prepared-ubuntu-24.04", "bytes": 714206, "sha256": "b7eef647d3261625fb9346230c43faeff1921c476d31a7e8fd8ee5b58ceea1f3"}},
+        {"job": 128961783206, "name": "remaining-models (ubuntu-24.04-arm, host, python) / collect", "conclusion": "failure", "artifact": {"id": 13647681035, "name": "rl00bc-faults-python-host-ubuntu-24.04-arm", "bytes": 714929, "sha256": "f651b5b7bfe0a258e36f43ce1ba66b34cee2572db7535a27eb28d3cfb0905243"}},
+        {"job": 128961783300, "name": "remaining-models (ubuntu-24.04-arm, prepared, python) / collect", "conclusion": "failure", "artifact": {"id": 13647591442, "name": "rl00bc-faults-python-prepared-ubuntu-24.04-arm", "bytes": 714383, "sha256": "b9567c4d2cd6cc8ae6b19e181c9a603c846b03fb5ffbb7f3614836a5696572df"}},
+        {"job": 128961784139, "name": "risk-models", "conclusion": "skipped"}
+      ]
+    },
+    {
+      "phase": "selection-pressure",
+      "run": 42556025730,
+      "ref": "spike/rl00bc-selection-pressure",
+      "created_at": "2026-11-09T03:22:14Z",
+      "jobs": [
+        {"job": 128961836958, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128961791093, "name": "remaining-models (ubuntu-24.04, host, python) / collect", "conclusion": "success", "artifact": {"id": 13647198712, "name": "rl00bc-selection-pressure-python-host-ubuntu-24.04", "bytes": 736988, "sha256": "4a466599dcd188a1ac1c2f0c91d1e56437d70bde6b2f7b8627fdea82ebd37b77"}},
+        {"job": 128961790860, "name": "remaining-models (ubuntu-24.04, prepared, python) / collect", "conclusion": "success", "artifact": {"id": 13647860414, "name": "rl00bc-selection-pressure-python-prepared-ubuntu-24.04", "bytes": 736572, "sha256": "801eb5aefee9e4c6a497872e18aaa20ae08e4b99082a66955dcc1b1767a0de39"}},
+        {"job": 128961790894, "name": "remaining-models (ubuntu-24.04-arm, host, python) / collect", "conclusion": "success", "artifact": {"id": 13646968129, "name": "rl00bc-selection-pressure-python-host-ubuntu-24.04-arm", "bytes": 737306, "sha256": "6eb5d6d1bb743850b26e5b99089e458ac5dd752eff9a356de169449153773b13"}},
+        {"job": 128961790632, "name": "remaining-models (ubuntu-24.04-arm, prepared, python) / collect", "conclusion": "success", "artifact": {"id": 13647237290, "name": "rl00bc-selection-pressure-python-prepared-ubuntu-24.04-arm", "bytes": 736832, "sha256": "c4ac93cedbc2dd8a6646c81f2c60949170ed7ec2b8c32132c7fbc7445bd0da76"}},
+        {"job": 128961791465, "name": "risk-models", "conclusion": "skipped"}
+      ]
+    },
+    {
+      "phase": "guardian-race-launch-first",
+      "run": 42556026757,
+      "ref": "spike/rl00bc-guardian-race-launch-first",
+      "created_at": "2026-11-09T03:22:15Z",
+      "jobs": [
+        {"job": 128961833873, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128961794277, "name": "remaining-models (ubuntu-24.04, host, python) / collect", "conclusion": "success", "artifact": {"id": 13647746010, "name": "rl00bc-guardian-race-launch-first-python-host-ubuntu-24.04", "bytes": 301511, "sha256": "7fdf0ff1e33b0c11a6b7e6bff8eda232be3821ffb1a85a483e9b09c578e49510"}},
+        {"job": 128961794111, "name": "remaining-models (ubuntu-24.04, prepared, python) / collect", "conclusion": "success", "artifact": {"id": 13647675948, "name": "rl00bc-guardian-race-launch-first-python-prepared-ubuntu-24.04", "bytes": 301159, "sha256": "8ab9a84be9ac4fdda197cf0632e19360818e134ff3acaf565e25595b0ebcf23d"}},
+        {"job": 128961794293, "name": "remaining-models (ubuntu-24.04-arm, host, python) / collect", "conclusion": "success", "artifact": {"id": 13647825722, "name": "rl00bc-guardian-race-launch-first-python-host-ubuntu-24.04-arm", "bytes": 301518, "sha256": "3a2a41b0fc4ae9fda4a5afb5018cb94c743cf82b9bd7bf1d7184b1c8354557b5"}},
+        {"job": 128961794270, "name": "remaining-models (ubuntu-24.04-arm, prepared, python) / collect", "conclusion": "success", "artifact": {"id": 13647751009, "name": "rl00bc-guardian-race-launch-first-python-prepared-ubuntu-24.04-arm", "bytes": 301174, "sha256": "897f69695252abe4ea8a63f993001652186d8bd9eb3569234b94d51d7e732215"}},
+        {"job": 128961794863, "name": "risk-models", "conclusion": "skipped"}
+      ]
+    },
+    {
+      "phase": "guardian-race-closing-first",
+      "run": 42556028502,
+      "ref": "spike/rl00bc-guardian-race-closing-first",
+      "created_at": "2026-11-09T03:22:16Z",
+      "jobs": [
+        {"job": 128961801401, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128961799944, "name": "remaining-models (ubuntu-24.04, host, python) / collect", "conclusion": "success", "artifact": {"id": 13647885376, "name": "rl00bc-guardian-race-closing-first-python-host-ubuntu-24.04", "bytes": 300106, "sha256": "3885b4d2071b9cdcc098bf4394014c45d8c6f0276a6c116c2d259dd7da45d7f0"}},
+        {"job": 128961799949, "name": "remaining-models (ubuntu-24.04, prepared, python) / collect", "conclusion": "success", "artifact": {"id": 13647501979, "name": "rl00bc-guardian-race-closing-first-python-prepared-ubuntu-24.04", "bytes": 299750, "sha256": "9e4ff430a4e4b536365a5916f7e7bc5755b811934a65f2941aeab00acff5eeab"}},
+        {"job": 128961800079, "name": "remaining-models (ubuntu-24.04-arm, host, python) / collect", "conclusion": "success", "artifact": {"id": 13647267209, "name": "rl00bc-guardian-race-closing-first-python-host-ubuntu-24.04-arm", "bytes": 300105, "sha256": "023c2ae0a56f929a9c7efef607d60171d1790cd0cdb51267091cc90f50ebb6f8"}},
+        {"job": 128961799706, "name": "remaining-models (ubuntu-24.04-arm, prepared, python) / collect", "conclusion": "success", "artifact": {"id": 13647720433, "name": "rl00bc-guardian-race-closing-first-python-prepared-ubuntu-24.04-arm", "bytes": 299756, "sha256": "bff1f654aed37a397915d461ec9e1370e18ad4eaf56731adfdb28abfe9900b18"}},
+        {"job": 128961800862, "name": "risk-models", "conclusion": "skipped"}
+      ]
+    },
+    {
+      "phase": "candidates",
+      "run": 42556030142,
+      "ref": "spike/rl00bc-candidates",
+      "created_at": "2026-11-09T03:22:17Z",
+      "jobs": [
+        {"job": 128961805794, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128961805003, "name": "remaining-models (ubuntu-24.04, host, python) / collect", "conclusion": "success", "artifact": {"id": 13647407782, "name": "rl00bc-candidates-python-host-ubuntu-24.04", "bytes": 731819, "sha256": "c59aa34b60df6a4c77c09f580f4cce6de9518d8937300a4047d46b818a3321d3"}},
+        {"job": 128961805079, "name": "remaining-models (ubuntu-24.04, prepared, python) / collect", "conclusion": "success", "artifact": {"id": 13647034673, "name": "rl00bc-candidates-python-prepared-ubuntu-24.04", "bytes": 731444, "sha256": "cdeb1593ef17174bc9217141235bf8e7b832baa0599a817d8f71284df2b2b252"}},
+        {"job": 128961804978, "name": "remaining-models (ubuntu-24.04-arm, host, python) / collect", "conclusion": "success", "artifact": {"id": 13647461436, "name": "rl00bc-candidates-python-host-ubuntu-24.04-arm", "bytes": 731899, "sha256": "30f261f0b1c998c49916a6d7e8617402edead25c6722bfcc050f32edc66704b4"}},
+        {"job": 128961805083, "name": "remaining-models (ubuntu-24.04-arm, prepared, python) / collect", "conclusion": "success", "artifact": {"id": 13647512000, "name": "rl00bc-candidates-python-prepared-ubuntu-24.04-arm", "bytes": 731513, "sha256": "c5ec5bbc13864285dcf8807a5037cdbf30f7120c6a063e181882cb8a62aa7a5a"}},
+        {"job": 128961836448, "name": "risk-models", "conclusion": "skipped"}
+      ]
+    },
+    {
+      "phase": "measure",
+      "run": 42558123675,
+      "ref": "spike/rl00bc-measure",
+      "created_at": "2026-11-09T03:45:30Z",
+      "jobs": [
+        {"job": 128968312409, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128972370923, "name": "remaining-models", "conclusion": "skipped"},
+        {"job": 128968311864, "name": "risk-models (ubuntu-24.04, host, browser) / collect", "conclusion": "failure", "artifact": {"id": 13647464968, "name": "rl00bc-measure-browser-host-ubuntu-24.04", "bytes": 3843483, "sha256": "df321381f6032d9d92b4d393f789c5f54522301efa39d620145a8bb02b03d1c8"}},
+        {"job": 128968311646, "name": "risk-models (ubuntu-24.04, host, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128968311873, "name": "risk-models (ubuntu-24.04, prepared, browser) / collect", "conclusion": "failure", "artifact": {"id": 13648284058, "name": "rl00bc-measure-browser-prepared-ubuntu-24.04", "bytes": 3840191, "sha256": "7edca5a40c24ad16d72e86e9abadaddfe68c7a6eba545c09776bfeef7838c497"}},
+        {"job": 128968311757, "name": "risk-models (ubuntu-24.04, prepared, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128968953512, "name": "risk-models (ubuntu-24.04-arm, host, browser) / collect", "conclusion": "failure", "artifact": {"id": 13647794353, "name": "rl00bc-measure-browser-host-ubuntu-24.04-arm", "bytes": 3840161, "sha256": "20fc16d1f112a9969bb503fa693ac9c203f6a05c007c11ef3dcc249b680b9b39"}},
+        {"job": 128968861432, "name": "risk-models (ubuntu-24.04-arm, host, dart) / collect", "conclusion": "failure", "artifact": null},
+        {"job": 128969948971, "name": "risk-models (ubuntu-24.04-arm, prepared, browser) / collect", "conclusion": "failure", "artifact": {"id": 13648687545, "name": "rl00bc-measure-browser-prepared-ubuntu-24.04-arm", "bytes": 3842443, "sha256": "d3f6ff9a6102ec71878538ba5464253cf892d8f32eb075ba75dcbfa673ccc0a2"}},
+        {"job": 128969413581, "name": "risk-models (ubuntu-24.04-arm, prepared, dart) / collect", "conclusion": "failure", "artifact": null}
+      ]
+    },
+    {
+      "phase": "adoption",
+      "run": 42561375476,
+      "ref": "spike/rl00bc-adoption",
+      "created_at": "2026-11-09T04:21:29Z",
+      "jobs": [
+        {"job": 128978360207, "name": "preparation-diagnostics", "conclusion": "skipped"},
+        {"job": 128978317596, "name": "remaining-models (ubuntu-24.04, host, python) / collect", "conclusion": "failure", "artifact": {"id": 13650191265, "name": "rl00bc-adoption-python-host-ubuntu-24.04", "bytes": 751826, "sha256": "12a7b1f2176e4fc60319afe2a8598c77930bd8e6061b9ab8babde94975989bf8"}},
+        {"job": 128978317950, "name": "remaining-models (ubuntu-24.04, prepared, python) / collect", "conclusion": "failure", "artifact": {"id": 13649807220, "name": "rl00bc-adoption-python-prepared-ubuntu-24.04", "bytes": 746653, "sha256": "d6e4b3286d1650451c5fbfecb195b4cddd798758c8eb20478460925b85ee738b"}},
+        {"job": 128978317943, "name": "remaining-models (ubuntu-24.04-arm, host, python) / collect", "conclusion": "failure", "artifact": {"id": 13649807198, "name": "rl00bc-adoption-python-host-ubuntu-24.04-arm", "bytes": 751813, "sha256": "a0ab142f53e79b8803c5176d5f504bb55ece4ce6bbab58f4f5ceb988bc838c8e"}},
+        {"job": 128978317951, "name": "remaining-models (ubuntu-24.04-arm, prepared, python) / collect", "conclusion": "failure", "artifact": {"id": 13650230898, "name": "rl00bc-adoption-python-prepared-ubuntu-24.04-arm", "bytes": 751515, "sha256": "728b95e46631ad82e463835fc8b39cec962ed3239caae8ac9e3519a0b00dcc5f"}},
+        {"job": 128978318572, "name": "risk-models", "conclusion": "skipped"}
+      ]
+    }
+  ]
+}
