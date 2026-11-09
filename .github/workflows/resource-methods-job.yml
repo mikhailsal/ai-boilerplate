@@ -82,14 +82,61 @@ jobs:
             --phase "$PHASE" --profile "$PROFILE" --mode "$MODE" \
             --output "$PWD/reports/rl00bc" --scratch "$PWD/.gstack/tmp/rl00bc" \
             --samples 20 --criterion A --criterion-approval "$CRITERION_APPROVAL"
+      - name: Summarize the recorded verdicts in the job log
+        if: always()
+        run: |
+          python3 - <<'PY' || true
+          import json
+          from pathlib import Path
+
+          root = Path("reports/rl00bc")
+
+
+          def load(path):
+              try:
+                  return json.loads(path.read_text(encoding="utf-8"))
+              except (OSError, ValueError):
+                  return None
+
+
+          phase = load(root / "phase.json")
+          if phase is None:
+              print("phase.json was not written")
+          else:
+              result = phase.get("result") or {}
+              keys = ("status", "verdict", "success", "prepared", "error")
+              summary = {key: result[key] for key in keys if key in result}
+              summary["collection_complete"] = phase.get("collection_complete")
+              summary["comparison_passed"] = phase.get("comparison_passed")
+              print("phase.json", json.dumps(summary, sort_keys=True))
+          for name in ("outer.json", "outer-observation.json"):
+              data = load(root / name)
+              print(name, "missing" if data is None else json.dumps(data, sort_keys=True))
+          for path in sorted(root.glob("prepare-*/result.json")):
+              data = load(path) or {}
+              keys = ("cause", "success", "native_status", "timed_out")
+              print(path.parent.name, json.dumps({key: data.get(key) for key in keys}, sort_keys=True))
+          log = root / "service.log"
+          if log.is_file():
+              print("service.log tail")
+              print("\n".join(log.read_text(encoding="utf-8", errors="replace").splitlines()[-40:]))
+          PY
+      - name: Pack the records without artifact-unsafe file names
+        if: always()
+        # Dart event files contain a colon, which the artifact service refuses; tar keeps every name.
+        run: |
+          mkdir -p reports/rl00bc reports/upload
+          tar --create --gzip --file reports/upload/rl00bc-records.tar.gz \
+            --exclude='rl00bc/measurement/*/artifacts' --directory reports rl00bc
+          cp reports/rl00bc/*.json reports/upload/ || true
+          sha256sum reports/upload/rl00bc-records.tar.gz
       - name: Preserve source, producer and kernel records
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: rl00bc-${{ steps.phase.outputs.name }}-${{ inputs.profile }}-${{ inputs.mode }}-${{ inputs.runner }}
-          path: |
-            reports/rl00bc
-            !reports/rl00bc/measurement/**/artifacts/**
+          path: reports/upload
           if-no-files-found: error
           include-hidden-files: true
           retention-days: 1
+          compression-level: 0

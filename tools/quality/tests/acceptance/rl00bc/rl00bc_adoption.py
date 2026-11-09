@@ -18,6 +18,9 @@ from tests.acceptance.rl00a.rl00a_cgroup import Group
 from tests.acceptance.rl00bc import rl00bc_kernel
 from tests.acceptance.rl00bc.rl00bc_errors import expired, unavailable
 
+# The last native phase; reaching it proves every earlier required phase succeeded.
+FINAL_PHASE = "rollback-diff"
+
 
 def _component_files(root: Path, version: str, versions: dict[str, str]) -> None:
     names = ("coverage", "pytest", "pytest-cov")
@@ -176,7 +179,7 @@ def _update(
     if customization.read_text(encoding="utf-8") != custom_text:
         unavailable("rollback changed downstream customization")
     require("rollback-check", [str(project / "quality"), "check", "--all"], project)
-    require("rollback-diff", [git, "diff", "--cached", "--exit-code"], project)
+    require(FINAL_PHASE, [git, "diff", "--cached", "--exit-code"], project)
 
 
 class _Runner:

@@ -15,6 +15,8 @@ from tests.acceptance.rl00bc.rl00bc_errors import invalid
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[4]
+# Mirrors rl00bc_adoption.FINAL_PHASE; test_rl00bc_driver.py pins the two together.
+ADOPTION_FINAL_PHASE = "rollback-diff"
 PHASES = (
     "prepare",
     "correctness",
@@ -38,19 +40,34 @@ def _phase(args: argparse.Namespace, work: Group, environment: dict[str, str]) -
     return rl00bc_phases.run(args, work, REPO, environment)
 
 
-def _adoption_passed(result: dict[str, object]) -> bool:
-    phases = result.get("phases")
-    if not isinstance(phases, list) or not phases:
-        return False
-    return all(_successful(item) for item in cast(list[object], phases))
+def _unrun(value: object) -> bool:
+    return isinstance(value, dict) and cast(dict[str, object], value).get("status") == "unrun"
 
 
 def _successful(value: object) -> bool:
-    return isinstance(value, dict) and cast(dict[str, object], value).get("success") is True
+    if not isinstance(value, dict):
+        return False
+    record = cast(dict[str, object], value)
+    return record.get("success") is True and record.get("cleanup_complete") is True
+
+
+def _adoption_passed(result: dict[str, object]) -> bool:
+    """Accept only a finished export, onboarding, update and rollback chain.
+
+    Phases are recorded by name; a deliberately unrun proof never counts as a failure,
+    but a chain that stopped before its final phase never passes.
+    """
+    phases = result.get("phases")
+    if not isinstance(phases, dict) or ADOPTION_FINAL_PHASE not in phases:
+        return False
+    recorded = cast(dict[str, object], phases)
+    return all(_successful(item) for item in recorded.values() if not _unrun(item))
 
 
 def comparison_passed(phase: str, result: dict[str, object]) -> bool:
     """Stop dependent jobs on failed comparisons without certifying integration."""
+    # These collections end at observed-partial while their other required proofs stay pending.
+    partial = result.get("status") == "observed-partial"
     return {
         "prepare": result.get("prepared") is True,
         "correctness": result.get("verdict") == "comparisons-passed-external-proofs-pending",
@@ -58,9 +75,9 @@ def comparison_passed(phase: str, result: dict[str, object]) -> bool:
         "candidates": result.get("success") is True,
         "measure": result.get("status") == "timing-cells-pass-required-proofs-pending",
         "methods": result.get("status") == "observed-with-required-proofs-pending",
-        "lifecycle": result.get("success") is True,
-        "nested": result.get("success") is True,
-        "faults": result.get("success") is True,
+        "lifecycle": partial,
+        "nested": partial,
+        "faults": partial,
         "selection-pressure": result.get("success") is True,
         "adoption": _adoption_passed(result),
     }[phase]
