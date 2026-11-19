@@ -22,6 +22,7 @@
 | [0016](decisions/0016-template-lifecycle.md) | Template lifecycle: export, components, tool updates, and adapter contracts |
 | [0017](decisions/0017-browser-frontend-profile.md) | Browser frontend profile: React, Vite, component model, versions, static checks, unit suites |
 | [0018](decisions/0018-browser-builds-and-scenarios.md) | Browser builds, Playwright scenarios, accessibility, and the browser CI job |
+| [0019](decisions/0019-per-test-resource-limits.md) | Per-test resource limits are not adopted: the evidence and what stays open |
 
 ## Guides
 
@@ -67,5 +68,9 @@
   and the [frontend traceability matrix](plan/frontend/traceability.md).
 - [Frontend handoff](plan/frontend/handoff.md): status, contracts,
   versions, startup, verification, hosting, and limitations.
+- [Bounded test execution](plan/bounded-test-execution.md): the open problem
+  after the RL00 no-go ([decision 0019](decisions/0019-per-test-resource-limits.md)),
+  [why no solution has been found](plan/bounded-test-execution-causes.md), and
+  [directions for a solution](plan/bounded-test-execution-options.md).
 
 <!-- maintainer-only:end -->
