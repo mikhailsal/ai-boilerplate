@@ -14,8 +14,9 @@ not tested and must not be quoted as findings.
    neighbours. The only method that gave an unambiguous number was a fresh
    subject per case: runtime start, imports, collection, setup, call and
    teardown. Evidence: in the browser corpus the instrumented canonical run
-   matched the native median, while eight fresh probes took about two seconds
-   each and added 14.4 to 17.8 s per sample. Under criterion A the corpus could
+   matched the native median. For each sample the researchers summed the time
+   of all eight fresh probes. The median of those totals ranged from 14.4 to
+   17.8 s across the four environments. Under criterion A the corpus could
    add only about 5.5 to 6.4 s over the native p95, roughly 0.7 to 0.8 s per
    probe, if the instrumented run costs what the native one does. Hypothesis:
    the overhead grows with cases times start-up cost, while native time grows
@@ -64,7 +65,8 @@ not tested and must not be quoted as findings.
    not depend on the launching process, and a late sweep on the next invocation
    does not count. Evidence: after SIGKILL of the requester, no automatic
    cleanup was observed in four of four cells, the mechanism is unattributed and
-   the recovery from abrupt guardian and controller death never ran. Until this
+   the RL00b/c recovery tests for abrupt guardian and controller death never ran.
+   RL00a measured its own guardian-death fallback. Until this
    closes, even the containment half of the problem is not finished.
 
 7. **Fail-closed protection needs an environment that may not exist.**
@@ -76,8 +78,8 @@ not tested and must not be quoted as findings.
    without administrator wait. Administrator wait, missing delegation and
    novice usability were never measured.
 
-8. **The experiments were expensive.** All heavy work ran in CI by the owner's
-   instruction. The harness grew to 81 files with 16,282 added lines under the
+8. **The experiments were expensive.** The owner required all heavy RL00b/c
+   runs to use CI. The harness grew to 81 files with 16,282 added lines under the
    acceptance tests, plus three workflows. Evidence: an artifact upload lost 15
    Dart artifacts over a colon in a file name, and a verdict-mapping defect
    turned complete records red; neither was found by the static review, and each
@@ -115,4 +117,5 @@ cost the owner.
   real agent-written suites.
 - How long onboarding takes with real administrator wait and missing
   delegation, and whether a novice can act on the verdicts.
-- Why cleanup did not happen after SIGKILL of the requester.
+- Why the RL00b/c fixtures observed no automatic cleanup within three seconds
+  after SIGKILL of the requester.

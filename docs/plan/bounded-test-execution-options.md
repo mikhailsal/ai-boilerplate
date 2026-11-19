@@ -92,7 +92,8 @@ about 0.7 or 0.8 seconds.
 - Main risks: sharing weakens the isolation that made probes certain.
 - First experiment: split the browser probe into build, server start, browser
   launch, collection and test body. If no part can shrink enough, stop.
-- Owner decision: none for the measurement itself.
+- Owner decision: approve the measurement in the new protocol. It can use the
+  original cost criterion.
 
 ### E. Sound change-impact selection
 
@@ -122,7 +123,7 @@ every profile.
 ### G. Advisory telemetry first
 
 Report the slowest cases and, where measurable, the most memory-hungry ones
-from the current run only. The approved scope already lists optional suite
+from the current run only. The archived design lists optional suite
 rankings (SLOW-01 and MEMORY-01) and excludes historical storage and regression
 ratchets. Real data would show how agent-written suites behave before any
 threshold is enforced.
@@ -131,15 +132,20 @@ threshold is enforced.
   no timing today, so the reports need that change first.
 - First experiment: keep per-test durations in the normalized results and
   inspect this repository's own suites.
-- Owner decision: none beyond the approved scope.
+- Owner decision: approve a reporting experiment and its scope before
+  changing the normalized results.
 
 ### H. Close the foundation gap
 
-Attribute why nothing was cleaned up after SIGKILL of the requester, and run
-the guardian and controller death cases that never ran. Every direction that
+Investigate why the RL00b/c campaign observed no automatic cleanup within
+three seconds of requester SIGKILL. Exercise the campaign's unrun guardian
+and controller death cases. Every direction that
 bounds an invocation needs this, and none of the others replaces it.
 
 ## Suggested order
+
+This sequence begins after the owner approves the new protocol and frozen
+commit, including any change to the requirements needed by the first experiment.
 
 1. Facts first, with no enforcement: attribute the cleanup gap (H), keep
    per-test durations in reports (G) and split the browser probe cost (D). Gate:

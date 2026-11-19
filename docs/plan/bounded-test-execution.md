@@ -71,8 +71,8 @@ The binding boundaries come from the archived design and are paraphrased here.
 
 RL00 was the research phase of the design. RL00a built and tested the
 containment foundation, RL00b compared per-case methods and RL00c measured
-overhead and adoption. The campaign ran on frozen commit `9acec68` and all heavy
-work ran in CI.
+overhead and adoption. RL00a included local and CI runs. The RL00b/c campaign
+ran its heavy checks in CI on frozen commit `9acec68`.
 
 | Finding | Evidence |
 | --- | --- |
@@ -80,7 +80,7 @@ work ran in CI.
 | Kernel limits are not exact | A dirty-page writer's kernel peak exceeded its 32 MiB ceiling by 4 KiB, and residual charges after a kill were sometimes nonzero. Page-cache reclaim needed an owner-approved fixture amendment after the first two CI runs failed. |
 | The lifecycle held in fixed fixtures | Admission, nested budgets, limit and membership drift and both guardian races matched expectations in four Python cells (x86_64 and aarch64, host and prepared). |
 | Instrumenting the canonical run is cheap | The instrumented run matched the native median within 0.03 s in every browser cell. |
-| Fresh per-case probes are expensive | In the browser corpus of eight cases each probe took 1.80 to 2.21 s. Protected p95 was 18.2 to 22.2 s against limits of 9.1 to 10.9 s, about five times the native p95 of 3.5 to 4.4 s, in all four environments. Even the fastest protected sample exceeded its limit. |
+| Fresh per-case probes are expensive | In each environment, the median probe time across all eight browser cases and all timing samples was between 1.80 and 2.21 s. Protected p95 was 18.2 to 22.2 s against limits of 9.1 to 10.9 s, about five times the native p95 of 3.5 to 4.4 s, in all four environments. Even the fastest protected sample exceeded its limit. |
 | Narrow selection is unproven | Selection pressure and 19 candidate steps passed on a finite Python fixture. The evidence claims no selection soundness and never measured the cost of narrow selection. |
 | Attribution is the weak point | Shared-worker attribution was recorded as unsupported. The browser `child` case had a bound identity but no valid allocation-phase attribution. |
 | Abrupt requester death is not covered | After SIGKILL of the requesting process, no automatic cleanup was observed within three seconds in four of four cells. The cause is unattributed. |
