@@ -189,6 +189,7 @@ exclude = [
 ]
 fenced = [
     "quality.toml",
+    ".github/workflows/quality.yml",
     "tools/quality/scenarios.toml",
     "README.md",
     "AGENTS.md",
