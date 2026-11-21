@@ -149,3 +149,31 @@ def test_a16_a_clean_four_language_project_passes_the_hook(export: Export, tmp_p
         assert f"unit coverage of {component}: line 100.00%" in text, component
     for helper in HELPERS:
         assert f"unit coverage of quality-{helper}-helper" in text, helper
+
+
+def test_the_export_plans_php_only_for_an_active_php_component(
+    export: Export, tmp_path: Path
+) -> None:
+    project = export(tmp_path / "project")
+    script = (project.path / ".github/workflows/quality.yml").read_text(encoding="utf-8")
+    assert "pcov=pcov" not in script
+    template = project.repo.head()
+    typescript_project(project.path / "apps/node", name="node")
+    add(project, "apps/node")
+    head = project.repo.commit_all("Add a TypeScript application")
+
+    args = ("ci", "prepare", "--profiles", "--stage", "commit")
+    dormant = project.quality(*args, "--base", template, "--head", head)
+    assert dormant.returncode == 0, output(dormant)
+    assert dormant.stdout_text().splitlines() == ["python", "typescript"]
+
+    helper = project.path / "tools/quality/helpers/php/src/Paths.php"
+    helper.write_bytes(helper.read_bytes() + b"\n")
+    changed = project.repo.commit_all("Touch the shipped PHP helper")
+    active = project.quality(*args, "--base", head, "--head", changed)
+    assert active.returncode == 0, output(active)
+    assert active.stdout_text().splitlines() == ["php", "python", "typescript"]
+
+    initial = project.quality(*args, "--base", "0" * len(head), "--head", head)
+    assert initial.returncode == 0, output(initial)
+    assert initial.stdout_text().splitlines() == ["dart", "php", "python", "typescript"]
